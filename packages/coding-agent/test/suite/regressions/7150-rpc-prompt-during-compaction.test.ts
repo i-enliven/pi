@@ -1,4 +1,4 @@
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it } from "vitest";
 import type { PromptDisposition } from "../../../src/core/agent-session.ts";
 import { createHarness, getMessageText, getUserTexts, type Harness } from "../harness.ts";
@@ -13,11 +13,11 @@ describe("issue #7150: RPC prompt during manual compaction", () => {
 	});
 
 	it("rejects an RPC prompt while manual compaction is in progress", async () => {
-		let markCompactionStarted = () => {};
+		let markCompactionStarted = () => { };
 		const compactionStarted = new Promise<void>((resolve) => {
 			markCompactionStarted = resolve;
 		});
-		let releaseCompaction = () => {};
+		let releaseCompaction = () => { };
 		const compactionReleased = new Promise<void>((resolve) => {
 			releaseCompaction = resolve;
 		});

@@ -1,4 +1,4 @@
-import type { AgentTool, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { AgentTool, ThinkingLevel } from "@i-enliven/pi-agent-core";
 import {
 	fauxAssistantMessage,
 	fauxToolCall,
@@ -6,7 +6,7 @@ import {
 	type JsonObject,
 	type Model,
 	type Usage,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import type { BuildSystemPromptOptions, ExtensionAPI } from "../../src/index.ts";
@@ -267,9 +267,9 @@ describe("AgentSession model and extension characterization", () => {
 				const errorText =
 					toolResult?.role === "toolResult"
 						? toolResult.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("\n")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("\n")
 						: "";
 				return fauxAssistantMessage(errorText);
 			},
@@ -334,9 +334,9 @@ describe("AgentSession model and extension characterization", () => {
 				const text =
 					toolResult?.role === "toolResult"
 						? toolResult.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("\n")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("\n")
 						: "";
 				return fauxAssistantMessage(text);
 			},
@@ -380,9 +380,9 @@ describe("AgentSession model and extension characterization", () => {
 				providerUserText =
 					user && typeof user.content !== "string"
 						? user.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("\n")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("\n")
 						: "";
 				return fauxAssistantMessage("done");
 			},
@@ -421,9 +421,9 @@ describe("AgentSession model and extension characterization", () => {
 				providerUserText =
 					user && typeof user.content !== "string"
 						? user.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("\n")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("\n")
 						: "";
 				return fauxAssistantMessage("done");
 			},
@@ -522,7 +522,7 @@ describe("AgentSession model and extension characterization", () => {
 		});
 		harnesses.push(harness);
 
-		await harness.session.bindExtensions({ shutdownHandler: () => {} });
+		await harness.session.bindExtensions({ shutdownHandler: () => { } });
 		await harness.session.reload();
 
 		expect(lifecycleEvents).toEqual(["start:startup", "shutdown:reload", "start:reload"]);

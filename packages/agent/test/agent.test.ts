@@ -5,7 +5,7 @@ import {
 	getModel,
 	toToolDeclaration,
 	type UserMessage,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import {
@@ -81,7 +81,7 @@ function createDeferred(): {
 	promise: Promise<void>;
 	resolve: () => void;
 } {
-	let resolve = () => {};
+	let resolve = () => { };
 	const promise = new Promise<void>((resolvePromise) => {
 		resolve = resolvePromise;
 	});
@@ -171,9 +171,9 @@ describe("Agent", () => {
 					context.messages.flatMap((message) =>
 						message.role === "system"
 							? [
-									`+${(message.toolsAdded ?? []).map((tool) => tool.name).join(",")}`,
-									`-${(message.toolsRemoved ?? []).map((tool) => tool.name).join(",")}`,
-								]
+								`+${(message.toolsAdded ?? []).map((tool) => tool.name).join(",")}`,
+								`-${(message.toolsRemoved ?? []).map((tool) => tool.name).join(",")}`,
+							]
 							: [],
 					),
 				);
@@ -743,7 +743,7 @@ describe("Agent", () => {
 
 		// Cleanup - abort to stop the stream
 		agent.abort();
-		await firstPrompt.catch(() => {}); // Ignore abort error
+		await firstPrompt.catch(() => { }); // Ignore abort error
 	});
 
 	it("should throw when continue() called while streaming", async () => {
@@ -779,7 +779,7 @@ describe("Agent", () => {
 
 		// Cleanup
 		agent.abort();
-		await firstPrompt.catch(() => {});
+		await firstPrompt.catch(() => { });
 	});
 
 	it("continue() should process queued follow-up messages after an assistant turn", async () => {

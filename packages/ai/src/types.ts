@@ -1,4 +1,4 @@
-import type { TelemetryContext } from "@earendil-works/pi-telemetry";
+import type { TelemetryContext } from "@i-enliven/pi-telemetry";
 import type { AnthropicOptions } from "./api/anthropic-messages.ts";
 import type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
 import type { BedrockOptions } from "./api/bedrock-converse-stream.ts";
@@ -94,9 +94,9 @@ export type ChatTemplateKwargValue =
 	| boolean
 	| null
 	| {
-			$var: "thinking.enabled" | "thinking.effort" | "thinking.budget";
-			omitWhenOff?: boolean;
-	  };
+		$var: "thinking.enabled" | "thinking.effort" | "thinking.budget";
+		omitWhenOff?: boolean;
+	};
 
 /** Top-level request field used to cap reasoning tokens on OpenAI-compatible servers. */
 export type ThinkingTokenBudgetField = "thinking_token_budget" | "thinking_budget" | "thinking_budget_tokens";
@@ -459,45 +459,45 @@ type IsExactlyJsonValue<T> = [T] extends [JsonValue] ? ([JsonValue] extends [T] 
 type IsJsonProperty<T> = IsAny<T> extends true
 	? false
 	: unknown extends T
-		? false
-		: [Exclude<T, undefined>] extends [never]
-			? true
-			: IsJsonCompatible<Exclude<T, undefined>>;
+	? false
+	: [Exclude<T, undefined>] extends [never]
+	? true
+	: IsJsonCompatible<Exclude<T, undefined>>;
 type InvalidJsonKeys<T extends object> = {
 	[TKey in keyof T]-?: TKey extends string | number ? (IsJsonProperty<T[TKey]> extends true ? never : TKey) : TKey;
 }[keyof T];
 type IsJsonCompatible<T> = IsAny<T> extends true
 	? false
 	: unknown extends T
-		? false
-		: IsExactlyJsonValue<T> extends true
-			? true
-			: T extends null | boolean | number | string
-				? true
-				: T extends undefined
-					? false
-					: T extends readonly (infer TItem)[]
-						? IsJsonCompatible<TItem>
-						: T extends (...args: never[]) => unknown
-							? false
-							: T extends object
-								? [InvalidJsonKeys<T>] extends [never]
-									? true
-									: false
-								: false;
+	? false
+	: IsExactlyJsonValue<T> extends true
+	? true
+	: T extends null | boolean | number | string
+	? true
+	: T extends undefined
+	? false
+	: T extends readonly (infer TItem)[]
+	? IsJsonCompatible<TItem>
+	: T extends (...args: never[]) => unknown
+	? false
+	: T extends object
+	? [InvalidJsonKeys<T>] extends [never]
+	? true
+	: false
+	: false;
 
 /** The JSON representation of a typed in-memory value. Optional object properties remain optional. */
 export type JsonRepresentation<T> = IsAny<T> extends true
 	? JsonValue
 	: unknown extends T
-		? JsonValue
-		: [T] extends [JsonValue]
-			? T
-			: T extends readonly unknown[]
-				? { [TKey in keyof T]: JsonRepresentation<Exclude<T[TKey], undefined>> }
-				: T extends object
-					? { [TKey in keyof T]: JsonRepresentation<Exclude<T[TKey], undefined>> }
-					: never;
+	? JsonValue
+	: [T] extends [JsonValue]
+	? T
+	: T extends readonly unknown[]
+	? { [TKey in keyof T]: JsonRepresentation<Exclude<T[TKey], undefined>> }
+	: T extends object
+	? { [TKey in keyof T]: JsonRepresentation<Exclude<T[TKey], undefined>> }
+	: never;
 
 export interface DeferredHandle {
 	provider: string;
@@ -602,21 +602,21 @@ export interface NestedToolCalls {
 
 export type ToolResultMessage<TDetails = JsonValue> = IsJsonCompatible<TDetails> extends true
 	? {
-			role: "toolResult";
-			toolCallId: string;
-			toolName: string;
-			content: (TextContent | ImageContent)[]; // Supports text and images
-			details?: JsonRepresentation<TDetails>;
-			/** Usage from the tool execution itself, if available. Not part of main LLM context accounting. */
-			usage?: Usage;
-			/** Calls this tool made to other tools. Kept for the session record; not sent to the model. */
-			nestedCalls?: NestedToolCalls;
-			isError: boolean;
-			/** Unix timestamp in milliseconds when the result was created. */
-			timestamp: number;
-			/** Milliseconds the tool's execution took, measured with a monotonic clock. Absent for legacy results. */
-			durationMs?: number;
-		}
+		role: "toolResult";
+		toolCallId: string;
+		toolName: string;
+		content: (TextContent | ImageContent)[]; // Supports text and images
+		details?: JsonRepresentation<TDetails>;
+		/** Usage from the tool execution itself, if available. Not part of main LLM context accounting. */
+		usage?: Usage;
+		/** Calls this tool made to other tools. Kept for the session record; not sent to the model. */
+		nestedCalls?: NestedToolCalls;
+		isError: boolean;
+		/** Unix timestamp in milliseconds when the result was created. */
+		timestamp: number;
+		/** Milliseconds the tool's execution took, measured with a monotonic clock. Absent for legacy results. */
+		durationMs?: number;
+	}
 	: never;
 
 export type Message = SystemMessage | UserMessage | AssistantMessage | ToolResultMessage;
@@ -721,13 +721,13 @@ export type GrammarVariants = Partial<Record<GrammarFormat, string>>;
  */
 export type ConstrainedSamplingConfig =
 	| {
-			type: "json_schema";
-			strict: "prefer" | "require";
-	  }
+		type: "json_schema";
+		strict: "prefer" | "require";
+	}
 	| {
-			type: "grammar";
-			variants: GrammarVariants;
-	  };
+		type: "grammar";
+		variants: GrammarVariants;
+	};
 
 export interface Tool<TParameters extends TSchema = TSchema> {
 	name: string;
@@ -793,10 +793,10 @@ export type AssistantMessageEvent =
 	| { type: "toolcall_delta"; contentIndex: number; delta: string; partial: AssistantMessage }
 	| { type: "toolcall_end"; contentIndex: number; toolCall: ToolCall; partial: AssistantMessage }
 	| {
-			type: "done";
-			reason: Extract<StopReason, "stop" | "length" | "toolUse" | "deferred">;
-			message: AssistantMessage;
-	  }
+		type: "done";
+		reason: Extract<StopReason, "stop" | "length" | "toolUse" | "deferred">;
+		message: AssistantMessage;
+	}
 	| { type: "error"; reason: Extract<StopReason, "aborted" | "error">; error: AssistantMessage };
 
 /**
@@ -826,17 +826,17 @@ export interface OpenAICompletionsCompat {
 	requiresReasoningContentOnAssistantMessages?: boolean;
 	/** Format for reasoning/thinking parameter. "openai" uses reasoning_effort, "openrouter" uses reasoning: { effort }, "deepseek" uses thinking: { type } plus reasoning_effort when supported, "together" uses reasoning: { enabled } plus reasoning_effort when supported, "baseten" uses configurable chat_template_args plus reasoning_effort when supported, "zai" uses thinking: { type }, "qwen" uses top-level enable_thinking: boolean, "qwen-chat-template" uses chat_template_kwargs.enable_thinking and preserve_thinking, "chat-template" uses configurable chat_template_kwargs, "string-thinking" uses top-level thinking: string, and "ant-ling" uses reasoning: { effort } only when the mapped effort is non-null. Default: "openai". */
 	thinkingFormat?:
-		| "openai"
-		| "openrouter"
-		| "deepseek"
-		| "together"
-		| "baseten"
-		| "zai"
-		| "qwen"
-		| "chat-template"
-		| "qwen-chat-template"
-		| "string-thinking"
-		| "ant-ling";
+	| "openai"
+	| "openrouter"
+	| "deepseek"
+	| "together"
+	| "baseten"
+	| "zai"
+	| "qwen"
+	| "chat-template"
+	| "qwen-chat-template"
+	| "string-thinking"
+	| "ant-ling";
 	/** Kwargs to send as `chat_template_kwargs` when `thinkingFormat` is `chat-template`. Use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for pi-controlled thinking values. */
 	chatTemplateKwargs?: Record<string, ChatTemplateKwargValue>;
 	/** Arguments to send as `chat_template_args` when `thinkingFormat` is `baseten`. Use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for pi-controlled thinking values. */
@@ -1010,13 +1010,13 @@ export interface OpenRouterRouting {
 	quantizations?: string[];
 	/** Sorting strategy. Can be a string (e.g., "price", "throughput", "latency") or an object with `by` and `partition`. */
 	sort?:
-		| string
-		| {
-				/** The sorting metric: "price", "throughput", "latency". */
-				by?: string;
-				/** Partitioning strategy: "model" (default) or "none". */
-				partition?: string | null;
-		  };
+	| string
+	| {
+		/** The sorting metric: "price", "throughput", "latency". */
+		by?: string;
+		/** Partitioning strategy: "model" (default) or "none". */
+		partition?: string | null;
+	};
 	/** Maximum price per million tokens (USD). */
 	max_price?: {
 		/** Price per million prompt tokens. */
@@ -1032,30 +1032,30 @@ export interface OpenRouterRouting {
 	};
 	/** Preferred minimum throughput (tokens/second). Can be a number (applies to p50) or an object with percentile-specific cutoffs. */
 	preferred_min_throughput?:
-		| number
-		| {
-				/** Minimum tokens/second at the 50th percentile. */
-				p50?: number;
-				/** Minimum tokens/second at the 75th percentile. */
-				p75?: number;
-				/** Minimum tokens/second at the 90th percentile. */
-				p90?: number;
-				/** Minimum tokens/second at the 99th percentile. */
-				p99?: number;
-		  };
+	| number
+	| {
+		/** Minimum tokens/second at the 50th percentile. */
+		p50?: number;
+		/** Minimum tokens/second at the 75th percentile. */
+		p75?: number;
+		/** Minimum tokens/second at the 90th percentile. */
+		p90?: number;
+		/** Minimum tokens/second at the 99th percentile. */
+		p99?: number;
+	};
 	/** Preferred maximum latency (seconds). Can be a number (applies to p50) or an object with percentile-specific cutoffs. */
 	preferred_max_latency?:
-		| number
-		| {
-				/** Maximum latency in seconds at the 50th percentile. */
-				p50?: number;
-				/** Maximum latency in seconds at the 75th percentile. */
-				p75?: number;
-				/** Maximum latency in seconds at the 90th percentile. */
-				p90?: number;
-				/** Maximum latency in seconds at the 99th percentile. */
-				p99?: number;
-		  };
+	| number
+	| {
+		/** Maximum latency in seconds at the 50th percentile. */
+		p50?: number;
+		/** Maximum latency in seconds at the 75th percentile. */
+		p75?: number;
+		/** Maximum latency in seconds at the 90th percentile. */
+		p90?: number;
+		/** Maximum latency in seconds at the 99th percentile. */
+		p99?: number;
+	};
 }
 
 /**
@@ -1148,16 +1148,16 @@ export interface Model<TApi extends Api> extends BaseModel<TApi> {
 	samplingParamsByThinkingLevel?: SamplingParamsByThinkingLevel;
 	/** Compatibility overrides for OpenAI-compatible APIs. If not set, auto-detected from baseUrl. */
 	compat?: TApi extends "openai-completions"
-		? OpenAICompletionsCompat
-		: TApi extends "openai-responses" | "azure-openai-responses" | "openai-codex-responses"
-			? OpenAIResponsesCompat
-			: TApi extends "anthropic-messages"
-				? AnthropicMessagesCompat
-				: TApi extends "bedrock-converse-stream"
-					? BedrockCompat
-					: TApi extends "mistral-conversations"
-						? MistralConversationsCompat
-						: never;
+	? OpenAICompletionsCompat
+	: TApi extends "openai-responses" | "azure-openai-responses" | "openai-codex-responses"
+	? OpenAIResponsesCompat
+	: TApi extends "anthropic-messages"
+	? AnthropicMessagesCompat
+	: TApi extends "bedrock-converse-stream"
+	? BedrockCompat
+	: TApi extends "mistral-conversations"
+	? MistralConversationsCompat
+	: never;
 }
 
 /** Image-generation model: usable with `generateImages()` only. */

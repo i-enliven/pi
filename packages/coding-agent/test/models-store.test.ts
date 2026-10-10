@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { Model } from "@earendil-works/pi-ai";
+import type { Model } from "@i-enliven/pi-ai";
 import lockfile from "proper-lockfile";
 import { afterAll, afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { FileModelsStore } from "../src/core/models-store.ts";
@@ -109,7 +109,7 @@ describe("FileModelsStore", () => {
 		const lockGranted = new Promise<void>((resolve) => {
 			grantLock = resolve;
 		});
-		const release = vi.fn(async () => {});
+		const release = vi.fn(async () => { });
 		const lockSpy = vi.spyOn(lockfile, "lock").mockImplementation(async () => {
 			await lockGranted;
 			return release;

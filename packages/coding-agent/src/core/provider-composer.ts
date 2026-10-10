@@ -24,9 +24,9 @@ import {
 	type SimpleStreamOptions,
 	type StreamOptions,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
-import { getApiProvider } from "@earendil-works/pi-ai/compat";
-import { classifierErrorResult, imageErrorResult } from "@earendil-works/pi-ai/utils/model-operations";
+} from "@i-enliven/pi-ai";
+import { getApiProvider } from "@i-enliven/pi-ai/compat";
+import { classifierErrorResult, imageErrorResult } from "@i-enliven/pi-ai/utils/model-operations";
 import type { ModelConfig, ModelsJsonModel, ModelsJsonModelOverride, ModelsJsonProvider } from "./model-config.ts";
 import {
 	clearConfigValueCache,
@@ -151,12 +151,12 @@ function mergeInputLimits(
 		...override,
 		images: override.images
 			? {
-					...base?.images,
-					...override.images,
-					resize: override.images.resize
-						? { ...base?.images?.resize, ...override.images.resize }
-						: base?.images?.resize,
-				}
+				...base?.images,
+				...override.images,
+				resize: override.images.resize
+					? { ...base?.images?.resize, ...override.images.resize }
+					: base?.images?.resize,
+			}
 			: base?.images,
 	};
 }
@@ -186,12 +186,12 @@ function applyModelOverride(model: Model<Api>, override: ModelsJsonModelOverride
 		inputLimits: mergeInputLimits(model.inputLimits, override.inputLimits),
 		cost: override.cost
 			? {
-					input: override.cost.input ?? model.cost.input,
-					output: override.cost.output ?? model.cost.output,
-					cacheRead: override.cost.cacheRead ?? model.cost.cacheRead,
-					cacheWrite: override.cost.cacheWrite ?? model.cost.cacheWrite,
-					tiers: override.cost.tiers ?? model.cost.tiers,
-				}
+				input: override.cost.input ?? model.cost.input,
+				output: override.cost.output ?? model.cost.output,
+				cacheRead: override.cost.cacheRead ?? model.cost.cacheRead,
+				cacheWrite: override.cost.cacheWrite ?? model.cost.cacheWrite,
+				tiers: override.cost.tiers ?? model.cost.tiers,
+			}
 			: model.cost,
 		promptCache: override.promptCache ? { ...model.promptCache, ...override.promptCache } : model.promptCache,
 		contextWindow: override.contextWindow ?? model.contextWindow,
@@ -609,25 +609,25 @@ export function composeModelProvider(
 		refreshModels:
 			base?.refreshModels || extension?.refreshModels || extension?.oauth?.modifyModels
 				? async (context) => {
-						await base?.refreshModels?.(context);
-						let refreshed: NonNullable<ProviderConfigInput["models"]> | undefined;
-						if (extension?.refreshModels) refreshed = await extension.refreshModels(context);
-						if (context.signal.aborted) return;
-						const oauthCredential = context.credential?.type === "oauth" ? context.credential : undefined;
-						await context.publish({
-							update: () => {
-								if (refreshed) {
-									// Validate before publishing the new synchronous list.
-									applyExtension(providerId, applyModelsJson(providerId, getAllProviderModels(base), config), {
-										...extension,
-										models: refreshed,
-									});
-									refreshedExtensionModels = refreshed;
-								}
-								extensionOAuthCredential = oauthCredential;
-							},
-						});
-					}
+					await base?.refreshModels?.(context);
+					let refreshed: NonNullable<ProviderConfigInput["models"]> | undefined;
+					if (extension?.refreshModels) refreshed = await extension.refreshModels(context);
+					if (context.signal.aborted) return;
+					const oauthCredential = context.credential?.type === "oauth" ? context.credential : undefined;
+					await context.publish({
+						update: () => {
+							if (refreshed) {
+								// Validate before publishing the new synchronous list.
+								applyExtension(providerId, applyModelsJson(providerId, getAllProviderModels(base), config), {
+									...extension,
+									models: refreshed,
+								});
+								refreshedExtensionModels = refreshed;
+							}
+							extensionOAuthCredential = oauthCredential;
+						},
+					});
+				}
 				: undefined,
 		filterModels: base?.filterModels
 			? (models, credential: Credential | undefined) => base.filterModels!(models, credential)

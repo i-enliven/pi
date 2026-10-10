@@ -21,28 +21,28 @@ export const workspaceSourcePaths = {
 export default defineConfig({
 	resolve: {
 		alias: [
-			{ find: /^@earendil-works\/pi-telemetry$/, replacement: workspaceSourcePaths.telemetryIndex },
-			{ find: /^@earendil-works\/pi-telemetry\/testing$/, replacement: workspaceSourcePaths.telemetryTesting },
-			{ find: /^@earendil-works\/pi-mcp$/, replacement: workspaceSourcePaths.mcpIndex },
-			{ find: /^@earendil-works\/pi-mcp\/oauth$/, replacement: workspaceSourcePaths.mcpOAuth },
-			{ find: /^@earendil-works\/pi-mcp\/testing$/, replacement: workspaceSourcePaths.mcpTesting },
-			{ find: /^@earendil-works\/pi-ai$/, replacement: workspaceSourcePaths.aiIndex },
-			{ find: /^@earendil-works\/pi-ai\/compat$/, replacement: workspaceSourcePaths.aiCompat },
-			{ find: /^@earendil-works\/pi-ai\/oauth$/, replacement: workspaceSourcePaths.aiOAuth },
+			{ find: /^@i-enliven\/pi-telemetry$/, replacement: workspaceSourcePaths.telemetryIndex },
+			{ find: /^@i-enliven\/pi-telemetry\/testing$/, replacement: workspaceSourcePaths.telemetryTesting },
+			{ find: /^@i-enliven\/pi-mcp$/, replacement: workspaceSourcePaths.mcpIndex },
+			{ find: /^@i-enliven\/pi-mcp\/oauth$/, replacement: workspaceSourcePaths.mcpOAuth },
+			{ find: /^@i-enliven\/pi-mcp\/testing$/, replacement: workspaceSourcePaths.mcpTesting },
+			{ find: /^@i-enliven\/pi-ai$/, replacement: workspaceSourcePaths.aiIndex },
+			{ find: /^@i-enliven\/pi-ai\/compat$/, replacement: workspaceSourcePaths.aiCompat },
+			{ find: /^@i-enliven\/pi-ai\/oauth$/, replacement: workspaceSourcePaths.aiOAuth },
 			{
-				find: /^@earendil-works\/pi-ai\/utils\/(.+)$/,
+				find: /^@i-enliven\/pi-ai\/utils\/(.+)$/,
 				replacement: `${workspaceSourcePaths.aiUtils}/$1.ts`,
 			},
 			{
-				find: /^@earendil-works\/pi-ai\/api\/(.+)$/,
+				find: /^@i-enliven\/pi-ai\/api\/(.+)$/,
 				replacement: `${workspaceSourcePaths.aiApi}/$1.ts`,
 			},
 			{
-				find: /^@earendil-works\/pi-ai\/providers\/(.+)$/,
+				find: /^@i-enliven\/pi-ai\/providers\/(.+)$/,
 				replacement: `${workspaceSourcePaths.aiProviders}/$1.ts`,
 			},
-			{ find: /^@earendil-works\/pi-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
-			{ find: /^@earendil-works\/pi-tui$/, replacement: workspaceSourcePaths.tuiIndex },
+			{ find: /^@i-enliven\/pi-agent-core$/, replacement: workspaceSourcePaths.agentIndex },
+			{ find: /^@i-enliven\/pi-tui$/, replacement: workspaceSourcePaths.tuiIndex },
 		],
 	},
 });

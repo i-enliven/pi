@@ -3,7 +3,7 @@ import { existsSync, mkdtempSync, readdirSync, readFileSync, realpathSync, rmSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-export const codingAgentName = "@earendil-works/pi-coding-agent";
+export const codingAgentName = "@i-enliven/pi-coding-agent";
 
 export function smokeTestCodingAgent(directory, runtime = process.execPath) {
 	const packageDir = join(directory, "node_modules", codingAgentName);

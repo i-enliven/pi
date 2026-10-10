@@ -1,4 +1,4 @@
-import type { AgentMessage } from "@earendil-works/pi-agent-core";
+import type { AgentMessage } from "@i-enliven/pi-agent-core";
 import {
 	type AssistantMessage,
 	getCurrentSystemMessage,
@@ -10,7 +10,7 @@ import {
 	type Usage,
 	type UserMessage,
 	uuidv7,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import { randomUUID } from "crypto";
 import {
 	appendFileSync,
@@ -1381,8 +1381,8 @@ export class SessionManager {
 		const targetRole = target.type === "message" ? target.message.role : "custom";
 		const normalizedReplacement =
 			replacement !== null &&
-			(targetRole === "assistant" || targetRole === "toolResult") &&
-			typeof replacement.content === "string"
+				(targetRole === "assistant" || targetRole === "toolResult") &&
+				typeof replacement.content === "string"
 				? { content: [{ type: "text" as const, text: replacement.content }] }
 				: replacement;
 		const entry: ContextEditEntry = {
@@ -1655,13 +1655,13 @@ export class SessionManager {
 			pathWithoutLabels.push(
 				entry.type === "compaction"
 					? {
-							...entry,
-							parentId: pathParentId,
-							firstKeptEntryId:
-								entry.firstKeptEntryId === entry.id
-									? entry.id
-									: (replacementByLabelId.get(entry.firstKeptEntryId) ?? entry.firstKeptEntryId),
-						}
+						...entry,
+						parentId: pathParentId,
+						firstKeptEntryId:
+							entry.firstKeptEntryId === entry.id
+								? entry.id
+								: (replacementByLabelId.get(entry.firstKeptEntryId) ?? entry.firstKeptEntryId),
+					}
 					: { ...entry, parentId: pathParentId },
 			);
 			pathParentId = entry.id;

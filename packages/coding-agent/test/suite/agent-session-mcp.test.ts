@@ -1,7 +1,7 @@
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
-import type { ToolResultMessage } from "@earendil-works/pi-ai/compat";
-import { type JsonRpcRequest, LATEST_PROTOCOL_VERSION } from "@earendil-works/pi-mcp";
-import { createInMemoryTransportPair } from "@earendil-works/pi-mcp/testing";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
+import type { ToolResultMessage } from "@i-enliven/pi-ai/compat";
+import { type JsonRpcRequest, LATEST_PROTOCOL_VERSION } from "@i-enliven/pi-mcp";
+import { createInMemoryTransportPair } from "@i-enliven/pi-mcp/testing";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionAPI, ExtensionFactory } from "../../src/core/extensions/types.ts";
 import type { SessionManager } from "../../src/core/session-manager.ts";

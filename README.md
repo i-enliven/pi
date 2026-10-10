@@ -51,15 +51,12 @@ See the [documentation](packages/coding-agent/docs/index.md) for full setup and 
 
 ## Update
 
-`pi update` detects how Pi was installed and prints the matching fork-repo commands.
+`pi update` updates a source checkout in place: it fetches the fork remote and, when the checkout is behind, pulls, reinstalls dependencies, and rebuilds. It refuses to touch a checkout with uncommitted changes or a branch that has diverged from the remote.
 
-For a global install made from a clone, update by pulling and rebuilding:
+For a global install made from a clone, refresh the global package after the rebuild:
 
 ```bash
 cd /path/to/pi
-git pull --ff-only
-npm install --ignore-scripts
-npm run build
 npm install -g --ignore-scripts ./packages/coding-agent
 ```
 

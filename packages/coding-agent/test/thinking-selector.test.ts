@@ -1,4 +1,4 @@
-import { setKeybindings } from "@earendil-works/pi-tui";
+import { setKeybindings } from "@i-enliven/pi-tui";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeybindingsManager } from "../src/core/keybindings.ts";
 import { ThinkingSelectorComponent } from "../src/modes/interactive/components/thinking-selector.ts";
@@ -18,8 +18,8 @@ describe("thinking selector", () => {
 		const selector = new ThinkingSelectorComponent(
 			"medium",
 			["medium", "high"],
-			() => {},
-			() => {},
+			() => { },
+			() => { },
 		);
 		const getLevelRow = (level: string): string | undefined =>
 			selector
@@ -41,8 +41,8 @@ describe("thinking selector", () => {
 		const selector = new ThinkingSelectorComponent(
 			"medium",
 			["medium", "high"],
-			() => {},
-			() => {},
+			() => { },
+			() => { },
 			saveDefault,
 		);
 

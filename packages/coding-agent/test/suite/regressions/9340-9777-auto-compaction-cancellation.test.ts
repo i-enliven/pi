@@ -1,4 +1,4 @@
-import { type AssistantMessage, fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { type AssistantMessage, fauxAssistantMessage } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHarness, type Harness } from "../harness.ts";
 
@@ -79,7 +79,7 @@ describe("automatic compaction cancellation regressions", () => {
 		const harness = await createHarness({ settings: { compaction: { keepRecentTokens: 1 } } });
 		harnesses.push(harness);
 		seedCompactableSession(harness);
-		let markAuthStarted = () => {};
+		let markAuthStarted = () => { };
 		const authStarted = new Promise<void>((resolve) => {
 			markAuthStarted = resolve;
 		});

@@ -12,7 +12,7 @@ const state = vi.hoisted(() => {
 		jitiModuleLoads: 0,
 		virtualModulesLoads: 0,
 		createJiti: vi.fn((_id: unknown, _options: unknown) => ({
-			import: vi.fn(async () => () => {}),
+			import: vi.fn(async () => () => { }),
 		})),
 	};
 });
@@ -27,7 +27,7 @@ vi.mock("../../../src/core/extensions/virtual-modules.ts", () => {
 	return {
 		VIRTUAL_MODULES: {
 			typebox: {},
-			"@earendil-works/pi-coding-agent": {},
+			"@i-enliven/pi-coding-agent": {},
 		},
 	};
 });
@@ -66,6 +66,6 @@ describe("Node SEA extension loading", () => {
 		expect(options.tryNative).toBe(false);
 		expect(options.alias).toBeUndefined();
 		expect(options.virtualModules?.typebox).toBeDefined();
-		expect(options.virtualModules?.["@earendil-works/pi-coding-agent"]).toBeDefined();
+		expect(options.virtualModules?.["@i-enliven/pi-coding-agent"]).toBeDefined();
 	});
 });

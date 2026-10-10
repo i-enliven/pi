@@ -1,5 +1,5 @@
 import * as path from "node:path";
-import type { Container, EditorComponent, TUI } from "@earendil-works/pi-tui";
+import type { Container, EditorComponent, TUI } from "@i-enliven/pi-tui";
 import type { AgentSession } from "../../core/agent-session.ts";
 import {
 	BUG_REPORT_CUSTOM_ENTRY_TYPE,
@@ -137,8 +137,8 @@ function buildBundle(session: AgentSession, options: BugReportOptions, summary: 
 		summary,
 		sessionJsonl: options.includeSession
 			? serializeSessionBranch(session.sessionManager, (parentId, timestamp) =>
-					createShareTrailingEntries(session, parentId, timestamp),
-				)
+				createShareTrailingEntries(session, parentId, timestamp),
+			)
 			: undefined,
 	};
 }

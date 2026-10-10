@@ -2,8 +2,8 @@ import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { type AddressInfo, createServer } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
-import type { ToolResultMessage } from "@earendil-works/pi-ai/compat";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
+import type { ToolResultMessage } from "@i-enliven/pi-ai/compat";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { InMemoryAuthStorageBackend } from "../../src/core/auth-storage.ts";
 import { emitSessionShutdownEvent } from "../../src/core/extensions/runner.ts";
@@ -63,8 +63,8 @@ describe("AgentSession MCP OAuth", () => {
 					browser === "paste"
 						? Promise.resolve(redirectLocation)
 						: new Promise((resolve) =>
-								opts?.signal?.addEventListener("abort", () => resolve(undefined), { once: true }),
-							),
+							opts?.signal?.addEventListener("abort", () => resolve(undefined), { once: true }),
+						),
 			}),
 		});
 		return { harness, server, notifications, backend, opened };
@@ -230,7 +230,7 @@ describe("AgentSession MCP OAuth", () => {
 				agentDir,
 				credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
 				// The user never approves in the browser.
-				openUrl: () => {},
+				openUrl: () => { },
 				log: (line) => output.push(line),
 				error: (line) => output.push(line),
 			});

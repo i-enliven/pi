@@ -12,7 +12,7 @@ import { mkdirSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import process from "node:process";
-import { normalizeContext } from "@earendil-works/pi-ai";
+import { normalizeContext } from "@i-enliven/pi-ai";
 import {
 	type Api,
 	type AssistantMessage,
@@ -22,7 +22,7 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	Type,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import {
 	getOpenAICodexWebSocketDebugStats,
 	streamSimple as streamSimpleOpenAICodexResponses,
@@ -183,8 +183,8 @@ function createMinimalResourceLoader(systemPrompt: string): ResourceLoader {
 		getSystemPromptSource: () => undefined,
 		getAppendSystemPrompt: () => [],
 		getAppendSystemPromptSources: () => [],
-		extendResources: () => {},
-		reload: async () => {},
+		extendResources: () => { },
+		reload: async () => { },
 	};
 }
 
@@ -328,7 +328,7 @@ async function main(): Promise<void> {
 	});
 
 	session.setActiveToolsByName(["deterministic_probe"]);
-	const unsubscribe = session.subscribe(() => {});
+	const unsubscribe = session.subscribe(() => { });
 
 	const records: SubrequestRecord[] = [];
 	const turnElapsedMs: number[] = [];

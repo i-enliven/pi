@@ -1,4 +1,4 @@
-import { setKeybindings, type TUI } from "@earendil-works/pi-tui";
+import { setKeybindings, type TUI } from "@i-enliven/pi-tui";
 import { beforeAll, beforeEach, describe, expect, test, vi } from "vitest";
 import { KeybindingsManager } from "../../../src/core/keybindings.ts";
 import { LoginDialogComponent } from "../../../src/modes/interactive/components/login-dialog.ts";
@@ -13,7 +13,7 @@ function createDialog(): LoginDialogComponent {
 	return new LoginDialogComponent(
 		{ requestRender: vi.fn() } as unknown as TUI,
 		"prompt-repro",
-		() => {},
+		() => { },
 		"Prompt Repro",
 	);
 }

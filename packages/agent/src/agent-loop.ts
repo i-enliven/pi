@@ -14,7 +14,7 @@ import {
 	type ToolStateChanges,
 	toToolDeclaration,
 	validateToolArguments,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import { getDefaultStreamFn } from "./stream-fn.ts";
 import type {
 	AgentContext,
@@ -341,8 +341,8 @@ function declareToolChanges(context: AgentContext, pendingMessages: AgentMessage
 	const pending = pendingMessages[systemIndex] as SystemMessage | undefined;
 	const baseline = pending
 		? pendingMessages.map((message, index) =>
-				index === systemIndex ? withToolChanges(pending, NO_CHANGES) : message,
-			)
+			index === systemIndex ? withToolChanges(pending, NO_CHANGES) : message,
+		)
 		: pendingMessages;
 	const changes = getToolStateChanges(
 		getCurrentTools([...context.messages, ...baseline]),
@@ -814,7 +814,7 @@ export async function runToolCall(toolCall: AgentToolCall, options: RunToolCallO
 	if (preparation.kind === "immediate") {
 		return { toolCall, result: preparation.result, isError: preparation.isError };
 	}
-	const executed = await executePreparedToolCall(preparation, signal, options.onUpdate ?? (() => {}));
+	const executed = await executePreparedToolCall(preparation, signal, options.onUpdate ?? (() => { }));
 	return finalizeExecutedToolCall(context, assistantMessage, preparation, executed, options, signal);
 }
 

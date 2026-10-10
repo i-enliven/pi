@@ -112,7 +112,7 @@ Start with the least powerful mechanism that meets your need:
 Remove the global install:
 
 ```bash
-npm uninstall -g @earendil-works/pi-coding-agent
+npm uninstall -g @i-enliven/pi-coding-agent
 ```
 
 Then delete the clone if you do not need it.

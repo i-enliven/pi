@@ -1,5 +1,5 @@
-import type { Api, Model } from "@earendil-works/pi-ai";
-import { setKeybindings } from "@earendil-works/pi-tui";
+import type { Api, Model } from "@i-enliven/pi-ai";
+import { setKeybindings } from "@i-enliven/pi-tui";
 import { afterEach, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeybindingsManager } from "../../../src/core/keybindings.ts";
 import { ScopedModelsSelectorComponent } from "../../../src/modes/interactive/components/scoped-models-selector.ts";
@@ -31,7 +31,7 @@ function createInteractiveContext(options: {
 		},
 		showStatus: vi.fn(),
 		showSelector: (factory: (done: () => void) => { component: ScopedModelsSelectorComponent }) => {
-			selector = factory(() => {}).component;
+			selector = factory(() => { }).component;
 		},
 		updateAvailableProviderCount: vi.fn(),
 		ui: { requestRender: vi.fn() },
@@ -78,7 +78,7 @@ describe("issue #6949 unavailable scoped models", () => {
 				onPersist: (enabledIds) => {
 					persisted.push(enabledIds);
 				},
-				onCancel: () => {},
+				onCancel: () => { },
 			},
 		);
 

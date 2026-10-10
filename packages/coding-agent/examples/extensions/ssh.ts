@@ -14,7 +14,7 @@
  */
 
 import { spawn } from "node:child_process";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 import {
 	type BashOperations,
 	createBashTool,
@@ -24,7 +24,7 @@ import {
 	type EditOperations,
 	type ReadOperations,
 	type WriteOperations,
-} from "@earendil-works/pi-coding-agent";
+} from "@i-enliven/pi-coding-agent";
 
 function sshExec(remote: string, command: string): Promise<Buffer> {
 	return new Promise((resolve, reject) => {
@@ -48,7 +48,7 @@ function createRemoteReadOps(remote: string, remoteCwd: string, localCwd: string
 	const toRemote = (p: string) => p.replace(localCwd, remoteCwd);
 	return {
 		readFile: (p) => sshExec(remote, `cat ${JSON.stringify(toRemote(p))}`),
-		access: (p) => sshExec(remote, `test -r ${JSON.stringify(toRemote(p))}`).then(() => {}),
+		access: (p) => sshExec(remote, `test -r ${JSON.stringify(toRemote(p))}`).then(() => { }),
 		detectImageMimeType: async (p) => {
 			try {
 				const r = await sshExec(remote, `file --mime-type -b ${JSON.stringify(toRemote(p))}`);
@@ -68,7 +68,7 @@ function createRemoteWriteOps(remote: string, remoteCwd: string, localCwd: strin
 			const b64 = Buffer.from(content).toString("base64");
 			await sshExec(remote, `echo ${JSON.stringify(b64)} | base64 -d > ${JSON.stringify(toRemote(p))}`);
 		},
-		mkdir: (dir) => sshExec(remote, `mkdir -p ${JSON.stringify(toRemote(dir))}`).then(() => {}),
+		mkdir: (dir) => sshExec(remote, `mkdir -p ${JSON.stringify(toRemote(dir))}`).then(() => { }),
 	};
 }
 
@@ -88,9 +88,9 @@ function createRemoteBashOps(remote: string, remoteCwd: string, localCwd: string
 				let timedOut = false;
 				const timer = timeout
 					? setTimeout(() => {
-							timedOut = true;
-							child.kill();
-						}, timeout * 1000)
+						timedOut = true;
+						child.kill();
+					}, timeout * 1000)
 					: undefined;
 				child.stdout.on("data", onData);
 				child.stderr.on("data", onData);

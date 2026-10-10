@@ -70,12 +70,12 @@ let
     # The install lock points internal packages at registry releases. Replace
     # them with the packages built from this checkout.
     packageSourceOverrides = {
-      "node_modules/@earendil-works/pi-agent-core" = workspacePackages + "/agent.tgz";
-      "node_modules/@earendil-works/pi-ai" = workspacePackages + "/ai.tgz";
-      "node_modules/@earendil-works/pi-coding-agent" = workspacePackages + "/coding-agent.tgz";
-      "node_modules/@earendil-works/pi-mcp" = workspacePackages + "/mcp.tgz";
-      "node_modules/@earendil-works/pi-telemetry" = workspacePackages + "/telemetry.tgz";
-      "node_modules/@earendil-works/pi-tui" = workspacePackages + "/tui.tgz";
+      "node_modules/@i-enliven/pi-agent-core" = workspacePackages + "/agent.tgz";
+      "node_modules/@i-enliven/pi-ai" = workspacePackages + "/ai.tgz";
+      "node_modules/@i-enliven/pi-coding-agent" = workspacePackages + "/coding-agent.tgz";
+      "node_modules/@i-enliven/pi-mcp" = workspacePackages + "/mcp.tgz";
+      "node_modules/@i-enliven/pi-telemetry" = workspacePackages + "/telemetry.tgz";
+      "node_modules/@i-enliven/pi-tui" = workspacePackages + "/tui.tgz";
     };
   };
 in
@@ -109,7 +109,7 @@ stdenv.mkDerivation {
     cp -R . "$out/lib/pi"
 
     makeWrapper ${nodejs}/bin/node "$out/bin/pi" \
-      --add-flags "$out/lib/pi/node_modules/@earendil-works/pi-coding-agent/dist/bundle/cli.js" \
+      --add-flags "$out/lib/pi/node_modules/@i-enliven/pi-coding-agent/dist/bundle/cli.js" \
       --prefix PATH : ${
         lib.makeBinPath (
           [
@@ -138,7 +138,7 @@ stdenv.mkDerivation {
     ${nodejs}/bin/node -e \
       "const fs = require('node:fs');
        const path = require('node:path');
-       const dir = '$out/lib/pi/node_modules/@earendil-works/pi-tui/native/' + process.platform + '/prebuilds/' + process.platform + '-' + process.arch;
+       const dir = '$out/lib/pi/node_modules/@i-enliven/pi-tui/native/' + process.platform + '/prebuilds/' + process.platform + '-' + process.arch;
        if (fs.existsSync(dir)) {
          for (const file of fs.readdirSync(dir)) {
            if (file.endsWith('.node')) require(path.join(dir, file));

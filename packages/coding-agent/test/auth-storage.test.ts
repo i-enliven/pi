@@ -1,7 +1,7 @@
 import { chmodSync, existsSync, mkdirSync, readFileSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { type CredentialStore, createModels, type Provider } from "@earendil-works/pi-ai";
+import { type CredentialStore, createModels, type Provider } from "@i-enliven/pi-ai";
 import lockfile from "proper-lockfile";
 import { afterEach, beforeEach, describe, expect, test, vi } from "vitest";
 import { AuthStorage, FileAuthStorageBackend } from "../src/core/auth-storage.ts";
@@ -121,7 +121,7 @@ describe("AuthStorage", () => {
 		const lockGranted = new Promise<void>((resolve) => {
 			grantLock = resolve;
 		});
-		const release = vi.fn(async () => {});
+		const release = vi.fn(async () => { });
 		const lockSpy = vi.spyOn(lockfile, "lock").mockImplementation(async () => {
 			await lockGranted;
 			return release;
@@ -245,7 +245,7 @@ describe("AuthStorage", () => {
 	test("retries a briefly contended file lock", async () => {
 		writeAuthJson({ anthropic: { type: "api_key", key: "stored" } });
 		const backend = new FileAuthStorageBackend(authJsonPath);
-		const release = vi.fn(async () => {});
+		const release = vi.fn(async () => { });
 		const lockSpy = vi
 			.spyOn(lockfile, "lock")
 			.mockRejectedValueOnce(Object.assign(new Error("locked"), { code: "ELOCKED" }))
@@ -267,7 +267,7 @@ describe("AuthStorage", () => {
 		const compromised = new Error("lock compromised");
 		vi.spyOn(lockfile, "lock").mockImplementation(async (_file, options) => {
 			options?.onCompromised?.(compromised);
-			return async () => {};
+			return async () => { };
 		});
 
 		await expect(backend.withLockAsync(update)).rejects.toThrow(compromised);
@@ -315,7 +315,7 @@ describe("AuthStorage", () => {
 		writeAuthJson({ anthropic: { type: "api_key", key: "stored" } });
 		const backend = new FileAuthStorageBackend(authJsonPath);
 		const controller = new AbortController();
-		const release = vi.fn(async () => {});
+		const release = vi.fn(async () => { });
 		vi.spyOn(lockfile, "lock").mockImplementation(async () => {
 			controller.abort();
 			return release;

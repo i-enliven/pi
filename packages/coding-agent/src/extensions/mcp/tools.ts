@@ -12,16 +12,16 @@
  */
 
 import { createHash } from "node:crypto";
-import type { AgentToolResult } from "@earendil-works/pi-agent-core";
-import type { ImageContent, JsonValue, TextContent } from "@earendil-works/pi-ai";
+import type { AgentToolResult } from "@i-enliven/pi-agent-core";
+import type { ImageContent, JsonValue, TextContent } from "@i-enliven/pi-ai";
 import {
 	type CallToolResult,
 	type ContentBlock,
 	type McpRequestOptions,
 	type Tool as McpTool,
 	toLlmContent,
-} from "@earendil-works/pi-mcp";
-import { Container, Spacer, Text } from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-mcp";
+import { Container, Spacer, Text } from "@i-enliven/pi-tui";
 import type { TSchema } from "typebox";
 import type { ToolAnnotations, ToolDefinition, ToolNamespace, ToolRenderers } from "../../core/extensions/types.ts";
 import { READ_MCP_RESOURCE_TOOL } from "../../core/mcp-servers.ts";

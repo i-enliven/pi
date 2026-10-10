@@ -5,7 +5,7 @@ import {
 	type Model,
 	type ToolResultMessage,
 	type UserMessage,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import { agentLoop, agentLoopContinue, runAgentLoop, runToolCall } from "../src/agent-loop.ts";
@@ -427,12 +427,12 @@ describe("agentLoop with AgentMessage", () => {
 				const message =
 					callIndex === 0
 						? createAssistantMessage(
-								[
-									{ type: "toolCall", id: "ran", name: "echo", arguments: { value: "a" } },
-									{ type: "toolCall", id: "blocked", name: "echo", arguments: { value: "b" } },
-								],
-								"toolUse",
-							)
+							[
+								{ type: "toolCall", id: "ran", name: "echo", arguments: { value: "a" } },
+								{ type: "toolCall", id: "blocked", name: "echo", arguments: { value: "b" } },
+							],
+							"toolUse",
+						)
 						: createAssistantMessage([{ type: "text", text: "done" }]);
 				stream.push({ type: "done", reason: callIndex === 0 ? "toolUse" : "stop", message });
 				callIndex++;
@@ -1615,9 +1615,9 @@ describe("agentLoop with AgentMessage", () => {
 					const message =
 						providerCalls === 1
 							? createAssistantMessage(
-									[{ type: "toolCall", id: "tool-1", name: "noop", arguments: {} }],
-									"toolUse",
-								)
+								[{ type: "toolCall", id: "tool-1", name: "noop", arguments: {} }],
+								"toolUse",
+							)
 							: createAssistantMessage([{ type: "text", text: "done" }]);
 					response.push({ type: "done", reason: providerCalls === 1 ? "toolUse" : "stop", message });
 				});
@@ -1814,9 +1814,9 @@ describe("agentLoop with AgentMessage", () => {
 				const message =
 					llmCalls === 1
 						? createAssistantMessage(
-								[{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "hello" } }],
-								"toolUse",
-							)
+							[{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "hello" } }],
+							"toolUse",
+						)
 						: createAssistantMessage([{ type: "text", text: "should not run" }]);
 				mockStream.push({ type: "done", reason: llmCalls === 1 ? "toolUse" : "stop", message });
 			});
@@ -1876,12 +1876,12 @@ describe("agentLoop with AgentMessage", () => {
 				const message =
 					llmCalls === 1
 						? createAssistantMessage(
-								[
-									{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "first" } },
-									{ type: "toolCall", id: "tool-2", name: "echo", arguments: { value: "second" } },
-								],
-								"toolUse",
-							)
+							[
+								{ type: "toolCall", id: "tool-1", name: "echo", arguments: { value: "first" } },
+								{ type: "toolCall", id: "tool-2", name: "echo", arguments: { value: "second" } },
+							],
+							"toolUse",
+						)
 						: createAssistantMessage([{ type: "text", text: "done" }]);
 				mockStream.push({ type: "done", reason: llmCalls === 1 ? "toolUse" : "stop", message });
 			});

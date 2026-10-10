@@ -3,9 +3,9 @@ import {
 	type ExtensionAPI,
 	type ExtensionContext,
 	type KeybindingsManager,
-} from "@earendil-works/pi-coding-agent";
-import type { Component, EditorTheme, TUI } from "@earendil-works/pi-tui";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-coding-agent";
+import type { Component, EditorTheme, TUI } from "@i-enliven/pi-tui";
+import { truncateToWidth, visibleWidth } from "@i-enliven/pi-tui";
 
 function fitBorder(
 	left: string,
@@ -65,7 +65,7 @@ class EmptyFooter implements Component {
 		return [];
 	}
 
-	invalidate(): void {}
+	invalidate(): void { }
 }
 
 export default function (pi: ExtensionAPI) {

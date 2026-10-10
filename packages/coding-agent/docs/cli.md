@@ -247,9 +247,17 @@ Running `pi update` without a target updates Pi itself.
 | Refresh model catalogs | `pi update --models` |
 | Update Pi and all installed packages | `pi update --all` |
 
-Add `--force` to check for a Pi update even when the current version matches the latest release.
+Add `--force` to run the update even when the checkout already matches the remote, or to print the update commands for another install even when the current version is the latest release.
 
-This fork does not publish to npm. `pi update` never reinstalls Pi through a package manager: from a source checkout it prints the `git pull` and rebuild commands, and from any other install it prints the fork-repo clone, build, and install commands. Package and model catalog updates still run normally.
+This fork does not publish to npm, so `pi update` never reinstalls Pi through a package manager. From a source checkout it fetches the update remote and, when the checkout is behind, runs the steps itself:
+
+```bash
+git -C /path/to/pi pull --ff-only fork main
+npm -C /path/to/pi install --ignore-scripts
+npm -C /path/to/pi run build
+```
+
+The update remote is the `fork` remote, or `PI_UPDATE_REMOTE` if set, falling back to the branch's tracked upstream and then `origin`. `pi update` refuses to touch a checkout with uncommitted changes or a branch that has diverged from the remote, and prints those commands instead when the checkout is not an automatable git repository. An install that is not a checkout at all, such as `npm install -g ./packages/coding-agent`, gets the fork-repo clone, build and install commands for the latest release. Package and model catalog updates still run normally.
 
 ### Aliases and command options
 

@@ -1,4 +1,4 @@
-import { Container } from "@earendil-works/pi-tui";
+import { Container } from "@i-enliven/pi-tui";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { SessionManager } from "../src/core/session-manager.ts";
 import { SettingsManager } from "../src/core/settings-manager.ts";
@@ -50,7 +50,7 @@ function createTreeUI() {
 		renderInitialMessages: vi.fn(),
 		showStatus: vi.fn(),
 		showError: vi.fn(),
-		flushCompactionQueue: vi.fn(async () => {}),
+		flushCompactionQueue: vi.fn(async () => { }),
 	};
 	const showTreeSelector = Reflect.get(InteractiveMode.prototype, "showTreeSelector") as (this: typeof ui) => void;
 	showTreeSelector.call(ui);

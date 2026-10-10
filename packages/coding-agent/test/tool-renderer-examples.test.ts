@@ -1,8 +1,8 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getModel } from "@earendil-works/pi-ai/compat";
-import type { TUI } from "@earendil-works/pi-tui";
+import { getModel } from "@i-enliven/pi-ai/compat";
+import type { TUI } from "@i-enliven/pi-tui";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import type { ToolDefinition } from "../src/core/extensions/types.ts";
 import { DefaultResourceLoader } from "../src/core/resource-loader.ts";
@@ -105,7 +105,7 @@ function renderEditTool(definition: ToolDefinition, cwd: string): string[] {
 		{ path: "notes.txt", oldText: "before", newText: "after" },
 		{},
 		definition,
-		{ requestRender() {} } as unknown as TUI,
+		{ requestRender() { } } as unknown as TUI,
 		cwd,
 	);
 	return component.render(40);

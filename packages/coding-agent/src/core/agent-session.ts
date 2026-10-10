@@ -30,8 +30,8 @@ import {
 	type PrepareNextTurnContext,
 	runToolCall,
 	type ThinkingLevel,
-} from "@earendil-works/pi-agent-core";
-import { contentText, getCurrentSystemMessage, retryDelayMs } from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-agent-core";
+import { contentText, getCurrentSystemMessage, retryDelayMs } from "@i-enliven/pi-ai";
 import type {
 	AssistantMessage,
 	AuthResult,
@@ -42,7 +42,7 @@ import type {
 	TextContent,
 	ToolResultMessage,
 	Usage,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import {
 	clampThinkingLevel,
 	cleanupSessionResources,
@@ -54,7 +54,7 @@ import {
 	type RetryCallbacks,
 	resetApiProviders,
 	streamSimple,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import { getThemeByName, theme } from "../modes/interactive/theme/theme.ts";
 import { stripFrontmatter } from "../utils/frontmatter.ts";
 import { processImage } from "../utils/image-process.ts";
@@ -196,43 +196,43 @@ type WithParentToolCallId<E> = E extends {
 export type AgentSessionEvent =
 	| WithParentToolCallId<Exclude<AgentEvent, { type: "agent_end" }>>
 	| {
-			type: "agent_end";
-			messages: AgentMessage[];
-			willRetry: boolean;
-	  }
+		type: "agent_end";
+		messages: AgentMessage[];
+		willRetry: boolean;
+	}
 	| { type: "agent_settled"; aborted: boolean }
 	| {
-			type: "queue_update";
-			steering: readonly string[];
-			followUp: readonly string[];
-	  }
+		type: "queue_update";
+		steering: readonly string[];
+		followUp: readonly string[];
+	}
 	| { type: "compaction_start"; reason: "manual" | "threshold" | "overflow" }
 	| { type: "entry_appended"; entry: SessionEntry }
 	| { type: "session_info_changed"; name: string | undefined }
 	| { type: "thinking_level_changed"; level: ThinkingLevel }
 	| {
-			type: "compaction_end";
-			reason: "manual" | "threshold" | "overflow";
-			result: CompactionResult | undefined;
-			aborted: boolean;
-			willRetry: boolean;
-			errorMessage?: string;
-	  }
+		type: "compaction_end";
+		reason: "manual" | "threshold" | "overflow";
+		result: CompactionResult | undefined;
+		aborted: boolean;
+		willRetry: boolean;
+		errorMessage?: string;
+	}
 	| { type: "auto_retry_start"; attempt: number; maxAttempts: number; delayMs: number; errorMessage: string }
 	| { type: "auto_retry_end"; success: boolean; attempt: number; finalError?: string }
 	| {
-			type: "summarization_retry_scheduled";
-			attempt: number;
-			maxAttempts: number;
-			delayMs: number;
-			errorMessage: string;
-	  }
+		type: "summarization_retry_scheduled";
+		attempt: number;
+		maxAttempts: number;
+		delayMs: number;
+		errorMessage: string;
+	}
 	| { type: "summarization_retry_attempt_start"; source: "branchSummary" }
 	| {
-			type: "summarization_retry_attempt_start";
-			source: "compaction";
-			reason: "manual" | "threshold" | "overflow";
-	  }
+		type: "summarization_retry_attempt_start";
+		source: "compaction";
+		reason: "manual" | "threshold" | "overflow";
+	}
 	| { type: "summarization_retry_finished" }
 	| { type: "bash_execution_update"; id?: string; delta: string };
 
@@ -561,8 +561,8 @@ export class AgentSession {
 		if (isOAuth) {
 			throw new Error(
 				`Authentication failed for "${model.provider}". ` +
-					`Credentials may have expired or network is unavailable. ` +
-					`Run '/login ${model.provider}' to re-authenticate.`,
+				`Credentials may have expired or network is unavailable. ` +
+				`Run '/login ${model.provider}' to re-authenticate.`,
 			);
 		}
 		throw new Error(formatNoApiKeyFoundMessage(model.provider));
@@ -581,10 +581,10 @@ export class AgentSession {
 		// Route a virtual model first: summaries size their input and output from the model they get.
 		const { model, thinkingLevel } = isVirtualModel(selectedModel)
 			? await this._modelRuntime.resolveModel(selectedModel, convertToLlm(this.messages), {
-					reason: "direct",
-					thinkingLevel: this.thinkingLevel,
-					signal,
-				})
+				reason: "direct",
+				thinkingLevel: this.thinkingLevel,
+				signal,
+			})
 			: { model: selectedModel, thinkingLevel: this.thinkingLevel };
 		if (this.agent.streamFunction === streamSimple) {
 			return { ...(await this._getRequiredRequestAuth(model, signal)), thinkingLevel };
@@ -687,17 +687,17 @@ export class AgentSession {
 		const runner = this._extensionRunner;
 		const hookResult = runner.hasHandlers("tool_result")
 			? await runner.emitToolResult({
-					type: "tool_result",
-					toolName: toolCall.name,
-					toolCallId: toolCall.id,
-					...(parentToolCallId ? { parentToolCallId } : {}),
-					input: args as Record<string, unknown>,
-					content: result.content,
-					details: result.details,
-					...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),
-					isError,
-					usage: result.usage,
-				})
+				type: "tool_result",
+				toolName: toolCall.name,
+				toolCallId: toolCall.id,
+				...(parentToolCallId ? { parentToolCallId } : {}),
+				input: args as Record<string, unknown>,
+				content: result.content,
+				details: result.details,
+				...(result.structuredContent === undefined ? {} : { structuredContent: result.structuredContent }),
+				isError,
+				usage: result.usage,
+			})
 			: undefined;
 
 		const content = hookResult?.content ?? result.content ?? [];
@@ -1325,7 +1325,7 @@ export class AgentSession {
 						replacement.role === "assistant" ||
 						replacement.role === "toolResult" ||
 						replacement.role === "custom") &&
-					replacement.content == null
+						replacement.content == null
 						? ({ ...replacement, content: [] } as AgentMessage)
 						: replacement;
 				this._replaceMessageInPlace(event.message, normalized);
@@ -2037,8 +2037,8 @@ export class AgentSession {
 			if (isOAuth) {
 				throw new Error(
 					`Authentication failed for "${this.model.provider}". ` +
-						`Credentials may have expired or network is unavailable. ` +
-						`Run '/login ${this.model.provider}' to re-authenticate.`,
+					`Credentials may have expired or network is unavailable. ` +
+					`Run '/login ${this.model.provider}' to re-authenticate.`,
 				);
 			}
 			throw new Error(formatNoApiKeyFoundMessage(this.model.provider));
@@ -3608,15 +3608,15 @@ export class AgentSession {
 		const shellPath = this.settingsManager.getShellPath();
 		const baseToolDefinitions = this._baseToolsOverride
 			? Object.fromEntries(
-					Object.entries(this._baseToolsOverride).map(([name, tool]) => [
-						name,
-						createToolDefinitionFromAgentTool(tool),
-					]),
-				)
+				Object.entries(this._baseToolsOverride).map(([name, tool]) => [
+					name,
+					createToolDefinitionFromAgentTool(tool),
+				]),
+			)
 			: createAllToolDefinitions(this._cwd, {
-					read: { autoResizeImages },
-					bash: { commandPrefix: shellCommandPrefix, shellPath },
-				});
+				read: { autoResizeImages },
+				bash: { commandPrefix: shellCommandPrefix, shellPath },
+			});
 
 		this._baseToolDefinitions = new Map(
 			Object.entries(baseToolDefinitions).map(([name, tool]) => [name, tool as ToolDefinition]),
@@ -3660,9 +3660,9 @@ export class AgentSession {
 		const getDefaultTools = () =>
 			this._usesDefaultTools
 				? applyToolModifiers(
-						this.settingsManager.getDefaultTools() ?? DEFAULT_TOOL_NAMES,
-						this._defaultToolModifiers,
-					)
+					this.settingsManager.getDefaultTools() ?? DEFAULT_TOOL_NAMES,
+					this._defaultToolModifiers,
+				)
 				: [];
 		const previousDefaultTools = new Set(getDefaultTools());
 		await this.settingsManager.reload();

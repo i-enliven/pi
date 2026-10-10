@@ -1,4 +1,4 @@
-import type { Models } from "@earendil-works/pi-ai";
+import type { Models } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHarness, type Harness } from "../harness.ts";
 
@@ -16,8 +16,8 @@ interface StalledCredentialList {
 }
 
 function createDeferred(): Deferred {
-	let resolvePromise = () => {};
-	let rejectPromise = (_error: Error) => {};
+	let resolvePromise = () => { };
+	let rejectPromise = (_error: Error) => { };
 	const promise = new Promise<void>((resolve, reject) => {
 		resolvePromise = resolve;
 		rejectPromise = reject;

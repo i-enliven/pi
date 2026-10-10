@@ -1,4 +1,4 @@
-import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, AgentTool } from "@i-enliven/pi-agent-core";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
@@ -9,7 +9,7 @@ import {
 	type Model,
 	type SimpleStreamOptions,
 	type TranscriptContext,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { estimateTokens } from "../../src/core/compaction/index.ts";
@@ -101,7 +101,7 @@ async function createAbortableCompactionHarness(): Promise<{
 	harness: Harness;
 	compactionStarted: Promise<void>;
 }> {
-	let markCompactionStarted = () => {};
+	let markCompactionStarted = () => { };
 	const compactionStarted = new Promise<void>((resolve) => {
 		markCompactionStarted = resolve;
 	});
@@ -493,11 +493,11 @@ describe("AgentSession compaction characterization", () => {
 				settings: {
 					compaction: modelOverride
 						? {
-								enabled: true,
-								reserveTokens: 0,
-								keepRecentTokens: 20000,
-								modelOverrides: { "faux/faux-1": { reserveTokens: 400, keepRecentTokens: 1750 } },
-							}
+							enabled: true,
+							reserveTokens: 0,
+							keepRecentTokens: 20000,
+							modelOverrides: { "faux/faux-1": { reserveTokens: 400, keepRecentTokens: 1750 } },
+						}
 						: { enabled: true, reserveTokens: 400, keepRecentTokens: 1750 },
 				},
 				tools: [largeTool],
@@ -560,11 +560,11 @@ describe("AgentSession compaction characterization", () => {
 				details: {},
 			}),
 		};
-		let markCompactionStarted = () => {};
+		let markCompactionStarted = () => { };
 		const compactionStarted = new Promise<void>((resolve) => {
 			markCompactionStarted = resolve;
 		});
-		let releaseCompaction = () => {};
+		let releaseCompaction = () => { };
 		const compactionReleased = new Promise<void>((resolve) => {
 			releaseCompaction = resolve;
 		});

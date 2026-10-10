@@ -3,14 +3,29 @@
 	"compilerOptions": {
 		"noEmit": true,
 		"paths": {
-			"@earendil-works/pi-coding-agent": ["./src/index.ts"],
-			"@earendil-works/pi-coding-agent/hooks": ["./src/core/hooks/index.ts"],
-			"@earendil-works/pi-tui": ["../tui/src/index.ts"],
-			"@earendil-works/pi-ai": ["../ai/src/index.ts"],
-			"typebox": ["../../node_modules/typebox"]
+			"@i-enliven/pi-coding-agent": [
+				"./src/index.ts"
+			],
+			"@i-enliven/pi-coding-agent/hooks": [
+				"./src/core/hooks/index.ts"
+			],
+			"@i-enliven/pi-tui": [
+				"../tui/src/index.ts"
+			],
+			"@i-enliven/pi-ai": [
+				"../ai/src/index.ts"
+			],
+			"typebox": [
+				"../../node_modules/typebox"
+			]
 		},
 		"skipLibCheck": true
 	},
-	"include": ["examples/**/*.ts"],
-	"exclude": ["node_modules", "dist"]
+	"include": [
+		"examples/**/*.ts"
+	],
+	"exclude": [
+		"node_modules",
+		"dist"
+	]
 }

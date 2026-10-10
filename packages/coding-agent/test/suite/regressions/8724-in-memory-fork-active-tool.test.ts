@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolResult } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import type { AgentTool, AgentToolResult } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -20,7 +20,7 @@ describe("regression #8724: in-memory fork during an active tool turn", () => {
 	});
 
 	it("does not append the aborted turn to the replacement session", async () => {
-		let markToolStarted = () => {};
+		let markToolStarted = () => { };
 		const toolStarted = new Promise<void>((resolve) => {
 			markToolStarted = resolve;
 		});

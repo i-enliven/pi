@@ -19,11 +19,11 @@ const ROOT = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 
 /** Workspace package name -> its source root, so cross-package imports are followed. */
 const WORKSPACE = {
-	"@earendil-works/pi-ai": "packages/ai/src",
-	"@earendil-works/pi-agent-core": "packages/agent/src",
-	"@earendil-works/pi-telemetry": "packages/telemetry/src",
-	"@earendil-works/pi-mcp": "packages/mcp/src",
-	"@earendil-works/pi-tui": "packages/tui/src",
+	"@i-enliven/pi-ai": "packages/ai/src",
+	"@i-enliven/pi-agent-core": "packages/agent/src",
+	"@i-enliven/pi-telemetry": "packages/telemetry/src",
+	"@i-enliven/pi-mcp": "packages/mcp/src",
+	"@i-enliven/pi-tui": "packages/tui/src",
 };
 
 /**
@@ -116,7 +116,7 @@ for (const [pkgDir, budgets] of Object.entries(BUDGETS)) {
 			if (graph.length > budget.maxFiles) {
 				console.error(
 					`${pkgDir} export "${name}" reaches ${graph.length} files, budget ${budget.maxFiles}\n` +
-						graph.map((file) => `    ${file}`).join("\n"),
+					graph.map((file) => `    ${file}`).join("\n"),
 				);
 				failures += 1;
 			}

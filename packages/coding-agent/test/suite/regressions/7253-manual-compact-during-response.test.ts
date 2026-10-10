@@ -1,5 +1,5 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, type Harness } from "../harness.ts";
@@ -24,11 +24,11 @@ describe("issue #7253: manual compaction during an active response", () => {
 	});
 
 	it("persists the aborted response before running the requested manual compaction", async () => {
-		let markSecondResponseStarted = () => {};
+		let markSecondResponseStarted = () => { };
 		const secondResponseStarted = new Promise<void>((resolve) => {
 			markSecondResponseStarted = resolve;
 		});
-		let releaseSecondResponse = () => {};
+		let releaseSecondResponse = () => { };
 		const secondResponseReleased = new Promise<void>((resolve) => {
 			releaseSecondResponse = resolve;
 		});

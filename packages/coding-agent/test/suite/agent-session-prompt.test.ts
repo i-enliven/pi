@@ -1,8 +1,8 @@
 import { mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall, type Model } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall, type Model } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { ExtensionAPI, InputEvent } from "../../src/core/extensions/index.ts";
@@ -336,7 +336,7 @@ describe("AgentSession prompt characterization", () => {
 
 	it("extension sendUserMessage can opt into extension command dispatch", async () => {
 		let extensionApi: ExtensionAPI | undefined;
-		let resolveCommandRun: (args: string) => void = () => {};
+		let resolveCommandRun: (args: string) => void = () => { };
 		const commandRun = new Promise<string>((resolve) => {
 			resolveCommandRun = resolve;
 		});
@@ -495,11 +495,11 @@ describe("AgentSession prompt characterization", () => {
 	});
 
 	it("throws when prompted during manual compaction", async () => {
-		let markCompactionStarted = () => {};
+		let markCompactionStarted = () => { };
 		const compactionStarted = new Promise<void>((resolve) => {
 			markCompactionStarted = resolve;
 		});
-		let releaseCompaction = () => {};
+		let releaseCompaction = () => { };
 		const compactionReleased = new Promise<void>((resolve) => {
 			releaseCompaction = resolve;
 		});

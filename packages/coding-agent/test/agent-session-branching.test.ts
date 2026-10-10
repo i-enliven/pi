@@ -10,7 +10,7 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { getModel } from "@earendil-works/pi-ai/compat";
+import { getModel } from "@i-enliven/pi-ai/compat";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { AgentSession } from "../src/core/agent-session.ts";
 import {
@@ -83,7 +83,7 @@ describe.skipIf(!API_KEY)("AgentSession forking", () => {
 			sessionManager,
 		});
 		session = runtimeHost.session;
-		session.subscribe(() => {});
+		session.subscribe(() => { });
 		return session;
 	}
 

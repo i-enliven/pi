@@ -19,9 +19,9 @@
  *   /overlay-streaming  - Multiple input panels with simulated streaming (Tab to cycle focus)
  */
 
-import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@earendil-works/pi-coding-agent";
-import type { Component, OverlayAnchor, OverlayHandle, OverlayOptions, TUI } from "@earendil-works/pi-tui";
-import { Input, matchesKey, truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionCommandContext, Theme } from "@i-enliven/pi-coding-agent";
+import type { Component, OverlayAnchor, OverlayHandle, OverlayOptions, TUI } from "@i-enliven/pi-tui";
+import { Input, matchesKey, truncateToWidth, visibleWidth } from "@i-enliven/pi-tui";
 import { spawn } from "child_process";
 
 // Global handle for toggle demo (in real code, use a more elegant pattern)
@@ -328,8 +328,8 @@ abstract class BaseOverlay {
 		return result;
 	}
 
-	invalidate(): void {}
-	dispose(): void {}
+	invalidate(): void { }
+	dispose(): void { }
 }
 
 // Anchor position test
@@ -1230,10 +1230,10 @@ class FocusPanel extends BaseOverlay {
 		lines.push(border(`╭${"─".repeat(innerW)}╮`));
 		lines.push(
 			border("│") +
-				padLine(
-					` ${th.fg(this.color, this.label)} ${this.focused ? th.fg("success", "FOCUSED") : th.fg("dim", "visible")}`,
-				) +
-				border("│"),
+			padLine(
+				` ${th.fg(this.color, this.label)} ${this.focused ? th.fg("success", "FOCUSED") : th.fg("dim", "visible")}`,
+			) +
+			border("│"),
 		);
 		lines.push(border("│") + padLine("") + border("│"));
 		lines.push(border("│") + padLine(` Input: ${inputLine}`) + border("│"));
@@ -1446,5 +1446,5 @@ class StreamingInputPanel implements Component {
 		return lines;
 	}
 
-	invalidate(): void {}
+	invalidate(): void { }
 }

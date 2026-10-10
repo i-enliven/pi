@@ -2,7 +2,7 @@ import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSyn
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { ENV_AGENT_DIR, VERSION } from "../src/config.ts";
+import { ENV_AGENT_DIR, PACKAGE_NAME, VERSION } from "../src/config.ts";
 import { ModelRuntime } from "../src/core/model-runtime.ts";
 import { DefaultPackageManager, type ResolvedPaths } from "../src/core/package-manager.ts";
 import { InMemorySettingsStorage, SettingsManager } from "../src/core/settings-manager.ts";
@@ -11,6 +11,13 @@ import { main } from "../src/main.ts";
 import { ConfigSelectorComponent } from "../src/modes/interactive/components/config-selector.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
 import { handlePackageCommand } from "../src/package-manager-cli.ts";
+import { createFakeNpmRecorder } from "./fake-npm-recorder.ts";
+import {
+	createGitCheckoutFixture,
+	type GitCheckoutFixture,
+	pushFilesToFork,
+	removeGitCheckoutFixture,
+} from "./git-checkout-fixture.ts";
 import { allowNetwork } from "./test-network-env.ts";
 
 describe("package commands", () => {
@@ -28,6 +35,20 @@ describe("package commands", () => {
 	function getNewerPatchVersion(): string {
 		const [major = "0", minor = "0", patch = "0"] = VERSION.split(".");
 		return `${major}.${minor}.${Number.parseInt(patch, 10) + 1}`;
+	}
+
+	/** A git checkout of the monorepo that `getSourceCheckoutRoot()` recognises. */
+	function createMonorepoCheckout(): GitCheckoutFixture {
+		const checkout = createGitCheckoutFixture({
+			"package.json": JSON.stringify({ name: "pi-monorepo" }),
+			"packages/coding-agent/package.json": JSON.stringify({ name: PACKAGE_NAME, version: VERSION }),
+		});
+		process.env.PI_PACKAGE_DIR = join(checkout.checkoutDir, "packages", "coding-agent");
+		return checkout;
+	}
+
+	function useFakeNpm(npmCommand: string[]): void {
+		writeFileSync(join(agentDir, "settings.json"), JSON.stringify({ npmCommand }, null, 2));
 	}
 
 	async function runPackageCommandDirectly(args: string[]): Promise<void> {
@@ -618,7 +639,86 @@ describe("package commands", () => {
 		}
 	});
 
-	it("prints checkout update instructions when running from the monorepo", async () => {
+	it("updates the source checkout from the fork remote", async () => {
+		const checkout = createMonorepoCheckout();
+		const fakeNpm = createFakeNpmRecorder(tempDir);
+		useFakeNpm(fakeNpm.npmCommand);
+		const targetVersion = getNewerPatchVersion();
+		pushFilesToFork(checkout, {
+			"packages/coding-agent/package.json": JSON.stringify({ name: PACKAGE_NAME, version: targetVersion }),
+		});
+		const fetchMock = vi.fn(async () => Response.json({ tag_name: `v${targetVersion}` }));
+		vi.stubGlobal("fetch", fetchMock);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runPackageCommandDirectly(["update", "--self"])).resolves.toBeUndefined();
+
+			expect(errorSpy).not.toHaveBeenCalled();
+			expect(process.exitCode).toBeUndefined();
+			// The checkout path updates from the fork remote, not the release feed.
+			expect(fetchMock).not.toHaveBeenCalled();
+			const stdout = logSpy.mock.calls.map(([message]) => String(message)).join("\n");
+			expect(stdout).toContain(`git -C ${checkout.checkoutDir} pull --ff-only fork main`);
+			expect(stdout).toContain(`Updated pi from v${VERSION} to v${targetVersion}`);
+			expect(fakeNpm.calls()).toEqual([
+				["-C", checkout.checkoutDir, "install", "--ignore-scripts"],
+				["-C", checkout.checkoutDir, "run", "build"],
+			]);
+		} finally {
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+			removeGitCheckoutFixture(checkout);
+		}
+	});
+
+	it("reports the source checkout is up to date with the fork remote", async () => {
+		const checkout = createMonorepoCheckout();
+		const fakeNpm = createFakeNpmRecorder(tempDir);
+		useFakeNpm(fakeNpm.npmCommand);
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runPackageCommandDirectly(["update", "--self"])).resolves.toBeUndefined();
+
+			expect(errorSpy).not.toHaveBeenCalled();
+			expect(process.exitCode).toBeUndefined();
+			const stdout = logSpy.mock.calls.map(([message]) => String(message)).join("\n");
+			expect(stdout).toContain("is up to date with fork/main");
+			expect(fakeNpm.calls()).toEqual([]);
+		} finally {
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+			removeGitCheckoutFixture(checkout);
+		}
+	});
+
+	it("refuses to update a source checkout with uncommitted changes", async () => {
+		const checkout = createMonorepoCheckout();
+		const fakeNpm = createFakeNpmRecorder(tempDir);
+		useFakeNpm(fakeNpm.npmCommand);
+		writeFileSync(join(checkout.checkoutDir, "work-in-progress.txt"), "local edits\n");
+		const logSpy = vi.spyOn(console, "log").mockImplementation(() => {});
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
+
+		try {
+			await expect(runPackageCommandDirectly(["update", "--self"])).resolves.toBeUndefined();
+
+			expect(process.exitCode).toBe(1);
+			const stderr = errorSpy.mock.calls.map(([message]) => String(message)).join("\n");
+			expect(stderr).toContain("uncommitted");
+			expect(fakeNpm.calls()).toEqual([]);
+			expect(logSpy).not.toHaveBeenCalledWith(expect.stringContaining("run build"));
+		} finally {
+			logSpy.mockRestore();
+			errorSpy.mockRestore();
+			removeGitCheckoutFixture(checkout);
+		}
+	});
+
+	it("prints checkout update instructions when the checkout is not a git repository", async () => {
 		const checkoutRoot = join(tempDir, "pi-checkout");
 		mkdirSync(join(checkoutRoot, ".git"), { recursive: true });
 		mkdirSync(join(checkoutRoot, "packages", "coding-agent"), { recursive: true });

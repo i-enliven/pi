@@ -2,7 +2,7 @@
  * CLI argument parsing and help display
  */
 
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { ThinkingLevel } from "@i-enliven/pi-agent-core";
 import chalk from "chalk";
 import { APP_NAME, CONFIG_DIR_NAME, ENV_AGENT_DIR, ENV_SESSION_DIR } from "../config.ts";
 import type { ExtensionFlag } from "../core/extensions/types.ts";
@@ -274,12 +274,12 @@ export function printHelp(extensionFlags?: ExtensionFlag[]): void {
 	const extensionFlagsText =
 		extensionFlags && extensionFlags.length > 0
 			? `\n${chalk.bold("Extension CLI Flags:")}\n${extensionFlags
-					.map((flag) => {
-						const value = flag.type === "string" ? " <value>" : "";
-						const description = flag.description ?? `Registered by ${flag.extensionPath}`;
-						return `  --${flag.name}${value}`.padEnd(30) + description;
-					})
-					.join("\n")}\n`
+				.map((flag) => {
+					const value = flag.type === "string" ? " <value>" : "";
+					const description = flag.description ?? `Registered by ${flag.extensionPath}`;
+					return `  --${flag.name}${value}`.padEnd(30) + description;
+				})
+				.join("\n")}\n`
 			: "";
 	console.log(`${chalk.bold(APP_NAME)} - AI coding assistant with read, bash, edit, write tools
 

@@ -1,7 +1,7 @@
 import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setKeybindings, type TUI } from "@earendil-works/pi-tui";
+import { setKeybindings, type TUI } from "@i-enliven/pi-tui";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { AuthStorage } from "../../../src/core/auth-storage.ts";
 import { KeybindingsManager } from "../../../src/core/keybindings.ts";
@@ -12,7 +12,7 @@ import { createModelRegistry, getModelRuntime } from "../../model-runtime-test-u
 
 function observeRefreshRender(): { tui: TUI; renderedAfterRefresh: Promise<void> } {
 	let renderCount = 0;
-	let resolveRefreshRender = () => {};
+	let resolveRefreshRender = () => { };
 	const renderedAfterRefresh = new Promise<void>((resolve) => {
 		resolveRefreshRender = resolve;
 	});
@@ -70,8 +70,8 @@ describe("issue #6999 models.json hot reload", () => {
 			undefined,
 			modelRuntime,
 			[],
-			() => {},
-			() => {},
+			() => { },
+			() => { },
 		);
 
 		await renderedAfterRefresh;

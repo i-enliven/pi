@@ -14,8 +14,8 @@ import type {
 	AgentToolCallOutcome,
 	AgentToolResult,
 	AgentToolUpdateCallback,
-} from "@earendil-works/pi-agent-core";
-import type { JsonObject, NestedToolCallRecord, NestedToolCalls, TextContent, Usage } from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-agent-core";
+import type { JsonObject, NestedToolCallRecord, NestedToolCalls, TextContent, Usage } from "@i-enliven/pi-ai";
 import { combineUsage } from "./usage-totals.ts";
 
 /**
@@ -111,22 +111,22 @@ export interface NestedToolCallOptions {
 export type NestedToolExecutionEvent =
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown; parentToolCallId: string }
 	| {
-			type: "tool_execution_update";
-			toolCallId: string;
-			toolName: string;
-			args: unknown;
-			partialResult: AgentToolResult<unknown>;
-			parentToolCallId: string;
-	  }
+		type: "tool_execution_update";
+		toolCallId: string;
+		toolName: string;
+		args: unknown;
+		partialResult: AgentToolResult<unknown>;
+		parentToolCallId: string;
+	}
 	| {
-			type: "tool_execution_end";
-			toolCallId: string;
-			toolName: string;
-			result: AgentToolResult<unknown>;
-			isError: boolean;
-			durationMs?: number;
-			parentToolCallId: string;
-	  };
+		type: "tool_execution_end";
+		toolCallId: string;
+		toolName: string;
+		result: AgentToolResult<unknown>;
+		isError: boolean;
+		durationMs?: number;
+		parentToolCallId: string;
+	};
 
 export interface NestedToolCallHost {
 	/** Tools nested calls resolve against. */

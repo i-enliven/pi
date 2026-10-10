@@ -7,8 +7,8 @@ import * as crypto from "node:crypto";
 import * as fs from "node:fs";
 import * as os from "node:os";
 import * as path from "node:path";
-import type { AgentMessage, ThinkingLevel } from "@earendil-works/pi-agent-core";
-import type { AuthEvent, AuthPrompt } from "@earendil-works/pi-ai";
+import type { AgentMessage, ThinkingLevel } from "@i-enliven/pi-agent-core";
+import type { AuthEvent, AuthPrompt } from "@i-enliven/pi-ai";
 import {
 	type AssistantMessage,
 	type ImageContent,
@@ -16,7 +16,7 @@ import {
 	type Message,
 	type Model,
 	type Usage,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import type {
 	AutocompleteItem,
 	AutocompleteProvider,
@@ -28,8 +28,8 @@ import type {
 	OverlayOptions,
 	SlashCommand,
 	TuiMainScreenRenderState,
-} from "@earendil-works/pi-tui";
-import * as TuiLayouts from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
+import * as TuiLayouts from "@i-enliven/pi-tui";
 import {
 	CombinedAutocompleteProvider,
 	type Component,
@@ -51,7 +51,7 @@ import {
 	type TuiMouseEvent,
 	type TuiMouseEventResult,
 	visibleWidth,
-} from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
 import chalk from "chalk";
 import { spawn } from "child_process";
 import {
@@ -1142,7 +1142,7 @@ export class InteractiveMode {
 			const timeout = setTimeout(() => controller.abort(), 15_000);
 			void refreshModelCatalogs(this.session.modelRuntime, controller.signal)
 				.then(() => this.updateAvailableProviderCount())
-				.catch(() => {})
+				.catch(() => { })
 				.finally(() => clearTimeout(timeout));
 		}
 
@@ -2316,7 +2316,7 @@ export class InteractiveMode {
 	private showWorkingStatusIndicator(): void {
 		const colorFn = isWorkingStatusEditor(this.editor)
 			? (text: string) =>
-					(this.editor.borderColor ?? theme.getThinkingBorderColor(this.session.thinkingLevel || "off"))(text)
+				(this.editor.borderColor ?? theme.getThinkingBorderColor(this.session.thinkingLevel || "off"))(text)
 			: undefined;
 		this.showStatusIndicator(
 			new WorkingStatusIndicator(
@@ -4330,13 +4330,13 @@ export class InteractiveMode {
 		this.isShuttingDown = true;
 		try {
 			this.unregisterSignalHandlers();
-		} catch {}
+		} catch { }
 		try {
 			killTrackedDetachedChildren();
-		} catch {}
+		} catch { }
 		try {
 			this.ui.stop();
-		} catch {}
+		} catch { }
 		console.error(`${APP_NAME} exiting due to uncaughtException:`);
 		console.error(error);
 		const extensionHint = this.getCrashExtensionHint(error);
@@ -4414,11 +4414,11 @@ export class InteractiveMode {
 		// Keep the event loop alive while suspended. Without this, stopping the TUI
 		// can leave Node with no ref'ed handles, causing the process to exit on fg
 		// before the SIGCONT handler gets a chance to restore the terminal.
-		const suspendKeepAlive = setInterval(() => {}, 2 ** 30);
+		const suspendKeepAlive = setInterval(() => { }, 2 ** 30);
 
 		// Ignore SIGINT while suspended so Ctrl+C in the terminal does not
 		// kill the backgrounded process. The handler is removed on resume.
-		const ignoreSigint = () => {};
+		const ignoreSigint = () => { };
 		process.on("SIGINT", ignoreSigint);
 
 		// Set up handler to restore TUI when resumed
@@ -4762,8 +4762,7 @@ export class InteractiveMode {
 			this.compactionQueuedMessages = queuedMessages;
 			this.updatePendingMessagesDisplay();
 			this.showError(
-				`Failed to send queued message${queuedMessages.length > 1 ? "s" : ""}: ${
-					error instanceof Error ? error.message : String(error)
+				`Failed to send queued message${queuedMessages.length > 1 ? "s" : ""}: ${error instanceof Error ? error.message : String(error)
 				}`,
 			);
 		};
@@ -5761,9 +5760,9 @@ export class InteractiveMode {
 			const authStatus = this.session.modelRuntime.getProviderAuthStatus(provider.id);
 			const status = authStatus.configured
 				? {
-						type: this.session.modelRuntime.isUsingOAuth(provider.id) ? ("oauth" as const) : ("api_key" as const),
-						source: authStatus.label ?? authStatus.source,
-					}
+					type: this.session.modelRuntime.isUsingOAuth(provider.id) ? ("oauth" as const) : ("api_key" as const),
+					source: authStatus.label ?? authStatus.source,
+				}
 				: undefined;
 			const subscription = provider.auth.oauth?.isSubscription === true;
 			if ((!authType || authType === "oauth") && provider.auth.oauth) {
@@ -6281,7 +6280,7 @@ export class InteractiveMode {
 
 	private async showLoginDialog(providerId: string, providerName: string, onBack?: () => void): Promise<void> {
 		const previousModel = this.session.model;
-		const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => {}, providerName);
+		const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => { }, providerName);
 		this.editorContainer.clear();
 		this.editorContainer.addChild(dialog);
 		this.ui.setFocus(dialog);
@@ -6668,9 +6667,9 @@ export class InteractiveMode {
 		const changelogMarkdown =
 			allEntries.length > 0
 				? allEntries
-						.reverse()
-						.map((e) => normalizeChangelogLinks(e.content, e))
-						.join("\n\n")
+					.reverse()
+					.map((e) => normalizeChangelogLinks(e.content, e))
+					.join("\n\n")
 				: "No changelog entries found.";
 
 		this.chatContainer.addChild(new Spacer(1));

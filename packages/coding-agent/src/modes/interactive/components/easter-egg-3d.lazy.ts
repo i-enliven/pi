@@ -1,4 +1,4 @@
-import { type TUI, TuiAltScreen } from "@earendil-works/pi-tui";
+import { type TUI, TuiAltScreen } from "@i-enliven/pi-tui";
 import type { EasterEgg3d } from "./easter-egg-3d.ts";
 
 /**
@@ -11,7 +11,7 @@ function playEasterEgg3d(tui: TUI, egg: EasterEgg3d): boolean {
 	const screen = tui.getScreenLines();
 	import("./easter-egg-3d.ts").then(
 		(module) => module.playEasterEgg3d(tui, screen, egg),
-		() => {},
+		() => { },
 	);
 	return true;
 }

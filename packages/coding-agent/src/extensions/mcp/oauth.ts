@@ -13,8 +13,8 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { oauthErrorHtml, oauthSuccessHtml } from "@earendil-works/pi-ai/utils/oauth-page";
-import type { AuthProvider, McpFetch } from "@earendil-works/pi-mcp";
+import { oauthErrorHtml, oauthSuccessHtml } from "@i-enliven/pi-ai/utils/oauth-page";
+import type { AuthProvider, McpFetch } from "@i-enliven/pi-mcp";
 import {
 	authorizeMcp,
 	McpOAuthAuthorizationRequiredError,
@@ -28,7 +28,7 @@ import {
 	type OAuthClientInformationMixed,
 	parseWwwAuthenticate,
 	stepUpScope,
-} from "@earendil-works/pi-mcp/oauth";
+} from "@i-enliven/pi-mcp/oauth";
 import lockfile from "proper-lockfile";
 import { APP_NAME, getAgentDir } from "../../config.ts";
 import { type AuthStorageBackend, FileAuthStorageBackend } from "../../core/auth-storage.ts";
@@ -180,7 +180,7 @@ export class McpOAuthCredentialStore {
 				maxTimeout: REFRESH_LOCK_RETRY_MS,
 			},
 			// The default throws from a timer. A lost lock at worst lets two refreshes overlap.
-			onCompromised: () => {},
+			onCompromised: () => { },
 		});
 		try {
 			return await fn();
@@ -286,7 +286,7 @@ export function createMcpAuthProvider(options: {
 					callbackSettings(settings).fixedRedirectUrl ??
 					registeredRedirectUrls(state.clientInformation)[0] ??
 					FALLBACK_REDIRECT_URL;
-				const provider = createProvider(serverUrl, store, settings, redirectUrl, () => {});
+				const provider = createProvider(serverUrl, store, settings, redirectUrl, () => { });
 				// Refreshes the tokens, or reports that a new sign-in is needed. Not cancellable: a refresh the
 				// server answered may have rotated the refresh token, so its answer must be saved.
 				const result = await authorizeMcp(provider, {

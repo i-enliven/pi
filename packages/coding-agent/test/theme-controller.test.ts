@@ -1,4 +1,4 @@
-import type { TerminalColors, TUI } from "@earendil-works/pi-tui";
+import type { TerminalColors, TUI } from "@i-enliven/pi-tui";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 import {
@@ -77,7 +77,7 @@ describe("InteractiveThemeController", () => {
 
 	it("applies the theme immediately and lets startup wait for the colors", async () => {
 		const { ui, queryTerminalColors } = createUi();
-		let answer: (colors: TerminalColors) => void = () => {};
+		let answer: (colors: TerminalColors) => void = () => { };
 		queryTerminalColors.mockReturnValue(
 			new Promise((resolve) => {
 				answer = resolve;
@@ -97,7 +97,7 @@ describe("InteractiveThemeController", () => {
 
 	it("falls back to palette indices, then applies colors that arrive after the timeout", async () => {
 		const { ui, queryTerminalColors } = createUi();
-		let lateReply: (colors: TerminalColors) => void = () => {};
+		let lateReply: (colors: TerminalColors) => void = () => { };
 		queryTerminalColors.mockImplementation(async (options) => {
 			lateReply = options.onLateReply!;
 			return {};

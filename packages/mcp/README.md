@@ -1,4 +1,4 @@
-# @earendil-works/pi-mcp
+# @i-enliven/pi-mcp
 
 A small, standalone Model Context Protocol client. It does not depend on the official MCP SDK or other pi packages.
 
@@ -24,7 +24,7 @@ npm install --ignore-scripts /path/to/pi/packages/mcp
 ## Usage
 
 ```typescript
-import { McpClient, StdioTransport } from "@earendil-works/pi-mcp";
+import { McpClient, StdioTransport } from "@i-enliven/pi-mcp";
 
 const transport = new StdioTransport({
 	command: "npx",
@@ -46,13 +46,13 @@ For a remote server, use `new StreamableHttpTransport({ url, headers })`. Fetch 
 
 ### Tools for an LLM
 
-`toLlmContent(result)` converts a `CallToolResult` to text and image content for a model, in the shape of `@earendil-works/pi-ai`'s `TextContent` and `ImageContent`. Text and images pass through, embedded text and image resources are unwrapped, and audio, resource links, and binary resources become short text placeholders. A result without content blocks but with `structuredContent` becomes its JSON.
+`toLlmContent(result)` converts a `CallToolResult` to text and image content for a model, in the shape of `@i-enliven/pi-ai`'s `TextContent` and `ImageContent`. Text and images pass through, embedded text and image resources are unwrapped, and audio, resource links, and binary resources become short text placeholders. A result without content blocks but with `structuredContent` becomes its JSON.
 
 Wrapping an MCP tool as a `pi-agent-core` `AgentTool`:
 
 ```typescript
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { toLlmContent } from "@earendil-works/pi-mcp";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { toLlmContent } from "@i-enliven/pi-mcp";
 import { Type } from "typebox";
 
 const tools: AgentTool[] = (await client.listTools()).map((tool) => ({
@@ -72,17 +72,17 @@ const tools: AgentTool[] = (await client.listTools()).map((tool) => ({
 
 ### OAuth
 
-`@earendil-works/pi-mcp/oauth` provides the MCP OAuth client subset without depending on the official SDK:
+`@i-enliven/pi-mcp/oauth` provides the MCP OAuth client subset without depending on the official SDK:
 
 ```typescript
-import { McpClient, StreamableHttpTransport } from "@earendil-works/pi-mcp";
+import { McpClient, StreamableHttpTransport } from "@i-enliven/pi-mcp";
 import {
 	adaptOAuthProvider,
 	authorizeMcp,
 	McpOAuthAuthorizationRequiredError,
 	McpOAuthProvider,
 	OAuthCallbackServer,
-} from "@earendil-works/pi-mcp/oauth";
+} from "@i-enliven/pi-mcp/oauth";
 
 const serverUrl = "https://mcp.example.com/mcp";
 const callback = await OAuthCallbackServer.listen();
@@ -148,4 +148,4 @@ Batch JSON-RPC messages, legacy HTTP+SSE, servers, sampling, and tasks are outsi
 
 ## Testing
 
-`@earendil-works/pi-mcp/testing` exports `createInMemoryTransportPair()` for client and adapter tests.
+`@i-enliven/pi-mcp/testing` exports `createInMemoryTransportPair()` for client and adapter tests.

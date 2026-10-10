@@ -1,10 +1,18 @@
 import { existsSync, readFileSync, realpathSync } from "node:fs";
 import { dirname, join } from "node:path";
-import { Markdown, type MarkdownTheme } from "@earendil-works/pi-tui";
+import { Markdown, type MarkdownTheme } from "@i-enliven/pi-tui";
 import chalk from "chalk";
 import { selectConfig } from "./cli/config-selector.ts";
 import { createProjectTrustContext } from "./cli/project-trust.ts";
-import { APP_NAME, CONFIG_DIR_NAME, getAgentDir, getPackageDir, PACKAGE_NAME, VERSION } from "./config.ts";
+import {
+	APP_NAME,
+	CONFIG_DIR_NAME,
+	getAgentDir,
+	getPackageDir,
+	getPackageJsonPath,
+	PACKAGE_NAME,
+	VERSION,
+} from "./config.ts";
 import type { InlineExtension } from "./core/extensions/types.ts";
 import { ModelRuntime } from "./core/model-runtime.ts";
 import { DefaultPackageManager } from "./core/package-manager.ts";
@@ -12,6 +20,7 @@ import { type AppMode, resolveProjectTrusted } from "./core/project-trust.ts";
 import { DefaultResourceLoader, isBuiltinExtension } from "./core/resource-loader.ts";
 import { SettingsManager } from "./core/settings-manager.ts";
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "./core/trust-manager.ts";
+import { checkCheckoutUpdate, runCheckoutUpdate } from "./utils/checkout-update.ts";
 import { formatVersionCheckError, getLatestPiRelease, isNewerPackageVersion } from "./utils/version-check.ts";
 
 export type PackageCommand = "install" | "remove" | "update" | "list";
@@ -52,6 +61,64 @@ function printSourceCheckoutUpdateInstructions(root: string): void {
 	console.log(`  ${chalk.bold(`git -C ${root} pull --ff-only`)}`);
 	console.log(`  ${chalk.bold(`npm -C ${root} install --ignore-scripts`)}`);
 	console.log(`  ${chalk.bold(`npm -C ${root} run build`)}`);
+}
+
+function readInstalledVersion(): string {
+	try {
+		const packageJson = JSON.parse(readFileSync(getPackageJsonPath(), "utf8")) as { version?: unknown };
+		return typeof packageJson.version === "string" && packageJson.version ? packageJson.version : VERSION;
+	} catch {
+		return VERSION;
+	}
+}
+
+function shortCommit(commit: string): string {
+	return commit.slice(0, 7);
+}
+
+/**
+ * Update a source checkout in place from its fork remote: pull, install, build.
+ * Throws when the checkout must not be updated (uncommitted work, a diverged
+ * branch, a failed fetch); prints manual instructions when it cannot be
+ * automated at all (not a git checkout, no usable remote).
+ */
+async function updateSourceCheckout(root: string, force: boolean, npmCommand?: string[]): Promise<void> {
+	const beforeVersion = readInstalledVersion();
+	const check = await checkCheckoutUpdate(root, npmCommand);
+	if (check.kind === "unavailable") {
+		console.log(chalk.yellow(`Could not update this checkout automatically: ${check.reason}`));
+		printSourceCheckoutUpdateInstructions(root);
+		return;
+	}
+	if (check.kind === "blocked") {
+		throw new Error(check.reason);
+	}
+
+	const plan = check.plan;
+	if (plan.behind === 0 && !force) {
+		console.log(
+			chalk.green(
+				`${APP_NAME} is up to date with ${plan.remote}/${plan.branch} (${shortCommit(plan.localCommit)}, v${beforeVersion})`,
+			),
+		);
+		return;
+	}
+
+	console.log(chalk.dim(`${APP_NAME} source checkout: ${root}`));
+	if (plan.behind > 0) {
+		console.log(
+			`${plan.behind} commit${plan.behind === 1 ? "" : "s"} behind ${plan.remote}/${plan.branch} (${shortCommit(
+				plan.localCommit,
+			)} -> ${shortCommit(plan.remoteCommit)})`,
+		);
+	} else {
+		console.log(chalk.dim(`Already at ${plan.remote}/${plan.branch}; updating anyway (--force)`));
+	}
+
+	await runCheckoutUpdate(plan, (step) => console.log(chalk.dim(`> ${step.display}`)));
+	const afterVersion = readInstalledVersion();
+	console.log(chalk.green(`Updated ${APP_NAME} from v${beforeVersion} to v${afterVersion}`));
+	console.log(chalk.dim(`Restart ${APP_NAME} to use the updated build.`));
 }
 
 function printForkUpdateInstructions(version: string): void {
@@ -198,7 +265,7 @@ Options:
   --extension <source>    Update one package only
   -a, --approve           Trust project-local files for this command
   -na, --no-approve       Ignore project-local files for this command
-  --force                 Show update instructions even if the current version is latest
+  --force                 Update even if the checkout already matches the remote
 
 Short forms:
   ${APP_NAME} update                Update pi only
@@ -555,11 +622,11 @@ async function createCommandSettingsManager(options: {
 	const extensionsResult =
 		options.projectTrustOverride === undefined && hasTrustRequiringProjectResources(options.cwd)
 			? await new DefaultResourceLoader({
-					cwd: options.cwd,
-					agentDir: options.agentDir,
-					settingsManager,
-					extensionFactories: options.extensionFactories,
-				}).loadProjectTrustExtensions()
+				cwd: options.cwd,
+				agentDir: options.agentDir,
+				settingsManager,
+				extensionFactories: options.extensionFactories,
+			}).loadProjectTrustExtensions()
 			: undefined;
 	for (const error of extensionsResult?.errors ?? []) {
 		projectTrustWarnings.push(`Failed to load extension "${error.path}": ${error.error}`);
@@ -820,7 +887,7 @@ export async function handlePackageCommand(
 				if (updateTargetIncludesSelf(target)) {
 					const sourceCheckoutRoot = getSourceCheckoutRoot();
 					if (sourceCheckoutRoot) {
-						printSourceCheckoutUpdateInstructions(sourceCheckoutRoot);
+						await updateSourceCheckout(sourceCheckoutRoot, options.force, settingsManager.getNpmCommand());
 						return true;
 					}
 					const selfUpdatePlan = await getSelfUpdatePlan(options.force);

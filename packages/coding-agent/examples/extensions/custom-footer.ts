@@ -8,9 +8,9 @@
  * Token stats come from ctx.sessionManager/ctx.model (already accessible).
  */
 
-import type { AssistantMessage } from "@earendil-works/pi-ai";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
-import { truncateToWidth, visibleWidth } from "@earendil-works/pi-tui";
+import type { AssistantMessage } from "@i-enliven/pi-ai";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
+import { truncateToWidth, visibleWidth } from "@i-enliven/pi-tui";
 
 export default function (pi: ExtensionAPI) {
 	let enabled = false;
@@ -26,7 +26,7 @@ export default function (pi: ExtensionAPI) {
 
 					return {
 						dispose: unsub,
-						invalidate() {},
+						invalidate() { },
 						render(width: number): string[] {
 							// Compute tokens from ctx (already accessible to extensions)
 							let input = 0,

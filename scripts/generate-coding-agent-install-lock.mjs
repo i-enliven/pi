@@ -11,8 +11,8 @@ const outputDir = join(codingAgentDir, "install-lock");
 const rootLockfilePath = join(repoRoot, "package-lock.json");
 const outputPackageJsonPath = join(outputDir, "package.json");
 const outputLockfilePath = join(outputDir, "package-lock.json");
-const internalPackagePrefix = "@earendil-works/pi-";
-const installPackageName = "@earendil-works/pi-coding-agent-install";
+const internalPackagePrefix = "@i-enliven/pi-";
+const installPackageName = "@i-enliven/pi-coding-agent-install";
 const allowedInstallScriptPackages = new Map([
 	["@google/genai@2.21.0", "preinstall is a no-op in the published package"],
 	["protobufjs@7.6.6", "postinstall only warns about protobufjs version scheme mismatches"],
@@ -195,7 +195,7 @@ function resolveExternalDependency(lockPackages, packageName, fromLockPath) {
 
 	throw new Error(
 		`Cannot resolve ${packageName} from ${fromLockPath || "root"}. ` +
-			(matches.length > 1 ? `Matches: ${matches.join(", ")}` : "No matching lockfile entry found."),
+		(matches.length > 1 ? `Matches: ${matches.join(", ")}` : "No matching lockfile entry found."),
 	);
 }
 

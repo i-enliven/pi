@@ -2,7 +2,7 @@
  * Test that BashExecutionComponent's collapsed output respects the render-time width,
  * not a stale captured width. Regression test for #2569.
  */
-import { visibleWidth } from "@earendil-works/pi-tui";
+import { visibleWidth } from "@i-enliven/pi-tui";
 import { beforeAll, describe, expect, it } from "vitest";
 import { BashExecutionComponent } from "../src/modes/interactive/components/bash-execution.ts";
 import { initTheme } from "../src/modes/interactive/theme/theme.ts";
@@ -20,9 +20,9 @@ function createTuiStub(columns: number): { columns: number; stub: any } {
 			},
 		},
 		// Loader calls ui.addInterval / ui.removeInterval
-		addInterval: (_cb: () => void, _ms: number) => ({ dispose: () => {} }),
-		removeInterval: () => {},
-		requestRender: () => {},
+		addInterval: (_cb: () => void, _ms: number) => ({ dispose: () => { } }),
+		removeInterval: () => { },
+		requestRender: () => { },
 	};
 	return { columns: state.columns, stub };
 }

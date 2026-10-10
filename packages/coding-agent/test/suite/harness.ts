@@ -6,16 +6,16 @@ import { createInMemoryModelRegistry, createModelRegistry, getModelRuntime } fro
 import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
-import { Agent } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, AgentTool } from "@i-enliven/pi-agent-core";
+import { Agent } from "@i-enliven/pi-agent-core";
 import type {
 	FauxModelDefinition,
 	FauxProviderRegistration,
 	FauxResponseStep,
 	Model,
 	ToolResultMessage,
-} from "@earendil-works/pi-ai/compat";
-import { registerFauxProvider, streamSimple } from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
+import { registerFauxProvider, streamSimple } from "@i-enliven/pi-ai/compat";
 import { AgentSession, type AgentSessionEvent } from "../../src/core/agent-session.ts";
 import { AuthStorage } from "../../src/core/auth-storage.ts";
 import type { ExtensionRunner, ExtensionUIContext } from "../../src/core/extensions/index.ts";
@@ -77,24 +77,24 @@ export function createTestUiContext(overrides: Partial<ExtensionUIContext> = {})
 		select: async () => undefined,
 		confirm: async () => false,
 		input: async () => undefined,
-		notify: () => {},
-		onTerminalInput: () => () => {},
-		setStatus: () => {},
-		setWorkingMessage: () => {},
-		setWorkingVisible: () => {},
-		setWorkingIndicator: () => {},
-		setHiddenThinkingLabel: () => {},
-		setWidget: () => {},
-		setFooter: () => {},
-		setHeader: () => {},
-		setTitle: () => {},
+		notify: () => { },
+		onTerminalInput: () => () => { },
+		setStatus: () => { },
+		setWorkingMessage: () => { },
+		setWorkingVisible: () => { },
+		setWorkingIndicator: () => { },
+		setHiddenThinkingLabel: () => { },
+		setWidget: () => { },
+		setFooter: () => { },
+		setHeader: () => { },
+		setTitle: () => { },
 		custom: async <T>() => undefined as T,
-		pasteToEditor: () => {},
-		setEditorText: () => {},
+		pasteToEditor: () => { },
+		setEditorText: () => { },
 		getEditorText: () => "",
 		editor: async () => undefined,
-		addAutocompleteProvider: () => {},
-		setEditorComponent: () => {},
+		addAutocompleteProvider: () => { },
+		setEditorComponent: () => { },
 		getEditorComponent: () => undefined,
 		get theme() {
 			return theme;
@@ -103,7 +103,7 @@ export function createTestUiContext(overrides: Partial<ExtensionUIContext> = {})
 		getTheme: () => undefined,
 		setTheme: () => ({ success: false, error: "Theme switching not available in tests" }),
 		getToolsExpanded: () => false,
-		setToolsExpanded: () => {},
+		setToolsExpanded: () => { },
 		...overrides,
 	};
 }

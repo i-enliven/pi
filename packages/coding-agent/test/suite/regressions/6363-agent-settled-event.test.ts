@@ -1,5 +1,5 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, getUserTexts, type Harness } from "../harness.ts";
@@ -90,11 +90,11 @@ describe("regression #6363: agent settled event and idle waiting", () => {
 	});
 
 	it("extension command waitForIdle waits for session-level settlement", async () => {
-		let releaseTool = () => {};
+		let releaseTool = () => { };
 		const released = new Promise<void>((resolve) => {
 			releaseTool = resolve;
 		});
-		let markCommandStarted = () => {};
+		let markCommandStarted = () => { };
 		const commandStarted = new Promise<void>((resolve) => {
 			markCommandStarted = resolve;
 		});
@@ -122,7 +122,7 @@ describe("regression #6363: agent settled event and idle waiting", () => {
 				fork: async () => ({ cancelled: false }),
 				navigateTree: async () => ({ cancelled: false }),
 				switchSession: async () => ({ cancelled: false }),
-				reload: async () => {},
+				reload: async () => { },
 			},
 		});
 		const toolStarted = new Promise<void>((resolve) => {

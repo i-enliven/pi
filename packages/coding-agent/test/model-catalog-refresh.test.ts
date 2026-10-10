@@ -1,4 +1,4 @@
-import type { ModelsRefreshOptions, ModelsRefreshResult } from "@earendil-works/pi-ai";
+import type { ModelsRefreshOptions, ModelsRefreshResult } from "@i-enliven/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import { refreshModelCatalogs } from "../src/modes/interactive/model-catalog-refresh.ts";
 
@@ -62,7 +62,7 @@ describe("interactive model catalog refresh", () => {
 		const runtime = {
 			refresh: vi.fn((options?: ModelsRefreshOptions) => {
 				if (options?.signal) refreshSignals.push(options.signal);
-				return new Promise<ModelsRefreshResult>(() => {});
+				return new Promise<ModelsRefreshResult>(() => { });
 			}),
 		};
 		const firstController = new AbortController();

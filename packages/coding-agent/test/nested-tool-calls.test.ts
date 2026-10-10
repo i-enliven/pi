@@ -1,5 +1,5 @@
-import type { AgentTool, AgentToolCall } from "@earendil-works/pi-agent-core";
-import type { Usage } from "@earendil-works/pi-ai";
+import type { AgentTool, AgentToolCall } from "@i-enliven/pi-agent-core";
+import type { Usage } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { describe, expect, it } from "vitest";
 import {

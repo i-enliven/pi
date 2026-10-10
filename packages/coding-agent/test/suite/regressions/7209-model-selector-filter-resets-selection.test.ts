@@ -1,4 +1,4 @@
-import { setKeybindings, type TUI } from "@earendil-works/pi-tui";
+import { setKeybindings, type TUI } from "@i-enliven/pi-tui";
 import { afterAll, beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeybindingsManager } from "../../../src/core/keybindings.ts";
 import { ModelSelectorComponent } from "../../../src/modes/interactive/components/model-selector.ts";
@@ -7,7 +7,7 @@ import { stripAnsi } from "../../../src/utils/ansi.ts";
 import { createHarness, type Harness } from "../harness.ts";
 
 function createFakeTui(): TUI {
-	return { requestRender: () => {} } as unknown as TUI;
+	return { requestRender: () => { } } as unknown as TUI;
 }
 
 /** Return the model id of the highlighted (→) row in the rendered selector. */
@@ -53,8 +53,8 @@ describe("model selector filter resets selection to top", () => {
 			current,
 			harness.session.modelRuntime,
 			[],
-			() => {},
-			() => {},
+			() => { },
+			() => { },
 		);
 
 		await vi.waitFor(() => {
@@ -103,8 +103,8 @@ describe("model selector filter resets selection to top", () => {
 			alpha1,
 			harness.session.modelRuntime,
 			[{ model: alpha2 }, { model: alpha3 }, { model: alpha1 }],
-			() => {},
-			() => {},
+			() => { },
+			() => { },
 		);
 
 		await vi.waitFor(() => {

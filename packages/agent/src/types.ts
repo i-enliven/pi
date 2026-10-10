@@ -13,7 +13,7 @@ import type {
 	ToolResultMessage,
 	TranscriptContext,
 	Usage,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import type { Static, TSchema } from "typebox";
 
 /**
@@ -188,7 +188,7 @@ export type PrepareRequest = (
 	signal?: AbortSignal,
 ) => AgentRequestUpdate | void | Promise<AgentRequestUpdate | undefined> | Promise<void>;
 
-export interface PrepareNextTurnContext extends AgentTurnContext {}
+export interface PrepareNextTurnContext extends AgentTurnContext { }
 
 export interface AgentLoopConfig extends SimpleStreamOptions {
 	model: Model<any>;
@@ -344,7 +344,7 @@ export interface AgentLoopConfig extends SimpleStreamOptions {
 /**
  * Thinking/reasoning level for models that support it.
  * Note: "xhigh" and "max" are only supported by selected model families. Use model
- * thinking-level metadata from @earendil-works/pi-ai to detect support for a concrete model.
+ * thinking-level metadata from @i-enliven/pi-ai to detect support for a concrete model.
  */
 export type ThinkingLevel = "off" | "minimal" | "low" | "medium" | "high" | "xhigh" | "max";
 
@@ -529,11 +529,11 @@ export type AgentEvent =
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: any }
 	| { type: "tool_execution_update"; toolCallId: string; toolName: string; args: any; partialResult: any }
 	| {
-			type: "tool_execution_end";
-			toolCallId: string;
-			toolName: string;
-			result: any;
-			isError: boolean;
-			/** Milliseconds `execute()` took, measured with a monotonic clock; absent when the tool did not run. */
-			durationMs?: number;
-	  };
+		type: "tool_execution_end";
+		toolCallId: string;
+		toolName: string;
+		result: any;
+		isError: boolean;
+		/** Milliseconds `execute()` took, measured with a monotonic clock; absent when the tool did not run. */
+		durationMs?: number;
+	};

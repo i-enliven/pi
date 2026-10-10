@@ -10,9 +10,9 @@
  * correct for that point in history.
  */
 
-import { StringEnum } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, ExtensionContext, Theme } from "@earendil-works/pi-coding-agent";
-import { matchesKey, Text, truncateToWidth } from "@earendil-works/pi-tui";
+import { StringEnum } from "@i-enliven/pi-ai";
+import type { ExtensionAPI, ExtensionContext, Theme } from "@i-enliven/pi-coding-agent";
+import { matchesKey, Text, truncateToWidth } from "@i-enliven/pi-tui";
 import { Type } from "typebox";
 
 interface Todo {
@@ -260,9 +260,9 @@ export default function (pi: ExtensionAPI) {
 					const added = todoList[todoList.length - 1];
 					return new Text(
 						theme.fg("success", "✓ Added ") +
-							theme.fg("accent", `#${added.id}`) +
-							" " +
-							theme.fg("muted", added.text),
+						theme.fg("accent", `#${added.id}`) +
+						" " +
+						theme.fg("muted", added.text),
 						0,
 						0,
 					);

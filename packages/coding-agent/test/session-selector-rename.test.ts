@@ -1,4 +1,4 @@
-import { setKeybindings } from "@earendil-works/pi-tui";
+import { setKeybindings } from "@i-enliven/pi-tui";
 import { beforeAll, beforeEach, describe, expect, it, vi } from "vitest";
 import { KeybindingsManager } from "../src/core/keybindings.ts";
 import type { SessionInfo } from "../src/core/session-manager.ts";
@@ -44,10 +44,10 @@ describe("session selector rename", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ showRenameHint: true, keybindings },
 		);
 		await flushPromises();
@@ -63,10 +63,10 @@ describe("session selector rename", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ showRenameHint: false, keybindings },
 		);
 		await flushPromises();
@@ -78,16 +78,16 @@ describe("session selector rename", () => {
 
 	it("enters rename mode on Ctrl+R and submits with Enter", async () => {
 		const sessions = [makeSession({ id: "a", name: "Old" })];
-		const renameSession = vi.fn(async () => {});
+		const renameSession = vi.fn(async () => { });
 
 		const keybindings = new KeybindingsManager();
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ renameSession, showRenameHint: true, keybindings },
 		);
 		await flushPromises();

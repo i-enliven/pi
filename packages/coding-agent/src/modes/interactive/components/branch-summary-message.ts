@@ -1,4 +1,4 @@
-import { Box, Container, Markdown, type MarkdownTheme, MouseRegion, Spacer, Text } from "@earendil-works/pi-tui";
+import { Box, Container, Markdown, type MarkdownTheme, MouseRegion, Spacer, Text } from "@i-enliven/pi-tui";
 import type { BranchSummaryMessage } from "../../../core/messages.ts";
 import { getMarkdownTheme, theme } from "../theme/theme.ts";
 import { keyText } from "./keybinding-hints.ts";
@@ -52,8 +52,8 @@ export class BranchSummaryMessageComponent extends Box {
 			content.addChild(
 				new Text(
 					theme.fg("customMessageText", "Branch summary (") +
-						theme.fg("dim", keyText("app.tools.expand")) +
-						theme.fg("customMessageText", " to expand)"),
+					theme.fg("dim", keyText("app.tools.expand")) +
+					theme.fg("customMessageText", " to expand)"),
 					0,
 					0,
 				),

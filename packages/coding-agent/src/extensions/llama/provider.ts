@@ -9,10 +9,10 @@ import {
 	type Provider,
 	type ProviderStreamOptions,
 	type RefreshModelsContext,
-} from "@earendil-works/pi-ai";
-import { llamaCppClassifyApi } from "@earendil-works/pi-ai/api/llama-cpp-classify.lazy";
-import { typesafeSystemOneApi } from "@earendil-works/pi-ai/api/typesafe-system-one.lazy";
-import { stream, streamSimple } from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai";
+import { llamaCppClassifyApi } from "@i-enliven/pi-ai/api/llama-cpp-classify.lazy";
+import { typesafeSystemOneApi } from "@i-enliven/pi-ai/api/typesafe-system-one.lazy";
+import { stream, streamSimple } from "@i-enliven/pi-ai/compat";
 import {
 	LlamaClient,
 	type LlamaModelInfo,

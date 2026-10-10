@@ -9,7 +9,7 @@ import {
 	Text,
 	type TUI,
 	type TuiMouseEvent,
-} from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
 import type { ToolDefinition, ToolRenderContext, ToolRenderers } from "../../../core/extensions/types.ts";
 
 /** What this component needs from a tool: how to draw it, without executing it. */
@@ -362,15 +362,15 @@ export class ToolExecutionComponent extends Container {
 					const previous = previousSources[index];
 					const imageComponent =
 						previous?.data === source.data &&
-						previous.mimeType === source.mimeType &&
-						previous.widthCells === source.widthCells
+							previous.mimeType === source.mimeType &&
+							previous.widthCells === source.widthCells
 							? previousImages[index]
 							: new Image(
-									source.data,
-									source.mimeType,
-									{ fallbackColor: (s: string) => theme.fg("toolOutput", s) },
-									{ maxWidthCells: source.widthCells },
-								);
+								source.data,
+								source.mimeType,
+								{ fallbackColor: (s: string) => theme.fg("toolOutput", s) },
+								{ maxWidthCells: source.widthCells },
+							);
 					if (source.mimeType !== "image/png") {
 						ensurePngTranscoder(() => {
 							this.invalidate();

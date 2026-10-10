@@ -15,13 +15,13 @@
  *   pi -e /path/to/pi/packages/coding-agent/examples/extensions/gondolin
  *
  * Requirements:
- *   - Node.js >= 23.6.0 for @earendil-works/gondolin
+ *   - Node.js >= 23.6.0 for @i-enliven/gondolin
  *   - QEMU installed (for example, `brew install qemu` on macOS)
  */
 
 import path from "node:path";
-import { RealFSProvider, VM } from "@earendil-works/gondolin";
-import type { ExtensionAPI, ExtensionContext } from "@earendil-works/pi-coding-agent";
+import { RealFSProvider, VM } from "@i-enliven/gondolin";
+import type { ExtensionAPI, ExtensionContext } from "@i-enliven/pi-coding-agent";
 import {
 	type BashOperations,
 	createBashTool,
@@ -42,7 +42,7 @@ import {
 	truncateHead,
 	truncateLine,
 	type WriteOperations,
-} from "@earendil-works/pi-coding-agent";
+} from "@i-enliven/pi-coding-agent";
 
 const GUEST_WORKSPACE = "/workspace";
 const DEFAULT_GREP_LIMIT = 100;
@@ -334,9 +334,9 @@ function createGondolinBashOps(vm: VM, localCwd: string, shellPath: string): Bas
 			const timer =
 				timeout && timeout > 0
 					? setTimeout(() => {
-							timedOut = true;
-							controller.abort();
-						}, timeout * 1000)
+						timedOut = true;
+						controller.abort();
+					}, timeout * 1000)
 					: undefined;
 
 			try {

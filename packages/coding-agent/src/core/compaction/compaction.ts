@@ -5,7 +5,7 @@
  * and after compaction the session is reloaded.
  */
 
-import type { AgentMessage, StreamFn, ThinkingLevel } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, StreamFn, ThinkingLevel } from "@i-enliven/pi-agent-core";
 import {
 	contentText,
 	getCurrentSystemMessage,
@@ -14,7 +14,7 @@ import {
 	type RetryPolicy,
 	retryAssistantCall,
 	uuidv7,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import type {
 	AssistantMessage,
 	Model,
@@ -22,8 +22,8 @@ import type {
 	SystemMessage,
 	TranscriptContext,
 	Usage,
-} from "@earendil-works/pi-ai/compat";
-import { completeSimple } from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
+import { completeSimple } from "@i-enliven/pi-ai/compat";
 import { convertToLlm } from "../messages.ts";
 import {
 	buildSessionProjection,
@@ -907,8 +907,8 @@ export function prepareCompaction(
 		.flatMap(getMessagesFromProjectedEntryForCompaction);
 	const turnPrefixMessages = cutPoint.isSplitTurn
 		? projectedEntries
-				.slice(cutPoint.turnStartIndex, cutPoint.firstKeptEntryIndex)
-				.flatMap(getMessagesFromProjectedEntryForCompaction)
+			.slice(cutPoint.turnStartIndex, cutPoint.firstKeptEntryIndex)
+			.flatMap(getMessagesFromProjectedEntryForCompaction)
 		: [];
 
 	if (messagesToSummarize.length === 0 && turnPrefixMessages.length === 0) return undefined;

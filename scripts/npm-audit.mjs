@@ -14,7 +14,7 @@ const acceptedAdvisories = {
 	"GHSA-86w9-cpqp-85rv": {
 		package: "node-forge",
 		reason:
-			"No fixed node-forge release exists. It is only reachable through @earendil-works/gondolin in the private, " +
+			"No fixed node-forge release exists. It is only reachable through @i-enliven/gondolin in the private, " +
 			"unpublished gondolin example extension. Gondolin only verifies leaf certificates against its own locally " +
 			"generated CA (public exponent 65537), so the low-exponent signature forgery does not apply.",
 	},

@@ -38,7 +38,7 @@ Source on GitHub ([pi](https://github.com/i-enliven/pi)):
 - [`packages/ai/src/types.ts`](https://github.com/i-enliven/pi/blob/main/packages/ai/src/types.ts) - Base message and content-block types
 - [`packages/agent/src/types.ts`](https://github.com/i-enliven/pi/blob/main/packages/agent/src/types.ts) - Extensible `AgentMessage` union
 
-For TypeScript definitions in your project, inspect `node_modules/@earendil-works/pi-coding-agent/dist/` and `node_modules/@earendil-works/pi-ai/dist/`.
+For TypeScript definitions in your project, inspect `node_modules/@i-enliven/pi-coding-agent/dist/` and `node_modules/@i-enliven/pi-ai/dist/`.
 
 ## Messages
 

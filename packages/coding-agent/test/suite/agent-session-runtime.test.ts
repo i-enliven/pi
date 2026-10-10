@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readFileSync, realpathSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join, parse } from "node:path";
-import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from "@earendil-works/pi-ai/compat";
+import { fauxAssistantMessage, fauxToolCall, registerFauxProvider } from "@i-enliven/pi-ai/compat";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import {
@@ -214,7 +214,7 @@ describe("AgentSessionRuntime characterization", () => {
 	});
 
 	it("preserves an existing session when importing a file with the same name", async () => {
-		const { runtime, tempDir } = await createRuntimeForTest(() => {});
+		const { runtime, tempDir } = await createRuntimeForTest(() => { });
 		const sessionDir = runtime.session.sessionManager.getSessionDir();
 		const importDir = join(tempDir, "import");
 		const filename = "collision.jsonl";
@@ -376,7 +376,7 @@ describe("AgentSessionRuntime characterization", () => {
 	});
 
 	it("reports why an unflushed session cannot be forked", async () => {
-		const { runtime } = await createRuntimeForTest(() => {});
+		const { runtime } = await createRuntimeForTest(() => { });
 		const sessionFile = runtime.session.sessionFile;
 		const leafId = runtime.session.sessionManager.getLeafId();
 		expect(sessionFile).toBeDefined();
@@ -389,7 +389,7 @@ describe("AgentSessionRuntime characterization", () => {
 	});
 
 	it("duplicates the current active branch when forking at the current position", async () => {
-		const { runtime } = await createRuntimeForTest(() => {});
+		const { runtime } = await createRuntimeForTest(() => { });
 		await runtime.session.prompt("hello");
 		await runtime.session.prompt("again");
 
@@ -400,9 +400,9 @@ describe("AgentSessionRuntime characterization", () => {
 					? typeof message.content === "string"
 						? message.content
 						: message.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("")
 					: undefined,
 		}));
 		const previousSessionFile = runtime.session.sessionFile;
@@ -420,9 +420,9 @@ describe("AgentSessionRuntime characterization", () => {
 						? typeof message.content === "string"
 							? message.content
 							: message.content
-									.filter((part): part is { type: "text"; text: string } => part.type === "text")
-									.map((part) => part.text)
-									.join("")
+								.filter((part): part is { type: "text"; text: string } => part.type === "text")
+								.map((part) => part.text)
+								.join("")
 						: undefined,
 			})),
 		).toEqual(beforeMessages);
@@ -512,9 +512,9 @@ describe("AgentSessionRuntime characterization", () => {
 					? typeof message.content === "string"
 						? message.content
 						: message.content
-								.filter((part): part is { type: "text"; text: string } => part.type === "text")
-								.map((part) => part.text)
-								.join("")
+							.filter((part): part is { type: "text"; text: string } => part.type === "text")
+							.map((part) => part.text)
+							.join("")
 					: undefined,
 		}));
 		const leafId = runtime.session.sessionManager.getLeafId();
@@ -532,16 +532,16 @@ describe("AgentSessionRuntime characterization", () => {
 						? typeof message.content === "string"
 							? message.content
 							: message.content
-									.filter((part): part is { type: "text"; text: string } => part.type === "text")
-									.map((part) => part.text)
-									.join("")
+								.filter((part): part is { type: "text"; text: string } => part.type === "text")
+								.map((part) => part.text)
+								.join("")
 						: undefined,
 			})),
 		).toEqual(beforeMessages);
 	});
 
 	it("throws when forking with an invalid entry id", async () => {
-		const { runtime } = await createRuntimeForTest(() => {});
+		const { runtime } = await createRuntimeForTest(() => { });
 		await expect(runtime.fork("missing-entry")).rejects.toThrow("Invalid entry ID for forking");
 	});
 
@@ -550,7 +550,7 @@ describe("AgentSessionRuntime characterization", () => {
 		const secondDir = join(tmpdir(), `pi-runtime-cwd-b-${Date.now()}-${Math.random().toString(36).slice(2)}`);
 		mkdirSync(firstDir, { recursive: true });
 		mkdirSync(secondDir, { recursive: true });
-		const { runtime, faux, tempDir } = await createRuntimeForTest(() => {}, { cwd: firstDir });
+		const { runtime, faux, tempDir } = await createRuntimeForTest(() => { }, { cwd: firstDir });
 		const otherAuthStorage = AuthStorage.inMemory();
 		await otherAuthStorage.modify(faux.getModel().provider, async () => ({ type: "api_key", key: "faux-key" }));
 		const otherRuntimeOptions = {
@@ -618,7 +618,7 @@ describe("AgentSessionRuntime characterization", () => {
 	});
 
 	it("restores model and thinking state from the destination session", async () => {
-		const { runtime, faux, tempDir } = await createRuntimeForTest(() => {}, {
+		const { runtime, faux, tempDir } = await createRuntimeForTest(() => { }, {
 			bootstrapModel: false,
 			bootstrapThinkingLevel: false,
 		});

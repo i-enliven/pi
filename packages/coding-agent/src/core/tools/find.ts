@@ -1,5 +1,5 @@
 import { createInterface } from "node:readline";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
 import { spawn } from "child_process";
 import path from "path";
 import { type Static, Type } from "typebox";
@@ -186,7 +186,7 @@ export function createFindToolDefinition(
 						// .gitignore rules stop at nested repo boundaries:
 						// https://github.com/earendil-works/pi/issues/5960
 						let insideGitRepo = false;
-						for (let current = searchPath; ; ) {
+						for (let current = searchPath; ;) {
 							if (await pathExists(path.join(current, ".git"))) {
 								insideGitRepo = true;
 								break;

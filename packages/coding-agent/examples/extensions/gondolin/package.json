@@ -14,6 +14,6 @@
 		]
 	},
 	"dependencies": {
-		"@earendil-works/gondolin": "0.12.0"
+		"@i-enliven/gondolin": "0.12.0"
 	}
 }

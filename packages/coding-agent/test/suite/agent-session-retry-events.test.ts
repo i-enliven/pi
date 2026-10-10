@@ -1,5 +1,5 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxThinking, fauxToolCall } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxThinking, fauxToolCall } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, type Harness } from "./harness.ts";
@@ -349,7 +349,7 @@ describe("AgentSession retry and event characterization", () => {
 			),
 		]);
 
-		await harness.session.prompt("hi").catch(() => {});
+		await harness.session.prompt("hi").catch(() => { });
 
 		const updateTypes = harness.eventsOfType("message_update").map((event) => event.assistantMessageEvent.type);
 		expect(updateTypes).toContain("thinking_delta");

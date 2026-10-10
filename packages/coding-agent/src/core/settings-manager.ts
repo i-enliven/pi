@@ -1,11 +1,11 @@
-import type { ThinkingLevel } from "@earendil-works/pi-agent-core";
-import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS, type Model, type Transport } from "@earendil-works/pi-ai";
+import type { ThinkingLevel } from "@i-enliven/pi-agent-core";
+import { DEFAULT_MAX_AGENT_RETRY_DELAY_MS, type Model, type Transport } from "@i-enliven/pi-ai";
 import type {
 	TuiMode as RendererTuiMode,
 	ScrollViewScrollbar,
 	TerminalCapabilities,
 	WheelScrollLines,
-} from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
 import { randomUUID } from "crypto";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
@@ -106,13 +106,13 @@ export type TransportSetting = Transport;
 export type PackageSource =
 	| string
 	| {
-			source: string;
-			autoload?: boolean;
-			extensions?: string[];
-			skills?: string[];
-			prompts?: string[];
-			themes?: string[];
-	  };
+		source: string;
+		autoload?: boolean;
+		extensions?: string[];
+		skills?: string[];
+		prompts?: string[];
+		themes?: string[];
+	};
 
 export interface Settings {
 	lastChangelogVersion?: string;

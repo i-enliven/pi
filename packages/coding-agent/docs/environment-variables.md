@@ -81,10 +81,11 @@ These variables are read by Pi itself:
 | `PI_CODING_AGENT_DIR` | Override the config directory; default is `~/.pi/agent` |
 | `PI_CODING_AGENT_SESSION_DIR` | Override session storage; overridden by `--session-dir` |
 | `PI_PACKAGE_DIR` | Override the package directory, useful for Nix/Guix store paths |
-| `PI_OFFLINE` | Disable automatic network activity, including provider model refreshes and the fork model catalog overlay |
+| `PI_OFFLINE` | Disable automatic network activity, including provider model refreshes, the fork model catalog overlay, and the `pi update` remote fetch |
 | `PI_MODEL_CATALOG_URL` | Override the model catalog URL used by model refreshes (default: `nix/model-catalog/models.all.json` from the fork repository) |
 | `PI_SKIP_VERSION_CHECK` | Disable the GitHub latest-release request |
 | `PI_UPDATE_REPO` | Override the GitHub repository checked for updates (default: `i-enliven/pi`) |
+| `PI_UPDATE_REMOTE` | Override the git remote a source checkout updates from (default: `fork`, falling back to the tracked upstream, then `origin`) |
 | `PI_TELEMETRY` | Override install/update telemetry and provider attribution headers: `1`/`true`/`yes` or `0`/`false`/`no` |
 | `PI_CACHE_RETENTION` | Set to `long` for extended provider prompt caching where supported |
 | `PI_HARDWARE_CURSOR` | Set to `1` to show the hardware cursor; see [Terminal setup](terminal-setup.md) |

@@ -1,6 +1,6 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
-import type { ExtensionAPI, InputEvent } from "@earendil-works/pi-coding-agent";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
+import type { ExtensionAPI, InputEvent } from "@i-enliven/pi-coding-agent";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import { createHarness, getAssistantTexts, getMessageText, getUserTexts, type Harness } from "./harness.ts";
@@ -9,8 +9,8 @@ async function createWaitingHarness(
 	options: {
 		tools?: AgentTool[];
 		extensionFactories?: Harness["session"]["extensionRunner"] extends never
-			? never
-			: Array<(pi: ExtensionAPI) => void>;
+		? never
+		: Array<(pi: ExtensionAPI) => void>;
 	} = {},
 ): Promise<{
 	harness: Harness;
@@ -443,7 +443,7 @@ describe("AgentSession queue characterization", () => {
 				(pi) => {
 					pi.registerCommand("testcmd", {
 						description: "Test command",
-						handler: async () => {},
+						handler: async () => { },
 					});
 				},
 			],
@@ -461,7 +461,7 @@ describe("AgentSession queue characterization", () => {
 				(pi) => {
 					pi.registerCommand("testcmd", {
 						description: "Test command",
-						handler: async () => {},
+						handler: async () => { },
 					});
 				},
 			],

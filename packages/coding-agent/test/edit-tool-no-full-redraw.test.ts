@@ -1,7 +1,7 @@
 import { mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Container, type Terminal, Text, type TUI, TuiMainScreen } from "@earendil-works/pi-tui";
+import { Container, type Terminal, Text, type TUI, TuiMainScreen } from "@i-enliven/pi-tui";
 import { afterEach, beforeAll, describe, expect, it } from "vitest";
 import { createEditToolDefinition } from "../src/core/tools/edit.ts";
 import { computeEditsDiff, type Edit } from "../src/core/tools/edit-diff.ts";
@@ -14,21 +14,21 @@ class FakeTerminal implements Terminal {
 	kittyProtocolActive = true;
 	writes: string[] = [];
 
-	start(): void {}
-	stop(): void {}
-	async drainInput(): Promise<void> {}
+	start(): void { }
+	stop(): void { }
+	async drainInput(): Promise<void> { }
 	write(data: string): void {
 		this.writes.push(data);
 	}
-	moveBy(_lines: number): void {}
-	hideCursor(): void {}
-	showCursor(): void {}
-	clearLine(): void {}
-	clearFromCursor(): void {}
-	clearScreen(): void {}
-	setTitle(_title: string): void {}
-	setProgress(_active: boolean): void {}
-	setProgramStatus(): void {}
+	moveBy(_lines: number): void { }
+	hideCursor(): void { }
+	showCursor(): void { }
+	clearLine(): void { }
+	clearFromCursor(): void { }
+	clearScreen(): void { }
+	setTitle(_title: string): void { }
+	setProgress(_active: boolean): void { }
+	setProgramStatus(): void { }
 
 	get fullClearCount(): number {
 		return this.writes.filter((write) => write.includes("\x1b[2J\x1b[H\x1b[3J")).length;

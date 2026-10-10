@@ -14,7 +14,7 @@
 import { createReadStream } from "node:fs";
 import { join } from "node:path";
 import { createInterface } from "node:readline";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 
 interface ConflictBlock {
 	file: string;
@@ -48,7 +48,7 @@ async function findConflicts(pi: ExtensionAPI, cwd: string): Promise<ConflictBlo
 					separatorLine = undefined;
 				}
 			}
-		} catch {}
+		} catch { }
 	}
 	return blocks;
 }

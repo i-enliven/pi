@@ -1,11 +1,11 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
-import { fauxAssistantMessage, fauxToolCall } from "@earendil-works/pi-ai";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
+import { fauxAssistantMessage, fauxToolCall } from "@i-enliven/pi-ai";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { createHarness, getMessageText, type Harness } from "./harness.ts";
 
 function deferred(): { promise: Promise<void>; resolve: () => void } {
-	let resolve = () => {};
+	let resolve = () => { };
 	const promise = new Promise<void>((done) => {
 		resolve = done;
 	});
@@ -675,9 +675,9 @@ describe("AgentSession actionable boundaries", () => {
 							.getBranch()
 							.flatMap((entry) =>
 								entry.type === "message" &&
-								(entry.message.role === "user" ||
-									entry.message.role === "assistant" ||
-									entry.message.role === "toolResult")
+									(entry.message.role === "user" ||
+										entry.message.role === "assistant" ||
+										entry.message.role === "toolResult")
 									? [entry.id]
 									: [],
 							);

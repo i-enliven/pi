@@ -3,7 +3,7 @@
  * Provider auth orchestration belongs to ModelRuntime and pi-ai Models.
  */
 
-import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore } from "@earendil-works/pi-ai";
+import type { AuthOperationOptions, Credential, CredentialInfo, CredentialStore } from "@i-enliven/pi-ai";
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "fs";
 import { dirname, join } from "path";
 import lockfile from "proper-lockfile";
@@ -307,7 +307,7 @@ export class InMemoryAuthStorageBackend implements AuthStorageBackend {
 	): Promise<T> {
 		const previous = this.asyncChain;
 		const operation = (async () => {
-			await previous.catch(() => {});
+			await previous.catch(() => { });
 			options?.signal?.throwIfAborted();
 			const { result, next } = await fn(this.value);
 			options?.signal?.throwIfAborted();
@@ -316,7 +316,7 @@ export class InMemoryAuthStorageBackend implements AuthStorageBackend {
 			}
 			return result;
 		})();
-		this.asyncChain = operation.catch(() => {});
+		this.asyncChain = operation.catch(() => { });
 		return raceWithAbortSignal(operation, options?.signal);
 	}
 }

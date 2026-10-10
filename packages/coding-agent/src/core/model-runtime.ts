@@ -55,8 +55,8 @@ import {
 	type ProviderRequestOptions,
 	type SimpleStreamOptions,
 	type StreamOptions,
-} from "@earendil-works/pi-ai";
-import * as builtinProviderCatalog from "@earendil-works/pi-ai/providers/all";
+} from "@i-enliven/pi-ai";
+import * as builtinProviderCatalog from "@i-enliven/pi-ai/providers/all";
 import {
 	assertChatModel,
 	assertClassifierInputSupported,
@@ -64,7 +64,7 @@ import {
 	assertImageModel,
 	classifierErrorResult,
 	imageErrorResult,
-} from "@earendil-works/pi-ai/utils/model-operations";
+} from "@i-enliven/pi-ai/utils/model-operations";
 import { getAgentDir } from "../config.ts";
 import { operationSignal, raceWithAbortSignal } from "../utils/abort.ts";
 import { AuthStorage as DefaultAuthStorage } from "./auth-storage.ts";
@@ -551,12 +551,12 @@ export class ModelRuntime implements Models {
 			markStarted = resolve;
 		});
 		const operation = (async () => {
-			await previous.catch(() => {});
+			await previous.catch(() => { });
 			signal.throwIfAborted();
 			markStarted?.();
 			return task();
 		})();
-		const tail = operation.catch(() => {});
+		const tail = operation.catch(() => { });
 		this.credentialOperations.set(providerId, tail);
 		void tail.then(() => {
 			if (this.credentialOperations.get(providerId) === tail) this.credentialOperations.delete(providerId);

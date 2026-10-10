@@ -1,7 +1,7 @@
 import { mkdirSync, mkdtempSync, rmSync, symlinkSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { setKeybindings } from "@earendil-works/pi-tui";
+import { setKeybindings } from "@i-enliven/pi-tui";
 import { afterEach, beforeAll, beforeEach, describe, expect, it } from "vitest";
 import { KeybindingsManager } from "../src/core/keybindings.ts";
 import type { SessionInfo } from "../src/core/session-manager.ts";
@@ -15,8 +15,8 @@ type Deferred<T> = {
 };
 
 function createDeferred<T>(): Deferred<T> {
-	let resolve: (value: T) => void = () => {};
-	let reject: (err: unknown) => void = () => {};
+	let resolve: (value: T) => void = () => { };
+	let reject: (err: unknown) => void = () => { };
 	const promise = new Promise<T>((res, rej) => {
 		resolve = res;
 		reject = rej;
@@ -111,10 +111,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -135,10 +135,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -159,10 +159,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -195,10 +195,10 @@ describe("session selector path/delete interactions", () => {
 				allLoadCalls++;
 				return allDeferred.promise;
 			},
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -229,10 +229,10 @@ describe("session selector path/delete interactions", () => {
 				onProgress?.(1, 2, allSessions);
 				return allDeferred.promise;
 			},
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -273,10 +273,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -307,10 +307,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => [parentOne, parentTwo, childTwo],
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 		);
 		await flushPromises();
@@ -333,10 +333,10 @@ describe("session selector path/delete interactions", () => {
 		const selector = new SessionSelectorComponent(
 			async () => sessions,
 			async () => [],
-			() => {},
-			() => {},
-			() => {},
-			() => {},
+			() => { },
+			() => { },
+			() => { },
+			() => { },
 			{ keybindings },
 			paths.parentAliasA,
 		);

@@ -1,4 +1,4 @@
-import type { ApiKeyCredential, Credential, CredentialStore, Model, Provider } from "@earendil-works/pi-ai";
+import type { ApiKeyCredential, Credential, CredentialStore, Model, Provider } from "@i-enliven/pi-ai";
 import { describe, expect, it, vi } from "vitest";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import { CredentialSynchronizationError, ModelRuntime } from "../src/core/model-runtime.ts";
@@ -64,7 +64,7 @@ describe("ModelRuntime credential synchronization", () => {
 		const credentials = AuthStorage.inMemory();
 		const runtime = await runtimeWithProvider(provider("dynamic"), credentials);
 
-		await runtime.login("dynamic", "api_key", { prompt: async () => "unused", notify: () => {} });
+		await runtime.login("dynamic", "api_key", { prompt: async () => "unused", notify: () => { } });
 		expect(runtime.hasConfiguredAuth("dynamic")).toBe(true);
 		expect(runtime.getAvailableSnapshot().map((entry) => entry.id)).toContain("dynamic");
 		expect(await credentials.read("dynamic")).toEqual({ type: "api_key", key: "dynamic-key" });
@@ -96,7 +96,7 @@ describe("ModelRuntime credential synchronization", () => {
 			credentials,
 		);
 
-		const login = runtime.login("ordered", "api_key", { prompt: async () => "unused", notify: () => {} });
+		const login = runtime.login("ordered", "api_key", { prompt: async () => "unused", notify: () => { } });
 		await loginStarted;
 		const logout = runtime.logout("ordered");
 		await new Promise((resolve) => setTimeout(resolve, 0));
@@ -142,8 +142,8 @@ describe("ModelRuntime credential synchronization", () => {
 		);
 		await runtime.refresh({ allowNetwork: false, providers: ["one", "two"] });
 
-		const one = runtime.login("one", "api_key", { prompt: async () => "unused", notify: () => {} });
-		const two = runtime.login("two", "api_key", { prompt: async () => "unused", notify: () => {} });
+		const one = runtime.login("one", "api_key", { prompt: async () => "unused", notify: () => { } });
+		const two = runtime.login("two", "api_key", { prompt: async () => "unused", notify: () => { } });
 		await Promise.all([first, second]);
 		finish?.();
 		await Promise.all([one, two]);
@@ -156,7 +156,7 @@ describe("ModelRuntime credential synchronization", () => {
 		const unrelated = provider("unrelated");
 		if (unrelated.auth.apiKey) {
 			unrelated.auth.apiKey.check = async () => {
-				if (stallUnrelated) await new Promise<void>(() => {});
+				if (stallUnrelated) await new Promise<void>(() => { });
 				return undefined;
 			};
 		}
@@ -164,7 +164,7 @@ describe("ModelRuntime credential synchronization", () => {
 		await runtime.refresh({ allowNetwork: false, providers: ["target", "unrelated"] });
 		stallUnrelated = true;
 
-		await runtime.login("target", "api_key", { prompt: async () => "unused", notify: () => {} });
+		await runtime.login("target", "api_key", { prompt: async () => "unused", notify: () => { } });
 		expect(runtime.hasConfiguredAuth("target")).toBe(true);
 		await expect(runtime.refresh({ allowNetwork: false, providers: ["target"] })).resolves.toMatchObject({
 			aborted: false,
@@ -182,7 +182,7 @@ describe("ModelRuntime credential synchronization", () => {
 			registered.auth.apiKey.check = async ({ credential }) => {
 				if (blockAvailability) {
 					markStarted?.();
-					await new Promise<void>(() => {});
+					await new Promise<void>(() => { });
 				}
 				return credential ? { type: "api_key", source: "stored" } : undefined;
 			};
@@ -203,7 +203,7 @@ describe("ModelRuntime credential synchronization", () => {
 	});
 
 	it("does not run network refresh inside the credential operation chain", async () => {
-		const networkRefresh = vi.fn(async () => new Promise<void>(() => {}));
+		const networkRefresh = vi.fn(async () => new Promise<void>(() => { }));
 		const runtime = await runtimeWithProvider(
 			provider("local-only", {
 				refreshModels: async (context) => {
@@ -212,7 +212,7 @@ describe("ModelRuntime credential synchronization", () => {
 			}),
 		);
 
-		await runtime.login("local-only", "api_key", { prompt: async () => "unused", notify: () => {} });
+		await runtime.login("local-only", "api_key", { prompt: async () => "unused", notify: () => { } });
 		expect(networkRefresh).not.toHaveBeenCalled();
 		expect(runtime.hasConfiguredAuth("local-only")).toBe(true);
 	});
@@ -284,7 +284,7 @@ describe("ModelRuntime credential synchronization", () => {
 		const login = runtime.login("delayed-commit", "api_key", {
 			signal: controller.signal,
 			prompt: async () => "unused",
-			notify: () => {},
+			notify: () => { },
 		});
 		const outcome = login.then(
 			() => {
@@ -321,7 +321,7 @@ describe("ModelRuntime credential synchronization", () => {
 				refreshModels: async (context) => {
 					if (!context.allowNetwork && blockCacheRefresh) {
 						markCacheRefreshStarted?.();
-						await new Promise<void>(() => {});
+						await new Promise<void>(() => { });
 					}
 				},
 			}),
@@ -332,7 +332,7 @@ describe("ModelRuntime credential synchronization", () => {
 		const login = runtime.login("cancelled-sync", "api_key", {
 			signal: controller.signal,
 			prompt: async () => "unused",
-			notify: () => {},
+			notify: () => { },
 		});
 		await cacheRefreshStarted;
 		controller.abort();
@@ -362,7 +362,7 @@ describe("ModelRuntime credential synchronization", () => {
 		);
 		failCacheRefresh = true;
 
-		const login = runtime.login("broken-sync", "api_key", { prompt: async () => "unused", notify: () => {} });
+		const login = runtime.login("broken-sync", "api_key", { prompt: async () => "unused", notify: () => { } });
 		await expect(login).rejects.toMatchObject({
 			name: "CredentialSynchronizationError",
 			providerId: "broken-sync",

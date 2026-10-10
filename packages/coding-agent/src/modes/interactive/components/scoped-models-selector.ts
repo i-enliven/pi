@@ -1,4 +1,4 @@
-import type { Model } from "@earendil-works/pi-ai";
+import type { Model } from "@i-enliven/pi-ai";
 import {
 	Container,
 	type Focusable,
@@ -9,7 +9,7 @@ import {
 	matchesKey,
 	Spacer,
 	Text,
-} from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
 import { getModelSearchText } from "../model-search.ts";
 import { theme } from "../theme/theme.ts";
 import { DynamicBorder } from "./dynamic-border.ts";
@@ -218,10 +218,10 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 		const items = this.buildItems();
 		this.filteredItems = query
 			? fuzzyFilter(items, query, (item) =>
-					item.model
-						? getModelSearchText({ id: item.model.id, provider: item.model.provider, name: item.model.name })
-						: item.fullId,
-				)
+				item.model
+					? getModelSearchText({ id: item.model.id, provider: item.model.provider, name: item.model.name })
+					: item.fullId,
+			)
 			: items;
 		this.selectedIndex = Math.min(this.selectedIndex, Math.max(0, this.filteredItems.length - 1));
 		this.updateList();

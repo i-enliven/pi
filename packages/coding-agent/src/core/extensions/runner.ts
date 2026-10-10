@@ -2,15 +2,15 @@
  * Extension runner - executes extensions and manages their lifecycle.
  */
 
-import type { AgentMessage, AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentMessage, AgentTool } from "@i-enliven/pi-agent-core";
 import {
 	getCurrentSystemMessage,
 	type ImageContent,
 	type Model,
 	type Provider,
 	type ProviderHeaders,
-} from "@earendil-works/pi-ai";
-import type { KeyId } from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-ai";
+import type { KeyId } from "@i-enliven/pi-tui";
 import { type Theme, theme } from "../../modes/interactive/theme/theme.ts";
 import type { CacheWarmingAction } from "../cache-warmer.ts";
 import type { ResourceDiagnostic } from "../diagnostics.ts";
@@ -206,12 +206,12 @@ type SessionBeforeEventResult =
 type RunnerEmitResult<TEvent extends RunnerEmitEvent> = TEvent extends { type: "session_before_switch" }
 	? SessionBeforeSwitchResult | undefined
 	: TEvent extends { type: "session_before_fork" }
-		? SessionBeforeForkResult | undefined
-		: TEvent extends { type: "session_before_compact" }
-			? SessionBeforeCompactResult | undefined
-			: TEvent extends { type: "session_before_tree" }
-				? SessionBeforeTreeResult | undefined
-				: undefined;
+	? SessionBeforeForkResult | undefined
+	: TEvent extends { type: "session_before_compact" }
+	? SessionBeforeCompactResult | undefined
+	: TEvent extends { type: "session_before_tree" }
+	? SessionBeforeTreeResult | undefined
+	: undefined;
 
 export type ExtensionErrorListener = (error: ExtensionError) => void;
 
@@ -325,24 +325,24 @@ const noOpUIContext: ExtensionUIContext = {
 	select: async () => undefined,
 	confirm: async () => false,
 	input: async () => undefined,
-	notify: () => {},
-	onTerminalInput: () => () => {},
-	setStatus: () => {},
-	setWorkingMessage: () => {},
-	setWorkingVisible: () => {},
-	setWorkingIndicator: () => {},
-	setHiddenThinkingLabel: () => {},
-	setWidget: () => {},
-	setFooter: () => {},
-	setHeader: () => {},
-	setTitle: () => {},
+	notify: () => { },
+	onTerminalInput: () => () => { },
+	setStatus: () => { },
+	setWorkingMessage: () => { },
+	setWorkingVisible: () => { },
+	setWorkingIndicator: () => { },
+	setHiddenThinkingLabel: () => { },
+	setWidget: () => { },
+	setFooter: () => { },
+	setHeader: () => { },
+	setTitle: () => { },
 	custom: async () => undefined as never,
-	pasteToEditor: () => {},
-	setEditorText: () => {},
+	pasteToEditor: () => { },
+	setEditorText: () => { },
 	getEditorText: () => "",
 	editor: async () => undefined,
-	addAutocompleteProvider: () => {},
-	setEditorComponent: () => {},
+	addAutocompleteProvider: () => { },
+	setEditorComponent: () => { },
 	getEditorComponent: () => undefined,
 	get theme() {
 		return theme;
@@ -351,7 +351,7 @@ const noOpUIContext: ExtensionUIContext = {
 	getTheme: () => undefined,
 	setTheme: (_theme: string | Theme) => ({ success: false, error: "UI not available" }),
 	getToolsExpanded: () => false,
-	setToolsExpanded: () => {},
+	setToolsExpanded: () => { },
 };
 
 export class ExtensionRunner {
@@ -368,11 +368,11 @@ export class ExtensionRunner {
 	private isIdleFn: () => boolean = () => true;
 	private isProjectTrustedFn: () => boolean = () => true;
 	private getSignalFn: () => AbortSignal | undefined = () => undefined;
-	private waitForIdleFn: () => Promise<void> = async () => {};
-	private abortFn: () => void = () => {};
+	private waitForIdleFn: () => Promise<void> = async () => { };
+	private abortFn: () => void = () => { };
 	private hasPendingMessagesFn: () => boolean = () => false;
 	private getContextUsageFn: () => ContextUsage | undefined = () => undefined;
-	private compactFn: (options?: CompactOptions) => void = () => {};
+	private compactFn: (options?: CompactOptions) => void = () => { };
 	private getSystemPromptFn: () => string = () => "";
 	private getSystemPromptOptionsFn: () => BuildSystemPromptOptions = () =>
 		normalizeBuildSystemPromptOptions({ cwd: this.cwd });
@@ -384,8 +384,8 @@ export class ExtensionRunner {
 	private forkHandler: ForkHandler = async () => ({ cancelled: false });
 	private navigateTreeHandler: NavigateTreeHandler = async () => ({ cancelled: false });
 	private switchSessionHandler: SwitchSessionHandler = async () => ({ cancelled: false });
-	private reloadHandler: ReloadHandler = async () => {};
-	private shutdownHandler: ShutdownHandler = () => {};
+	private reloadHandler: ReloadHandler = async () => { };
+	private shutdownHandler: ShutdownHandler = () => { };
 	private shortcutDiagnostics: ResourceDiagnostic[] = [];
 	private commandDiagnostics: ResourceDiagnostic[] = [];
 	private staleMessage: string | undefined;
@@ -554,12 +554,12 @@ export class ExtensionRunner {
 			return;
 		}
 
-		this.waitForIdleFn = async () => {};
+		this.waitForIdleFn = async () => { };
 		this.newSessionHandler = async () => ({ cancelled: false });
 		this.forkHandler = async () => ({ cancelled: false });
 		this.navigateTreeHandler = async () => ({ cancelled: false });
 		this.switchSessionHandler = async () => ({ cancelled: false });
-		this.reloadHandler = async () => {};
+		this.reloadHandler = async () => { };
 	}
 
 	setUIContext(uiContext?: ExtensionUIContext, mode: ExtensionMode = "print"): void {

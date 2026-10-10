@@ -1,5 +1,5 @@
 import { join, resolve } from "node:path";
-import { resetCapabilitiesCache, setCapabilities, Text, type TUI, type TuiMouseEvent } from "@earendil-works/pi-tui";
+import { resetCapabilitiesCache, setCapabilities, Text, type TUI, type TuiMouseEvent } from "@i-enliven/pi-tui";
 import { Type } from "typebox";
 import { afterEach, beforeAll, describe, expect, test, vi } from "vitest";
 
@@ -32,7 +32,7 @@ const TINY_JPEG =
 
 function createFakeTui(): TUI {
 	return {
-		requestRender: () => {},
+		requestRender: () => { },
 	} as unknown as TUI;
 }
 

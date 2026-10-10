@@ -1,6 +1,6 @@
-# @earendil-works/pi-agent-core
+# @i-enliven/pi-agent-core
 
-Stateful agent with tool execution and event streaming. Built on `@earendil-works/pi-ai`.
+Stateful agent with tool execution and event streaming. Built on `@i-enliven/pi-ai`.
 
 ## Installation
 
@@ -22,9 +22,9 @@ npm install --ignore-scripts /path/to/pi/packages/agent
 ## Quick Start
 
 ```typescript
-import { Agent } from "@earendil-works/pi-agent-core";
-import { createModels } from "@earendil-works/pi-ai";
-import { anthropicProvider } from "@earendil-works/pi-ai/providers/anthropic";
+import { Agent } from "@i-enliven/pi-agent-core";
+import { createModels } from "@i-enliven/pi-ai";
+import { anthropicProvider } from "@i-enliven/pi-ai/providers/anthropic";
 
 const models = createModels();
 models.setProvider(anthropicProvider());
@@ -437,7 +437,7 @@ Follow-up messages are checked only when there are no more tool calls and no ste
 Extend `AgentMessage` via declaration merging:
 
 ```typescript
-declare module "@earendil-works/pi-agent-core" {
+declare module "@i-enliven/pi-agent-core" {
   interface CustomAgentMessages {
     notification: { role: "notification"; text: string; timestamp: number };
   }
@@ -516,14 +516,14 @@ Return `terminate: true` from `execute()`, a blocked `beforeToolCall`, or `after
 
 ### MCP
 
-`@earendil-works/pi-mcp` connects to MCP servers. Wrap each MCP tool as an `AgentTool` (one tool per MCP tool) to expose a server through the agent loop, so `beforeToolCall` and `afterToolCall` apply to those calls too.
+`@i-enliven/pi-mcp` connects to MCP servers. Wrap each MCP tool as an `AgentTool` (one tool per MCP tool) to expose a server through the agent loop, so `beforeToolCall` and `afterToolCall` apply to those calls too.
 
 ## Proxy Usage
 
 For browser apps that proxy through a backend:
 
 ```typescript
-import { Agent, streamProxy } from "@earendil-works/pi-agent-core";
+import { Agent, streamProxy } from "@i-enliven/pi-agent-core";
 
 const agent = new Agent({
   streamFn: (model, context, options) =>
@@ -540,7 +540,7 @@ const agent = new Agent({
 For direct control without the Agent class:
 
 ```typescript
-import { agentLoop, agentLoopContinue } from "@earendil-works/pi-agent-core";
+import { agentLoop, agentLoopContinue } from "@i-enliven/pi-agent-core";
 
 const context: AgentContext = {
   messages: [{ role: "system", content: "You are helpful.", timestamp: Date.now() }],

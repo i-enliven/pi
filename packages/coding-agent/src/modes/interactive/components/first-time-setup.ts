@@ -1,4 +1,4 @@
-import { Container, getKeybindings, Spacer, Text } from "@earendil-works/pi-tui";
+import { Container, getKeybindings, Spacer, Text } from "@i-enliven/pi-tui";
 import { APP_NAME } from "../../../config.ts";
 import { SYSTEM_THEME_NAME } from "../theme/system-theme.ts";
 import { theme } from "../theme/theme.ts";
@@ -91,10 +91,10 @@ export class FirstTimeSetupComponent extends Container {
 		this.addChild(
 			new Text(
 				rawKeyHint("↑↓", "navigate") +
-					"  " +
-					keyHint("tui.select.confirm", this.step === "theme" ? "continue" : "finish") +
-					"  " +
-					keyHint("tui.select.cancel", "skip setup"),
+				"  " +
+				keyHint("tui.select.confirm", this.step === "theme" ? "continue" : "finish") +
+				"  " +
+				keyHint("tui.select.cancel", "skip setup"),
 				1,
 				0,
 			),

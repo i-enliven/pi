@@ -1,5 +1,5 @@
-import type { Usage } from "@earendil-works/pi-ai";
-import { Container } from "@earendil-works/pi-tui";
+import type { Usage } from "@i-enliven/pi-ai";
+import { Container } from "@i-enliven/pi-tui";
 import { describe, expect, test, vi } from "vitest";
 import type { SessionEntry } from "../src/core/session-manager.ts";
 import { InteractiveMode } from "../src/modes/interactive/interactive-mode.ts";
@@ -232,7 +232,7 @@ describe("InteractiveMode compaction events", () => {
 
 	// Regression test for #9340.
 	test("routes interactive response aborts through AgentSession", () => {
-		const abort = vi.fn(async () => {});
+		const abort = vi.fn(async () => { });
 		const ui = {
 			clearAllQueues: () => ({ steering: [], followUp: [] }),
 			updatePendingMessagesDisplay: vi.fn(),

@@ -1,4 +1,4 @@
-import { fauxAssistantMessage } from "@earendil-works/pi-ai";
+import { fauxAssistantMessage } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import type { SessionBeforeCompactEvent } from "../../src/core/extensions/index.ts";
 import { createHarness, type Harness } from "./harness.ts";
@@ -72,9 +72,9 @@ describe("AgentSession compaction model overrides", () => {
 				harness.setResponses(
 					path === "overflow"
 						? [
-								fauxAssistantMessage("", { stopReason: "error", errorMessage: "prompt is too long" }),
-								fauxAssistantMessage("recovered"),
-							]
+							fauxAssistantMessage("", { stopReason: "error", errorMessage: "prompt is too long" }),
+							fauxAssistantMessage("recovered"),
+						]
 						: [fauxAssistantMessage(path === "post-run" ? "z".repeat(8000) : "done")],
 				);
 				await harness.session.prompt("continue");

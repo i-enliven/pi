@@ -45,7 +45,7 @@ describe("DefaultResourceLoader", () => {
 			mkdirSync(extensionsDir, { recursive: true });
 			writeFileSync(
 				join(cwd, "package.json"),
-				JSON.stringify({ dependencies: { "@earendil-works/pi-coding-agent": "1.0.0" } }),
+				JSON.stringify({ dependencies: { "@i-enliven/pi-coding-agent": "1.0.0" } }),
 			);
 			writeFileSync(join(extensionsDir, "project-extension.ts"), "export default function() {}");
 
@@ -63,7 +63,7 @@ describe("DefaultResourceLoader", () => {
 			mkdirSync(extensionsDir, { recursive: true });
 			writeFileSync(
 				join(packageRoot, "package.json"),
-				JSON.stringify({ dependencies: { "@earendil-works/pi-coding-agent": "1.0.0" } }),
+				JSON.stringify({ dependencies: { "@i-enliven/pi-coding-agent": "1.0.0" } }),
 			);
 			writeFileSync(join(extensionsDir, "package-extension.ts"), "export default function() {}");
 
@@ -79,7 +79,7 @@ describe("DefaultResourceLoader", () => {
 				{
 					path: join(packageRoot, "package.json"),
 					warning:
-						'Host-provided extension packages must be declared in peerDependencies with a "*" range, not dependencies: @earendil-works/pi-coding-agent. Installed copies can bypass the extension loader and create duplicate runtime modules.',
+						'Host-provided extension packages must be declared in peerDependencies with a "*" range, not dependencies: @i-enliven/pi-coding-agent. Installed copies can bypass the extension loader and create duplicate runtime modules.',
 				},
 			]);
 		});
@@ -460,7 +460,7 @@ Content`,
 			mkdirSync(join(cwd, "AGENTS.override.md"));
 			mkdirSync(join(cwd, "AGENTS.md"));
 			writeFileSync(join(cwd, "CLAUDE.md"), "Fallback instructions");
-			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
@@ -935,7 +935,7 @@ Content`,
 			writeFileSync(
 				join(ext1Dir, "index.ts"),
 				`
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 import { Type } from "typebox";
 export default function(pi: ExtensionAPI) {
   pi.registerTool({
@@ -950,7 +950,7 @@ export default function(pi: ExtensionAPI) {
 			writeFileSync(
 				join(ext2Dir, "index.ts"),
 				`
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 import { Type } from "typebox";
 export default function(pi: ExtensionAPI) {
   pi.registerTool({
@@ -977,7 +977,7 @@ export default function(pi: ExtensionAPI) {
 			writeFileSync(
 				join(globalExtDir, "global.ts"),
 				`
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 import { Type } from "typebox";
 export default function(pi: ExtensionAPI) {
   pi.registerTool({
@@ -996,7 +996,7 @@ export default function(pi: ExtensionAPI) {
 			writeFileSync(
 				explicitExtPath,
 				`
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 import { Type } from "typebox";
 export default function(pi: ExtensionAPI) {
   pi.registerTool({
@@ -1045,7 +1045,7 @@ export default function(pi: ExtensionAPI) {
 			writeFileSync(
 				join(globalExtDir, "other-mcp.ts"),
 				`
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 export default function(pi: ExtensionAPI) {
   pi.registerCommand("mcp", { description: "other mcp", handler: async () => {} });
 }`,
@@ -1058,13 +1058,13 @@ export default function(pi: ExtensionAPI) {
 					{
 						name: "mcp",
 						replaceable: true,
-						factory: (pi) => pi.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
+						factory: (pi) => pi.registerCommand("mcp", { description: "built-in mcp", handler: async () => { } }),
 					},
 					{
 						name: "llama",
 						replaceable: true,
 						factory: (pi) =>
-							pi.registerCommand("llama", { description: "built-in llama", handler: async () => {} }),
+							pi.registerCommand("llama", { description: "built-in llama", handler: async () => { } }),
 					},
 				],
 			});
@@ -1141,7 +1141,7 @@ export default function(pi: ExtensionAPI) {
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
-				extensionFactories: [{ name: "mcp", builtin: true, factory: () => {} }],
+				extensionFactories: [{ name: "mcp", builtin: true, factory: () => { } }],
 			});
 			const expected = [join(userExtDir, "user.ts"), "builtin:mcp"];
 

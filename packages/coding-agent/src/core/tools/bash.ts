@@ -1,7 +1,7 @@
 import { constants } from "node:fs";
 import { access as fsAccess } from "node:fs/promises";
 import { constants as osConstants } from "node:os";
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
 import { spawn } from "child_process";
 import { type Static, Type } from "typebox";
 import { waitForChildProcess } from "../../utils/child-process.ts";
@@ -117,7 +117,7 @@ export function createLocalShellOperations(shellName: string, resolveShellConfig
 				windowsHide: true,
 			});
 			if (commandFromStdin) {
-				child.stdin?.on("error", () => {});
+				child.stdin?.on("error", () => { });
 				child.stdin?.end(command);
 			}
 			if (child.pid) trackDetachedChildPid(child.pid);

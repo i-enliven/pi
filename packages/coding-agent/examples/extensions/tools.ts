@@ -9,9 +9,9 @@
  * 2. Use /tools to open the tool selector
  */
 
-import type { ExtensionAPI, ExtensionContext, ToolInfo } from "@earendil-works/pi-coding-agent";
-import { getSettingsListTheme } from "@earendil-works/pi-coding-agent";
-import { Container, type SettingItem, SettingsList } from "@earendil-works/pi-tui";
+import type { ExtensionAPI, ExtensionContext, ToolInfo } from "@i-enliven/pi-coding-agent";
+import { getSettingsListTheme } from "@i-enliven/pi-coding-agent";
+import { Container, type SettingItem, SettingsList } from "@i-enliven/pi-tui";
 
 // State persisted to session
 interface ToolsState {
@@ -90,7 +90,7 @@ export default function toolsExtension(pi: ExtensionAPI) {
 						render(_width: number) {
 							return [theme.fg("accent", theme.bold("Tool Configuration")), ""];
 						}
-						invalidate() {}
+						invalidate() { }
 					})(),
 				);
 

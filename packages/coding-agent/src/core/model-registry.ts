@@ -24,7 +24,7 @@ import type {
 	ModelTypeMap,
 	Provider,
 	ProviderHeaders,
-} from "@earendil-works/pi-ai";
+} from "@i-enliven/pi-ai";
 import type { ModelRuntime } from "./model-runtime.ts";
 import type { AuthStatus, ProviderConfigInput } from "./provider-composer.ts";
 import type { VirtualModelDefinition } from "./virtual-models.ts";
@@ -32,12 +32,12 @@ import type { VirtualModelDefinition } from "./virtual-models.ts";
 export type { ProviderConfigInput } from "./provider-composer.ts";
 export type ResolvedRequestAuth =
 	| {
-			ok: true;
-			apiKey?: string;
-			headers?: ProviderHeaders;
-			baseUrl?: string;
-			env?: Record<string, string>;
-	  }
+		ok: true;
+		apiKey?: string;
+		headers?: ProviderHeaders;
+		baseUrl?: string;
+		env?: Record<string, string>;
+	}
 	| { ok: false; error: string };
 export { clearApiKeyCache } from "./provider-composer.ts";
 

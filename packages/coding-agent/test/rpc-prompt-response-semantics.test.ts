@@ -1,13 +1,13 @@
 import { existsSync, mkdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { Agent } from "@earendil-works/pi-agent-core";
+import { Agent } from "@i-enliven/pi-agent-core";
 import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
 	getModel,
 	type Model,
-} from "@earendil-works/pi-ai/compat";
+} from "@i-enliven/pi-ai/compat";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AgentSession } from "../src/core/agent-session.ts";
 import type { AgentSessionRuntime } from "../src/core/agent-session-runtime.ts";
@@ -25,9 +25,9 @@ const rpcIo = vi.hoisted(() => ({
 }));
 
 vi.mock("../src/core/output-guard.js", () => ({
-	flushRawStdout: vi.fn(async () => {}),
+	flushRawStdout: vi.fn(async () => { }),
 	takeOverStdout: vi.fn(),
-	waitForRawStdoutBackpressure: vi.fn(async () => {}),
+	waitForRawStdoutBackpressure: vi.fn(async () => { }),
 	writeRawStdout: (line: string) => {
 		rpcIo.outputLines.push(line);
 	},
@@ -38,7 +38,7 @@ vi.mock("../src/modes/interactive/theme/theme.js", () => ({ theme: {} }));
 vi.mock("../src/modes/rpc/jsonl.js", () => ({
 	attachJsonlLineReader: vi.fn((_stream: NodeJS.ReadableStream, onLine: (line: string) => void) => {
 		rpcIo.lineHandler = onLine;
-		return () => {};
+		return () => { };
 	}),
 	serializeJsonLine: (value: unknown) => `${JSON.stringify(value)}\n`,
 }));
@@ -140,7 +140,7 @@ async function createRuntimeHost(options: {
 		newSession: vi.fn(async () => ({ cancelled: true })),
 		switchSession: vi.fn(async () => ({ cancelled: true })),
 		fork: vi.fn(async () => ({ cancelled: true, selectedText: "" })),
-		dispose: vi.fn(async () => {}),
+		dispose: vi.fn(async () => { }),
 		setRebindSession: vi.fn(),
 	} as unknown as AgentSessionRuntime;
 
@@ -248,7 +248,7 @@ describe("RPC prompt response semantics", () => {
 			responseDelayMs: 0,
 			extensionsResult: await createTestExtensionsResult([
 				(pi) => {
-					pi.registerCommand("handled", { handler: async () => {} });
+					pi.registerCommand("handled", { handler: async () => { } });
 					pi.on("input", (event) => {
 						if (event.text === "handled input") return { action: "handled" };
 					});

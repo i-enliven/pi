@@ -21,7 +21,7 @@
  */
 
 import { spawnSync } from "node:child_process";
-import type { ExtensionAPI } from "@earendil-works/pi-coding-agent";
+import type { ExtensionAPI } from "@i-enliven/pi-coding-agent";
 
 // Default interactive commands - editors, pagers, git ops, TUIs
 const DEFAULT_INTERACTIVE_COMMANDS = [
@@ -175,7 +175,7 @@ export default function (pi: ExtensionAPI) {
 			done(result.status);
 
 			// Return empty component (immediately disposed since done() was called)
-			return { render: () => [], invalidate: () => {} };
+			return { render: () => [], invalidate: () => { } };
 		});
 
 		// Return result to prevent default bash handling

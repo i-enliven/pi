@@ -14,7 +14,7 @@ import {
 	Spacer,
 	truncateToWidth,
 	visibleWidth,
-} from "@earendil-works/pi-tui";
+} from "@i-enliven/pi-tui";
 import { CONFIG_DIR_NAME } from "../../../config.ts";
 import type { PathMetadata, ResolvedPaths, ResolvedResource } from "../../../core/package-manager.ts";
 import type { PackageSource, SettingsManager } from "../../../core/settings-manager.ts";
@@ -203,7 +203,7 @@ class ConfigSelectorHeader implements Component {
 		this.writeScope = writeScope;
 	}
 
-	invalidate(): void {}
+	invalidate(): void { }
 
 	render(width: number): string[] {
 		const title = theme.bold(this.writeScope === "project" ? "Project Local Resources" : "Global Resources");
@@ -393,7 +393,7 @@ class ResourceList implements Component, Focusable {
 		}
 	}
 
-	invalidate(): void {}
+	invalidate(): void { }
 
 	render(width: number): string[] {
 		const lines: string[] = [];

@@ -38,7 +38,7 @@ function createFixture(t, { importServer = false } = {}) {
 			bin: { pi: "dist/bundle/cli.js" },
 		},
 		{
-			"dist/index.js": `${importServer ? 'import "@earendil-works/pi-server";' : ""}
+			"dist/index.js": `${importServer ? 'import "@i-enliven/pi-server";' : ""}
 export function createAgentSession() {}
 export class SessionManager { static inMemory() {} }
 export class ModelRuntime { static create() {} }
@@ -62,5 +62,5 @@ test("accepts a valid coding-agent package", (t) => {
 // #9132: smoke-test the public SDK, not just a bundled CLI that hides missing imports.
 test("fails when the SDK imports an undeclared server despite a working CLI", (t) => {
 	const directory = createFixture(t, { importServer: true });
-	assert.throws(() => smokeTestCodingAgent(directory), /Cannot find package '@earendil-works\/pi-server'/);
+	assert.throws(() => smokeTestCodingAgent(directory), /Cannot find package '@i-enliven\/pi-server'/);
 });

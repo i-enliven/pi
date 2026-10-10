@@ -1,4 +1,4 @@
-import type { AgentTool } from "@earendil-works/pi-agent-core";
+import type { AgentTool } from "@i-enliven/pi-agent-core";
 import { constants } from "fs";
 import { access as fsAccess, readFile as fsReadFile, writeFile as fsWriteFile } from "fs/promises";
 import { type Static, Type } from "typebox";
@@ -117,7 +117,7 @@ function prepareEditArguments(input: unknown): EditToolInput {
 			} else if (isSingleEditInput(parsed)) {
 				args.edits = [parsed];
 			}
-		} catch {}
+		} catch { }
 	} else if (isSingleEditInput(args.edits)) {
 		args.edits = [args.edits];
 	}
