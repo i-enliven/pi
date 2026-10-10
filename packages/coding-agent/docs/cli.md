@@ -247,9 +247,9 @@ Running `pi update` without a target updates Pi itself.
 | Refresh model catalogs | `pi update --models` |
 | Update Pi and all installed packages | `pi update --all` |
 
-Add `--force` to reinstall Pi when the selected update includes Pi.
+Add `--force` to check for a Pi update even when the current version matches the latest release.
 
-`pi update` cannot update Pi when another package manager provides it, such as Nix. Update Pi with that package manager, for example `nix profile upgrade pi`. Package and model catalog updates still work.
+This fork does not publish to npm. `pi update` never reinstalls Pi through a package manager: from a source checkout it prints the `git pull` and rebuild commands, and from any other install it prints the fork-repo clone, build, and install commands. Package and model catalog updates still run normally.
 
 ### Aliases and command options
 
