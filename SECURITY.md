@@ -41,9 +41,9 @@ reports and coordinate disclosure as appropriate.
 
 ## Scope
 
-Security issues in the distributed packages, command-line tools, APIs, and
-repository code are in scope as well as earendil operated infrastructure
-on `pi.dev`.
+Security issues in the distributed packages, command-line tools, APIs,
+and repository code are in scope. This fork operates no hosted
+infrastructure of its own.
 
 ## Out Of Scope
 

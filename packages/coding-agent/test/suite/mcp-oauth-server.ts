@@ -14,15 +14,11 @@ function json(response: ServerResponse, status: number, body: unknown, headers: 
 
 /**
  * MCP server protected by OAuth, with its own authorization server (discovery, DCR, PKCE, refresh).
- * `iss` is sent as the `iss` parameter of authorization responses (RFC 9207). `issParameter` advertises
- * that parameter and sends the server's issuer. `cimd` advertises Client ID Metadata Documents.
- * `redirectPath` replaces the path of the redirect URI, like a mixed-up authorization server.
+ * `iss` is sent as the `iss` parameter of authorization responses (RFC 9207).
  * The MCP endpoint assigns a session, so closing a connection sends a DELETE. Paths added to `stall`
  * accept requests and never answer them, like an unresponsive server.
  */
-export async function startOAuthMcpServer(
-	options: { iss?: string; issParameter?: boolean; cimd?: boolean; redirectPath?: string } = {},
-) {
+export async function startOAuthMcpServer(options: { iss?: string } = {}) {
 	const log: string[] = [];
 	const registrations: Record<string, unknown>[] = [];
 	const authorizations: URLSearchParams[] = [];
@@ -103,8 +99,6 @@ export async function startOAuthMcpServer(
 					response_types_supported: ["code"],
 					code_challenge_methods_supported: ["S256"],
 					token_endpoint_auth_methods_supported: ["none"],
-					...(options.cimd ? { client_id_metadata_document_supported: true } : {}),
-					...(options.issParameter ? { authorization_response_iss_parameter_supported: true } : {}),
 				});
 			case "/register": {
 				const metadata = JSON.parse(await readBody(request)) as Record<string, unknown>;
@@ -117,10 +111,9 @@ export async function startOAuthMcpServer(
 				const code = `code-${challenges.size + 1}`;
 				challenges.set(code, url.searchParams.get("code_challenge") ?? "");
 				const redirect = new URL(url.searchParams.get("redirect_uri") ?? "");
-				if (options.redirectPath) redirect.pathname = options.redirectPath;
 				redirect.searchParams.set("code", code);
 				redirect.searchParams.set("state", url.searchParams.get("state") ?? "");
-				const iss = options.iss ?? (options.issParameter ? origin : undefined);
+				const iss = options.iss;
 				if (iss) redirect.searchParams.set("iss", iss);
 				response.writeHead(302, { location: redirect.href }).end();
 				return;

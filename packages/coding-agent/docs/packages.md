@@ -71,7 +71,7 @@ Use an explicit manifest when resources live elsewhere or need filtering:
 
 Paths are relative to the package root. Arrays accept glob patterns and exclusions. List dot-prefixed or symlinked resource roots directly when traversal through a glob would not discover them.
 
-The `pi-package` keyword makes an npm package eligible for discovery in the [Pi package gallery](https://pi.dev/packages). Optional `pi.image` and `pi.video` fields add gallery previews.
+The `pi-package` keyword marks an npm package as a Pi package. Optional `pi.image` and `pi.video` fields add preview media. This fork does not run a package gallery; publish to npm and install by name or source.
 
 ## Declare dependencies
 
