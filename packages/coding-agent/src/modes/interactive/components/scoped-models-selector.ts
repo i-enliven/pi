@@ -218,10 +218,10 @@ export class ScopedModelsSelectorComponent extends Container implements Focusabl
 		const items = this.buildItems();
 		this.filteredItems = query
 			? fuzzyFilter(items, query, (item) =>
-				item.model
-					? getModelSearchText({ id: item.model.id, provider: item.model.provider, name: item.model.name })
-					: item.fullId,
-			)
+					item.model
+						? getModelSearchText({ id: item.model.id, provider: item.model.provider, name: item.model.name })
+						: item.fullId,
+				)
 			: items;
 		this.selectedIndex = Math.min(this.selectedIndex, Math.max(0, this.filteredItems.length - 1));
 		this.updateList();

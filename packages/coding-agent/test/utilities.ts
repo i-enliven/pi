@@ -241,8 +241,8 @@ export function createTestResourceLoader(options: CreateTestResourceLoaderOption
 		getSystemPromptSource: () => undefined,
 		getAppendSystemPrompt: () => [],
 		getAppendSystemPromptSources: () => [],
-		extendResources: () => { },
-		reload: async () => { },
+		extendResources: () => {},
+		reload: async () => {},
 	};
 }
 
@@ -285,7 +285,7 @@ export async function createTestSession(options: TestSessionOptions = {}): Promi
 	});
 
 	// Must subscribe to enable session persistence
-	session.subscribe(() => { });
+	session.subscribe(() => {});
 
 	const cleanup = () => {
 		session.dispose();

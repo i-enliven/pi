@@ -274,12 +274,12 @@ export function printHelp(extensionFlags?: ExtensionFlag[]): void {
 	const extensionFlagsText =
 		extensionFlags && extensionFlags.length > 0
 			? `\n${chalk.bold("Extension CLI Flags:")}\n${extensionFlags
-				.map((flag) => {
-					const value = flag.type === "string" ? " <value>" : "";
-					const description = flag.description ?? `Registered by ${flag.extensionPath}`;
-					return `  --${flag.name}${value}`.padEnd(30) + description;
-				})
-				.join("\n")}\n`
+					.map((flag) => {
+						const value = flag.type === "string" ? " <value>" : "";
+						const description = flag.description ?? `Registered by ${flag.extensionPath}`;
+						return `  --${flag.name}${value}`.padEnd(30) + description;
+					})
+					.join("\n")}\n`
 			: "";
 	console.log(`${chalk.bold(APP_NAME)} - AI coding assistant with read, bash, edit, write tools
 

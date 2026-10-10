@@ -72,9 +72,9 @@ describe("AgentSession compaction model overrides", () => {
 				harness.setResponses(
 					path === "overflow"
 						? [
-							fauxAssistantMessage("", { stopReason: "error", errorMessage: "prompt is too long" }),
-							fauxAssistantMessage("recovered"),
-						]
+								fauxAssistantMessage("", { stopReason: "error", errorMessage: "prompt is too long" }),
+								fauxAssistantMessage("recovered"),
+							]
 						: [fauxAssistantMessage(path === "post-run" ? "z".repeat(8000) : "done")],
 				);
 				await harness.session.prompt("continue");

@@ -467,7 +467,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 
 		/** Wait for the latest connection attempts, including ones queued while waiting, or an abort. */
 		const waitForServers = async (waiting: readonly McpServer[], signal: AbortSignal | undefined) => {
-			for (; ;) {
+			for (;;) {
 				const ready = waiting.flatMap((server) =>
 					isEnabled(server) && servers.includes(server) && server.ready ? [{ server, ready: server.ready }] : [],
 				);
@@ -850,10 +850,10 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 			emitChange();
 		};
 		const manage = async (ui: McpUi) => {
-			for (; ;) {
+			for (;;) {
 				const name = await ui.menu(serversMenu, subscribe);
 				if (!name) return;
-				for (; ;) {
+				for (;;) {
 					const action = await ui.menu(() => serverMenu(name), subscribe);
 					const server = findServer(name);
 					if (!action || !server) break;
@@ -992,7 +992,7 @@ export function createMcpExtension(options: McpExtensionOptions = {}): Extension
 					// The session may have been disposed meanwhile, which makes ctx stale.
 					try {
 						ctx.ui.notify(`MCP failed to load: ${errorMessage(error)}`, "error");
-					} catch { }
+					} catch {}
 				});
 		});
 

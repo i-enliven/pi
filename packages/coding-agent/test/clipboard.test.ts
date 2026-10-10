@@ -137,7 +137,7 @@ describe("copyToClipboard", () => {
 	});
 	test("waits for the native write before emitting remote OSC 52", async () => {
 		vi.stubEnv("SSH_CONNECTION", "client server");
-		let complete = () => { };
+		let complete = () => {};
 		mocks.clipboard.setText.mockReturnValue(
 			new Promise<void>((resolve) => {
 				complete = resolve;

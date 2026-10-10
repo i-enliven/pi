@@ -33,7 +33,7 @@ export interface WriteOperations {
 
 const defaultWriteOperations: WriteOperations = {
 	writeFile: (path, content) => fsWriteFile(path, content, "utf-8"),
-	mkdir: (dir) => fsMkdir(dir, { recursive: true }).then(() => { }),
+	mkdir: (dir) => fsMkdir(dir, { recursive: true }).then(() => {}),
 };
 
 export interface WriteToolOptions {

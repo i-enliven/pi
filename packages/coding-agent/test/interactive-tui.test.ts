@@ -152,7 +152,7 @@ describe("createInteractiveTui", () => {
 			ui: undefined as unknown as TUI,
 			fullscreenLayoutRoot: component,
 			options: { tuiMode: "regular" as TuiMode },
-			themeController: { rebindTui: () => { } },
+			themeController: { rebindTui: () => {} },
 			extensionTerminalInputSubscriptions: new Set<never>(),
 		}) as SwitchContext;
 		stableUi = createInteractiveTuiReference(() => context.renderer);
@@ -185,7 +185,7 @@ describe("InteractiveMode right-click paste", () => {
 	it("feeds clipboard text to the focused component as a bracketed paste", async () => {
 		clipboardMocks.readClipboardText.mockResolvedValue("clipboard text");
 		const handleInput = vi.fn<(data: string) => void>();
-		const target = { render: () => [], invalidate: () => { }, handleInput } satisfies Component;
+		const target = { render: () => [], invalidate: () => {}, handleInput } satisfies Component;
 		const requestRender = vi.fn();
 		const context = {
 			renderer: { getFocusedComponent: () => target },

@@ -13,11 +13,11 @@ describe("issue #7150: RPC prompt during manual compaction", () => {
 	});
 
 	it("rejects an RPC prompt while manual compaction is in progress", async () => {
-		let markCompactionStarted = () => { };
+		let markCompactionStarted = () => {};
 		const compactionStarted = new Promise<void>((resolve) => {
 			markCompactionStarted = resolve;
 		});
-		let releaseCompaction = () => { };
+		let releaseCompaction = () => {};
 		const compactionReleased = new Promise<void>((resolve) => {
 			releaseCompaction = resolve;
 		});

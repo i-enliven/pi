@@ -907,8 +907,8 @@ export function prepareCompaction(
 		.flatMap(getMessagesFromProjectedEntryForCompaction);
 	const turnPrefixMessages = cutPoint.isSplitTurn
 		? projectedEntries
-			.slice(cutPoint.turnStartIndex, cutPoint.firstKeptEntryIndex)
-			.flatMap(getMessagesFromProjectedEntryForCompaction)
+				.slice(cutPoint.turnStartIndex, cutPoint.firstKeptEntryIndex)
+				.flatMap(getMessagesFromProjectedEntryForCompaction)
 		: [];
 
 	if (messagesToSummarize.length === 0 && turnPrefixMessages.length === 0) return undefined;

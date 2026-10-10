@@ -117,7 +117,7 @@ function prepareEditArguments(input: unknown): EditToolInput {
 			} else if (isSingleEditInput(parsed)) {
 				args.edits = [parsed];
 			}
-		} catch { }
+		} catch {}
 	} else if (isSingleEditInput(args.edits)) {
 		args.edits = [args.edits];
 	}

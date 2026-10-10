@@ -20,7 +20,7 @@ describe("regression #8724: in-memory fork during an active tool turn", () => {
 	});
 
 	it("does not append the aborted turn to the replacement session", async () => {
-		let markToolStarted = () => { };
+		let markToolStarted = () => {};
 		const toolStarted = new Promise<void>((resolve) => {
 			markToolStarted = resolve;
 		});

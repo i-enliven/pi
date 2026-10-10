@@ -137,8 +137,8 @@ function buildBundle(session: AgentSession, options: BugReportOptions, summary: 
 		summary,
 		sessionJsonl: options.includeSession
 			? serializeSessionBranch(session.sessionManager, (parentId, timestamp) =>
-				createShareTrailingEntries(session, parentId, timestamp),
-			)
+					createShareTrailingEntries(session, parentId, timestamp),
+				)
 			: undefined,
 	};
 }

@@ -551,12 +551,12 @@ export class ModelRuntime implements Models {
 			markStarted = resolve;
 		});
 		const operation = (async () => {
-			await previous.catch(() => { });
+			await previous.catch(() => {});
 			signal.throwIfAborted();
 			markStarted?.();
 			return task();
 		})();
-		const tail = operation.catch(() => { });
+		const tail = operation.catch(() => {});
 		this.credentialOperations.set(providerId, tail);
 		void tail.then(() => {
 			if (this.credentialOperations.get(providerId) === tail) this.credentialOperations.delete(providerId);

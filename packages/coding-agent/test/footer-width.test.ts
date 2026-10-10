@@ -99,7 +99,7 @@ function createFooterData(providerCount: number): ReadonlyFooterDataProvider {
 		getAvailableProviderCount: () => providerCount,
 		onBranchChange: (callback: () => void) => {
 			void callback;
-			return () => { };
+			return () => {};
 		},
 	};
 

@@ -25,7 +25,7 @@ describe("issue #7829 invalid settings warning", () => {
 				},
 			];
 			const context = {
-				init: vi.fn(async () => { }),
+				init: vi.fn(async () => {}),
 				options: { startupDiagnostics },
 				chatContainer,
 				outputPad: 1,
@@ -36,7 +36,7 @@ describe("issue #7829 invalid settings warning", () => {
 				checkForPackageUpdates: vi.fn().mockResolvedValue([]),
 				checkTmuxKeyboardSetup: vi.fn().mockResolvedValue(undefined),
 				maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
-				getUserInput: vi.fn(() => new Promise<string>(() => { })),
+				getUserInput: vi.fn(() => new Promise<string>(() => {})),
 			};
 			const run = (InteractiveMode.prototype as unknown as { run(this: typeof context): Promise<void> }).run;
 

@@ -349,7 +349,7 @@ describe("AgentSession retry and event characterization", () => {
 			),
 		]);
 
-		await harness.session.prompt("hi").catch(() => { });
+		await harness.session.prompt("hi").catch(() => {});
 
 		const updateTypes = harness.eventsOfType("message_update").map((event) => event.assistantMessageEvent.type);
 		expect(updateTypes).toContain("thinking_delta");

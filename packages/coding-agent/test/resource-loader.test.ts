@@ -460,7 +460,7 @@ Content`,
 			mkdirSync(join(cwd, "AGENTS.override.md"));
 			mkdirSync(join(cwd, "AGENTS.md"));
 			writeFileSync(join(cwd, "CLAUDE.md"), "Fallback instructions");
-			const consoleError = vi.spyOn(console, "error").mockImplementation(() => { });
+			const consoleError = vi.spyOn(console, "error").mockImplementation(() => {});
 
 			const loader = new DefaultResourceLoader({ cwd, agentDir });
 			await loader.reload();
@@ -1058,13 +1058,13 @@ export default function(pi: ExtensionAPI) {
 					{
 						name: "mcp",
 						replaceable: true,
-						factory: (pi) => pi.registerCommand("mcp", { description: "built-in mcp", handler: async () => { } }),
+						factory: (pi) => pi.registerCommand("mcp", { description: "built-in mcp", handler: async () => {} }),
 					},
 					{
 						name: "llama",
 						replaceable: true,
 						factory: (pi) =>
-							pi.registerCommand("llama", { description: "built-in llama", handler: async () => { } }),
+							pi.registerCommand("llama", { description: "built-in llama", handler: async () => {} }),
 					},
 				],
 			});
@@ -1141,7 +1141,7 @@ export default function(pi: ExtensionAPI) {
 			const loader = new DefaultResourceLoader({
 				cwd,
 				agentDir,
-				extensionFactories: [{ name: "mcp", builtin: true, factory: () => { } }],
+				extensionFactories: [{ name: "mcp", builtin: true, factory: () => {} }],
 			});
 			const expected = [join(userExtDir, "user.ts"), "builtin:mcp"];
 

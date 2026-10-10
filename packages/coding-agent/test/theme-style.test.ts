@@ -15,7 +15,7 @@ type ThemeFile = {
 };
 
 /** Load a copy of a built-in theme, modified by `edit`. */
-function loadTheme(base: "dark" | "light", edit: (theme: ThemeFile) => void = () => { }) {
+function loadTheme(base: "dark" | "light", edit: (theme: ThemeFile) => void = () => {}) {
 	const themeJson = JSON.parse(
 		readFileSync(new URL(`../src/modes/interactive/theme/${base}.json`, import.meta.url), "utf8"),
 	) as ThemeFile;

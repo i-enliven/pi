@@ -117,7 +117,7 @@ export function createLocalShellOperations(shellName: string, resolveShellConfig
 				windowsHide: true,
 			});
 			if (commandFromStdin) {
-				child.stdin?.on("error", () => { });
+				child.stdin?.on("error", () => {});
 				child.stdin?.end(command);
 			}
 			if (child.pid) trackDetachedChildPid(child.pid);

@@ -13,7 +13,7 @@ function createDialog(): LoginDialogComponent {
 	return new LoginDialogComponent(
 		{ requestRender: vi.fn() } as unknown as TUI,
 		"prompt-repro",
-		() => { },
+		() => {},
 		"Prompt Repro",
 	);
 }

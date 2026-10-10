@@ -180,7 +180,7 @@ export class McpOAuthCredentialStore {
 				maxTimeout: REFRESH_LOCK_RETRY_MS,
 			},
 			// The default throws from a timer. A lost lock at worst lets two refreshes overlap.
-			onCompromised: () => { },
+			onCompromised: () => {},
 		});
 		try {
 			return await fn();
@@ -286,7 +286,7 @@ export function createMcpAuthProvider(options: {
 					callbackSettings(settings).fixedRedirectUrl ??
 					registeredRedirectUrls(state.clientInformation)[0] ??
 					FALLBACK_REDIRECT_URL;
-				const provider = createProvider(serverUrl, store, settings, redirectUrl, () => { });
+				const provider = createProvider(serverUrl, store, settings, redirectUrl, () => {});
 				// Refreshes the tokens, or reports that a new sign-in is needed. Not cancellable: a refresh the
 				// server answered may have rotated the refresh token, so its answer must be saved.
 				const result = await authorizeMcp(provider, {

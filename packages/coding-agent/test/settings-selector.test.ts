@@ -73,7 +73,7 @@ describe("SettingsSelectorComponent", () => {
 			availableThemes: ["system", "dark", "light"],
 			warnings: {},
 		} as unknown as SettingsConfig;
-		const callbacks = { onThemePreview: vi.fn(), onCancel: () => { } } as unknown as SettingsCallbacks;
+		const callbacks = { onThemePreview: vi.fn(), onCancel: () => {} } as unknown as SettingsCallbacks;
 		const list = new SettingsSelectorComponent(config, callbacks).getSettingsList();
 
 		list.selectItem("theme");
@@ -100,7 +100,7 @@ describe("SettingsSelectorComponent", () => {
 			availableThemes: ["dark", "light", "other"],
 			warnings: {},
 		} as unknown as SettingsConfig;
-		const callbacks = { onThemePreview: vi.fn(), onCancel: () => { } } as unknown as SettingsCallbacks;
+		const callbacks = { onThemePreview: vi.fn(), onCancel: () => {} } as unknown as SettingsCallbacks;
 		const list = new SettingsSelectorComponent(config, callbacks).getSettingsList();
 
 		list.selectItem("theme");
@@ -127,7 +127,7 @@ describe("SettingsSelectorComponent", () => {
 			thinkingLevel: "high",
 			modelThinkingLevels: { [modelKey]: "medium" },
 		} as unknown as SettingsConfig;
-		const callbacks = { onCancel: () => { } } as unknown as SettingsCallbacks;
+		const callbacks = { onCancel: () => {} } as unknown as SettingsCallbacks;
 		const list = new SettingsSelectorComponent(config, callbacks).getSettingsList();
 
 		list.selectItem("model-thinking");

@@ -203,7 +203,7 @@ class ConfigSelectorHeader implements Component {
 		this.writeScope = writeScope;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const title = theme.bold(this.writeScope === "project" ? "Project Local Resources" : "Global Resources");
@@ -393,7 +393,7 @@ class ResourceList implements Component, Focusable {
 		}
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const lines: string[] = [];

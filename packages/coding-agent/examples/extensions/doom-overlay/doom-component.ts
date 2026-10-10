@@ -121,7 +121,7 @@ export class DoomOverlayComponent implements Component {
 		return lines;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	dispose(): void {
 		if (this.interval) {

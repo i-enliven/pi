@@ -48,7 +48,7 @@ class TestFocusableComponent implements Component, Focusable {
 		return [this.label];
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 }
 
 async function flushTui(tui: TUI, terminal: VirtualTerminal): Promise<void> {
@@ -109,7 +109,7 @@ describe("InteractiveMode.showStatus", () => {
 		expect(fakeThis.chatContainer.children).toHaveLength(2);
 
 		// Something else gets added to the chat in between status updates
-		fakeThis.chatContainer.addChild({ render: () => ["OTHER"], invalidate: () => { } });
+		fakeThis.chatContainer.addChild({ render: () => ["OTHER"], invalidate: () => {} });
 		expect(fakeThis.chatContainer.children).toHaveLength(3);
 
 		(InteractiveMode as any).prototype.showStatus.call(fakeThis, "STATUS_TWO");
@@ -375,13 +375,13 @@ describe("InteractiveMode.setupAutocompleteProvider", () => {
 		const customEditor = { setAutocompleteProvider: vi.fn() };
 		const passThrough =
 			(triggerCharacters: string[]): AutocompleteProviderFactory =>
-				(current) => ({
-					triggerCharacters,
-					getSuggestions: (lines, cursorLine, cursorCol, options) =>
-						current.getSuggestions(lines, cursorLine, cursorCol, options),
-					applyCompletion: (lines, cursorLine, cursorCol, item, prefix) =>
-						current.applyCompletion(lines, cursorLine, cursorCol, item, prefix),
-				});
+			(current) => ({
+				triggerCharacters,
+				getSuggestions: (lines, cursorLine, cursorCol, options) =>
+					current.getSuggestions(lines, cursorLine, cursorCol, options),
+				applyCompletion: (lines, cursorLine, cursorCol, item, prefix) =>
+					current.applyCompletion(lines, cursorLine, cursorCol, item, prefix),
+			});
 
 		const fakeThis = {
 			createBaseAutocompleteProvider: () => new CombinedAutocompleteProvider([], "/tmp/project", undefined),

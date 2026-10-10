@@ -111,22 +111,22 @@ export interface NestedToolCallOptions {
 export type NestedToolExecutionEvent =
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: unknown; parentToolCallId: string }
 	| {
-		type: "tool_execution_update";
-		toolCallId: string;
-		toolName: string;
-		args: unknown;
-		partialResult: AgentToolResult<unknown>;
-		parentToolCallId: string;
-	}
+			type: "tool_execution_update";
+			toolCallId: string;
+			toolName: string;
+			args: unknown;
+			partialResult: AgentToolResult<unknown>;
+			parentToolCallId: string;
+	  }
 	| {
-		type: "tool_execution_end";
-		toolCallId: string;
-		toolName: string;
-		result: AgentToolResult<unknown>;
-		isError: boolean;
-		durationMs?: number;
-		parentToolCallId: string;
-	};
+			type: "tool_execution_end";
+			toolCallId: string;
+			toolName: string;
+			result: AgentToolResult<unknown>;
+			isError: boolean;
+			durationMs?: number;
+			parentToolCallId: string;
+	  };
 
 export interface NestedToolCallHost {
 	/** Tools nested calls resolve against. */

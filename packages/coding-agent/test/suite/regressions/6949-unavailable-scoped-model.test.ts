@@ -31,7 +31,7 @@ function createInteractiveContext(options: {
 		},
 		showStatus: vi.fn(),
 		showSelector: (factory: (done: () => void) => { component: ScopedModelsSelectorComponent }) => {
-			selector = factory(() => { }).component;
+			selector = factory(() => {}).component;
 		},
 		updateAvailableProviderCount: vi.fn(),
 		ui: { requestRender: vi.fn() },
@@ -78,7 +78,7 @@ describe("issue #6949 unavailable scoped models", () => {
 				onPersist: (enabledIds) => {
 					persisted.push(enabledIds);
 				},
-				onCancel: () => { },
+				onCancel: () => {},
 			},
 		);
 

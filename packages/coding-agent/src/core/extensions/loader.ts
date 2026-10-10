@@ -93,10 +93,7 @@ function getAliases(): Record<string, string> {
 	// global API keep working at runtime until compat is removed.
 	const piAiCompatEntry = resolveWorkspaceOrImport("ai/dist/compat.js", "@i-enliven/pi-ai/compat");
 	const piAiOauthEntry = resolveWorkspaceOrImport("ai/dist/oauth.js", "@i-enliven/pi-ai/oauth");
-	const piAiProvidersEntry = resolveWorkspaceOrImport(
-		"ai/dist/providers/all.js",
-		"@i-enliven/pi-ai/providers/all",
-	);
+	const piAiProvidersEntry = resolveWorkspaceOrImport("ai/dist/providers/all.js", "@i-enliven/pi-ai/providers/all");
 
 	_aliases = {
 		"@i-enliven/pi-coding-agent": piCodingAgentEntry,
@@ -178,7 +175,7 @@ export function createExtensionRuntime(): ExtensionRuntime {
 		getSettings: notInitialized,
 		setActiveTools: notInitialized,
 		// registerTool() is valid during extension load; refresh is only needed post-bind.
-		refreshTools: () => { },
+		refreshTools: () => {},
 		getCommands: notInitialized,
 		setModel: () => Promise.reject(new Error("Extension runtime not initialized")),
 		getThinkingLevel: notInitialized,

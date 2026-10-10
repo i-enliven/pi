@@ -125,7 +125,7 @@ class SessionSelectorHeader implements Component {
 		}, autoHideMs);
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const title = this.scope === "current" ? "Resume Session (Current Folder)" : "Resume Session (All)";
@@ -299,7 +299,7 @@ class SessionList implements Component, Focusable {
 	private currentSessionCanonicalPath?: string;
 	public onSelect?: (sessionPath: string) => void;
 	public onCancel?: () => void;
-	public onExit: () => void = () => { };
+	public onExit: () => void = () => {};
 	public onToggleScope?: () => void;
 	public onToggleSort?: () => void;
 	public onToggleNameFilter?: () => void;
@@ -417,7 +417,7 @@ class SessionList implements Component, Focusable {
 		return (canonicalizePath(path) ?? path) === this.currentSessionCanonicalPath;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const lines: string[] = [];

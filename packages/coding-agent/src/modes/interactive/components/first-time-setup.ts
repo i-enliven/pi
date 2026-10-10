@@ -91,10 +91,10 @@ export class FirstTimeSetupComponent extends Container {
 		this.addChild(
 			new Text(
 				rawKeyHint("↑↓", "navigate") +
-				"  " +
-				keyHint("tui.select.confirm", this.step === "theme" ? "continue" : "finish") +
-				"  " +
-				keyHint("tui.select.cancel", "skip setup"),
+					"  " +
+					keyHint("tui.select.confirm", this.step === "theme" ? "continue" : "finish") +
+					"  " +
+					keyHint("tui.select.cancel", "skip setup"),
 				1,
 				0,
 			),

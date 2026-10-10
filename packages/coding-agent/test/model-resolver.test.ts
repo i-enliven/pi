@@ -222,7 +222,7 @@ describe("parseModelPattern", () => {
 
 describe("resolveModelScopeWithDiagnostics", () => {
 	test("returns scoped models and structured diagnostics without writing console warnings", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		try {
 			const registry = {
 				getAvailable: () => allModels,
@@ -254,7 +254,7 @@ describe("resolveModelScopeWithDiagnostics", () => {
 	});
 
 	test("resolveModelScope preserves CLI warning output", async () => {
-		const warn = vi.spyOn(console, "warn").mockImplementation(() => { });
+		const warn = vi.spyOn(console, "warn").mockImplementation(() => {});
 		try {
 			const registry = {
 				getAvailable: () => allModels,

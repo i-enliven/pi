@@ -61,7 +61,7 @@ describe("issues #7027 and #7113 credential refresh hang", () => {
 			refreshModels: async ({ allowNetwork }) => {
 				if (!allowNetwork) return;
 				markNetworkStarted?.();
-				await new Promise<void>(() => { });
+				await new Promise<void>(() => {});
 			},
 			stream: () => {
 				throw new Error("unused");
@@ -78,7 +78,7 @@ describe("issues #7027 and #7113 credential refresh hang", () => {
 		const stalledRefresh = runtime.refresh({ allowNetwork: true, providers: [provider.id] });
 		await networkStarted;
 		await expect(
-			runtime.login(provider.id, "api_key", { prompt: async () => "unused", notify: () => { } }),
+			runtime.login(provider.id, "api_key", { prompt: async () => "unused", notify: () => {} }),
 		).resolves.toEqual({ type: "api_key", key: "secret" });
 
 		expect(runtime.getAvailableSnapshot().map((model) => model.id)).toContain(dynamicModel.id);
@@ -142,7 +142,7 @@ describe("post-login model discovery", () => {
 		const unknownModel = { ...model, id: "unknown", provider: "unknown", api: "unknown" };
 		const currentModel = vi.spyOn(session, "model", "get").mockReturnValue(unknownModel);
 		const availableModels = vi.spyOn(session.modelRuntime, "getAvailableSnapshot").mockReturnValue([]);
-		let finishRefresh = () => { };
+		let finishRefresh = () => {};
 		vi.spyOn(session.modelRuntime, "refresh").mockImplementation(
 			(options) =>
 				new Promise((resolve) => {

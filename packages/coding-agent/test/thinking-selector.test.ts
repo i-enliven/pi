@@ -18,8 +18,8 @@ describe("thinking selector", () => {
 		const selector = new ThinkingSelectorComponent(
 			"medium",
 			["medium", "high"],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 		const getLevelRow = (level: string): string | undefined =>
 			selector
@@ -41,8 +41,8 @@ describe("thinking selector", () => {
 		const selector = new ThinkingSelectorComponent(
 			"medium",
 			["medium", "high"],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 			saveDefault,
 		);
 

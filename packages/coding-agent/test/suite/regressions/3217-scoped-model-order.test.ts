@@ -9,7 +9,7 @@ import { createHarness, type Harness } from "../harness.ts";
 
 function createFakeTui(): TUI {
 	return {
-		requestRender: () => { },
+		requestRender: () => {},
 	} as unknown as TUI;
 }
 
@@ -52,8 +52,8 @@ describe("issue #3217 scoped model ordering", () => {
 				onChange: (enabledModelIds) => {
 					changes.push(enabledModelIds);
 				},
-				onPersist: () => { },
-				onCancel: () => { },
+				onPersist: () => {},
+				onCancel: () => {},
 			},
 		);
 
@@ -80,8 +80,8 @@ describe("issue #3217 scoped model ordering", () => {
 			modelOne,
 			harness.session.modelRuntime,
 			[{ model: modelTwo }, { model: modelOne }, { model: modelThree }],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		await vi.waitFor(() => {

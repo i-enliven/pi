@@ -1275,7 +1275,7 @@ describe("ModelRegistry", () => {
 				savedEnv[key] = process.env[key];
 				process.env[key] = `env-${key}`;
 			}
-			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => { });
+			const warnSpy = vi.spyOn(console, "warn").mockImplementation(() => {});
 
 			try {
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);

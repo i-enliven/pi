@@ -57,9 +57,9 @@ describe("extension provider model lifecycle", () => {
 					resolve: async ({ credential }) =>
 						credential?.key
 							? {
-								auth: { apiKey: credential.key, baseUrl: "https://resolved.test/v1" },
-								source: "stored native key",
-							}
+									auth: { apiKey: credential.key, baseUrl: "https://resolved.test/v1" },
+									source: "stored native key",
+								}
 							: undefined,
 				},
 			},
@@ -81,7 +81,7 @@ describe("extension provider model lifecycle", () => {
 
 		await runtime.login("extension-native", "api_key", {
 			prompt: async () => "secret",
-			notify: () => { },
+			notify: () => {},
 		});
 		expect(await registry.getProviderAuth("extension-native")).toMatchObject({
 			auth: { apiKey: "secret", baseUrl: "https://resolved.test/v1" },

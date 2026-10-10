@@ -12,7 +12,7 @@ import { createModelRegistry, getModelRuntime } from "../../model-runtime-test-u
 
 function observeRefreshRender(): { tui: TUI; renderedAfterRefresh: Promise<void> } {
 	let renderCount = 0;
-	let resolveRefreshRender = () => { };
+	let resolveRefreshRender = () => {};
 	const renderedAfterRefresh = new Promise<void>((resolve) => {
 		resolveRefreshRender = resolve;
 	});
@@ -70,8 +70,8 @@ describe("issue #6999 models.json hot reload", () => {
 			undefined,
 			modelRuntime,
 			[],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		await renderedAfterRefresh;

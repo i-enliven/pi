@@ -65,7 +65,7 @@ class EmptyFooter implements Component {
 		return [];
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 }
 
 export default function (pi: ExtensionAPI) {

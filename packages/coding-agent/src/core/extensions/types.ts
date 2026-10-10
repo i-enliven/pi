@@ -1433,15 +1433,15 @@ export interface ToolCallEventResult {
 /** Result from user_bash event handler */
 export type UserBashEventResult =
 	| {
-		/** Custom operations to use for execution */
-		operations: BashOperations;
-		result?: never;
-	}
+			/** Custom operations to use for execution */
+			operations: BashOperations;
+			result?: never;
+	  }
 	| {
-		operations?: never;
-		/** Full replacement: extension handled execution, use this result */
-		result: BashResult;
-	};
+			operations?: never;
+			/** Full replacement: extension handled execution, use this result */
+			result: BashResult;
+	  };
 
 /**
  * Changes a `tool_result` handler makes. Omitted fields stay as they are, except that replacing
@@ -1661,15 +1661,15 @@ export interface ExtensionAPI {
 		name: string,
 		options:
 			| {
-				description?: string;
-				type: "boolean";
-				default?: boolean;
-			}
+					description?: string;
+					type: "boolean";
+					default?: boolean;
+			  }
 			| {
-				description?: string;
-				type: "string";
-				default?: string;
-			},
+					description?: string;
+					type: "string";
+					default?: string;
+			  },
 	): void;
 
 	/** Get the value of a registered CLI flag. */
@@ -2014,32 +2014,32 @@ export type ExtensionFactory = (pi: ExtensionAPI) => void | Promise<void>;
 export type InlineExtension =
 	| ExtensionFactory
 	| {
-		/**
-		 * Display name shown as `<inline:name>` in the startup Extensions list and errors. With
-		 * `builtin`, the extension is named `builtin:name` in errors and diagnostics.
-		 */
-		name: string;
-		factory: ExtensionFactory;
-		/** Omit this extension from the startup Extensions list. */
-		hidden?: boolean;
-		/**
-		 * Leave this extension out when another extension registers a tool, command, or flag with a
-		 * name it registers during loading, instead of reporting a conflict. The CLI's built-in MCP
-		 * extension uses it, so for example an MCP extension that registers
-		 * `/mcp` replaces the built-in MCP support. The factory still runs, so it should only register
-		 * tools, commands, flags, and event handlers.
-		 */
-		replaceable?: boolean;
-		/**
-		 * Supply the code of the `builtin:<name>` extension instead of loading as an inline extension.
-		 * `builtin:<name>` is an extension resource like a file: it loads by default, `pi config` lists
-		 * it, `-builtin:<name>` in the `extensions` setting and `--no-extensions` disable it, and
-		 * `-e builtin:<name>` loads it explicitly. It is hidden from the startup Extensions list and
-		 * loads after project trust is resolved, so it cannot handle `project_trust`. The CLI's built-in
-		 * extensions use it.
-		 */
-		builtin?: boolean;
-	};
+			/**
+			 * Display name shown as `<inline:name>` in the startup Extensions list and errors. With
+			 * `builtin`, the extension is named `builtin:name` in errors and diagnostics.
+			 */
+			name: string;
+			factory: ExtensionFactory;
+			/** Omit this extension from the startup Extensions list. */
+			hidden?: boolean;
+			/**
+			 * Leave this extension out when another extension registers a tool, command, or flag with a
+			 * name it registers during loading, instead of reporting a conflict. The CLI's built-in MCP
+			 * extension uses it, so for example an MCP extension that registers
+			 * `/mcp` replaces the built-in MCP support. The factory still runs, so it should only register
+			 * tools, commands, flags, and event handlers.
+			 */
+			replaceable?: boolean;
+			/**
+			 * Supply the code of the `builtin:<name>` extension instead of loading as an inline extension.
+			 * `builtin:<name>` is an extension resource like a file: it loads by default, `pi config` lists
+			 * it, `-builtin:<name>` in the `extensions` setting and `--no-extensions` disable it, and
+			 * `-e builtin:<name>` loads it explicitly. It is hidden from the startup Extensions list and
+			 * loads after project trust is resolved, so it cannot handle `project_trust`. The CLI's built-in
+			 * extensions use it.
+			 */
+			builtin?: boolean;
+	  };
 
 // ============================================================================
 // Loaded Extension Types
@@ -2226,7 +2226,7 @@ export interface ExtensionCommandContextActions {
  * Full runtime = state + actions.
  * Created by loader with throwing action stubs, completed by runner.initialize().
  */
-export interface ExtensionRuntime extends ExtensionRuntimeState, ExtensionActions { }
+export interface ExtensionRuntime extends ExtensionRuntimeState, ExtensionActions {}
 
 /** Loaded extension with all registered items. */
 export interface Extension {

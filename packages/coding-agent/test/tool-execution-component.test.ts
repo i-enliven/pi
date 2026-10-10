@@ -32,7 +32,7 @@ const TINY_JPEG =
 
 function createFakeTui(): TUI {
 	return {
-		requestRender: () => { },
+		requestRender: () => {},
 	} as unknown as TUI;
 }
 

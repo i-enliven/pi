@@ -131,10 +131,10 @@ export class OAuthSelectorComponent extends Container implements Focusable {
 	private filterProviders(query: string): void {
 		this.filteredProviders = query
 			? fuzzyFilter(
-				this.allProviders,
-				query,
-				(provider) => `${provider.name} ${provider.id} ${provider.authType} ${provider.method?.name ?? ""}`,
-			)
+					this.allProviders,
+					query,
+					(provider) => `${provider.name} ${provider.id} ${provider.authType} ${provider.method?.name ?? ""}`,
+				)
 			: this.allProviders;
 		this.selectedIndex = Math.max(0, Math.min(this.selectedIndex, Math.max(0, this.filteredProviders.length - 1)));
 		this.updateList();

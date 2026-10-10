@@ -67,7 +67,7 @@ export function useWindowsKeybindings(
 }
 
 declare module "@i-enliven/pi-tui" {
-	interface Keybindings extends AppKeybindings { }
+	interface Keybindings extends AppKeybindings {}
 }
 
 const windowsKeybindings = useWindowsKeybindings();

@@ -232,7 +232,7 @@ describe("InteractiveMode compaction events", () => {
 
 	// Regression test for #9340.
 	test("routes interactive response aborts through AgentSession", () => {
-		const abort = vi.fn(async () => { });
+		const abort = vi.fn(async () => {});
 		const ui = {
 			clearAllQueues: () => ({ steering: [], followUp: [] }),
 			updatePendingMessagesDisplay: vi.fn(),

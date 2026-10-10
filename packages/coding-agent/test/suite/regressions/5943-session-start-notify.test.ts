@@ -142,29 +142,29 @@ function createReloadCommandContext(overrides: ReloadCommandContextOverrides = {
 			getClearOnShrink: () => false,
 			...overrides.settingsManager,
 		},
-		keybindings: { reload: () => { }, ...overrides.keybindings },
-		editorContainer: { clear: () => { }, addChild: () => { }, ...overrides.editorContainer },
+		keybindings: { reload: () => {}, ...overrides.keybindings },
+		editorContainer: { clear: () => {}, addChild: () => {}, ...overrides.editorContainer },
 		ui: {
-			setFocus: () => { },
-			requestRender: () => { },
-			setShowHardwareCursor: () => { },
-			setClearOnShrink: () => { },
+			setFocus: () => {},
+			requestRender: () => {},
+			setShowHardwareCursor: () => {},
+			setClearOnShrink: () => {},
 			...overrides.ui,
 		},
 		editor,
-		defaultEditor: { setPaddingX: () => { }, setAutocompleteMaxVisible: () => { }, ...overrides.defaultEditor },
-		themeController: { applyFromSettings: async () => { }, ...overrides.themeController },
+		defaultEditor: { setPaddingX: () => {}, setAutocompleteMaxVisible: () => {}, ...overrides.defaultEditor },
+		themeController: { applyFromSettings: async () => {}, ...overrides.themeController },
 		customHeader: overrides.customHeader,
 		builtInHeader: overrides.builtInHeader,
-		resetExtensionUI: overrides.resetExtensionUI ?? (() => { }),
-		rebuildChatFromMessages: overrides.rebuildChatFromMessages ?? (() => { }),
-		setupAutocompleteProvider: overrides.setupAutocompleteProvider ?? (() => { }),
-		setupExtensionShortcuts: overrides.setupExtensionShortcuts ?? (() => { }),
-		showLoadedResources: overrides.showLoadedResources ?? (() => { }),
+		resetExtensionUI: overrides.resetExtensionUI ?? (() => {}),
+		rebuildChatFromMessages: overrides.rebuildChatFromMessages ?? (() => {}),
+		setupAutocompleteProvider: overrides.setupAutocompleteProvider ?? (() => {}),
+		setupExtensionShortcuts: overrides.setupExtensionShortcuts ?? (() => {}),
+		showLoadedResources: overrides.showLoadedResources ?? (() => {}),
 		maybeSaveImplicitProjectTrustAfterReload: overrides.maybeSaveImplicitProjectTrustAfterReload ?? (() => false),
-		showStatus: overrides.showStatus ?? (() => { }),
-		showWarning: overrides.showWarning ?? (() => { }),
-		showError: overrides.showError ?? (() => { }),
+		showStatus: overrides.showStatus ?? (() => {}),
+		showWarning: overrides.showWarning ?? (() => {}),
+		showError: overrides.showError ?? (() => {}),
 	};
 }
 
@@ -253,7 +253,7 @@ describe("regression #5943: session_start transient UI", () => {
 		try {
 			const context: RebindContext = {
 				applyRuntimeSettings: () => events.push("apply"),
-				programStatus: { reset: () => { } },
+				programStatus: { reset: () => {} },
 				renderCurrentSessionState: () => events.push("render"),
 				bindCurrentSessionExtensions: async () => {
 					events.push("bind");
@@ -263,9 +263,9 @@ describe("regression #5943: session_start transient UI", () => {
 					});
 				},
 				subscribeToAgent: () => events.push("subscribe"),
-				updateAvailableProviderCount: async () => { },
-				updateEditorBorderColor: () => { },
-				updateTerminalTitle: () => { },
+				updateAvailableProviderCount: async () => {},
+				updateEditorBorderColor: () => {},
+				updateTerminalTitle: () => {},
 			};
 
 			await interactiveModePrototype.rebindCurrentSession.call(context, { renderBeforeBind: true });
@@ -294,8 +294,8 @@ describe("regression #5943: session_start transient UI", () => {
 
 		try {
 			const context: RebindContext = {
-				applyRuntimeSettings: () => { },
-				programStatus: { reset: () => { } },
+				applyRuntimeSettings: () => {},
+				programStatus: { reset: () => {} },
 				renderCurrentSessionState: () => events.push("render"),
 				bindCurrentSessionExtensions: async () => {
 					events.push("bind");
@@ -313,9 +313,9 @@ describe("regression #5943: session_start transient UI", () => {
 						events.push(`${event.type}:${event.message.role}:${getMessageText(event)}`);
 					});
 				},
-				updateAvailableProviderCount: async () => { },
-				updateEditorBorderColor: () => { },
-				updateTerminalTitle: () => { },
+				updateAvailableProviderCount: async () => {},
+				updateEditorBorderColor: () => {},
+				updateTerminalTitle: () => {},
 			};
 
 			await interactiveModePrototype.rebindCurrentSession.call(context, { renderBeforeBind: true });
@@ -347,8 +347,8 @@ describe("regression #5943: session_start transient UI", () => {
 
 		try {
 			const context: RebindContext = {
-				applyRuntimeSettings: () => { },
-				programStatus: { reset: () => { } },
+				applyRuntimeSettings: () => {},
+				programStatus: { reset: () => {} },
 				renderCurrentSessionState: () => events.push("render"),
 				bindCurrentSessionExtensions: async () => {
 					events.push("bind");
@@ -366,9 +366,9 @@ describe("regression #5943: session_start transient UI", () => {
 						events.push(`${event.type}:${event.message.role}:${getMessageText(event)}`);
 					});
 				},
-				updateAvailableProviderCount: async () => { },
-				updateEditorBorderColor: () => { },
-				updateTerminalTitle: () => { },
+				updateAvailableProviderCount: async () => {},
+				updateEditorBorderColor: () => {},
+				updateTerminalTitle: () => {},
 			};
 
 			await interactiveModePrototype.rebindCurrentSession.call(context, { renderBeforeBind: true });

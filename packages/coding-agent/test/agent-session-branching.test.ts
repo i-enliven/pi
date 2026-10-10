@@ -83,7 +83,7 @@ describe.skipIf(!API_KEY)("AgentSession forking", () => {
 			sessionManager,
 		});
 		session = runtimeHost.session;
-		session.subscribe(() => { });
+		session.subscribe(() => {});
 		return session;
 	}
 

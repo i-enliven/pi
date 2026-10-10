@@ -26,7 +26,7 @@ export default function (pi: ExtensionAPI) {
 
 					return {
 						dispose: unsub,
-						invalidate() { },
+						invalidate() {},
 						render(width: number): string[] {
 							// Compute tokens from ctx (already accessible to extensions)
 							let input = 0,

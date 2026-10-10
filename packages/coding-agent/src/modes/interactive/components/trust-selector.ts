@@ -75,10 +75,10 @@ export class TrustSelectorComponent extends Container {
 		this.addChild(
 			new Text(
 				rawKeyHint("↑↓", "navigate") +
-				"  " +
-				keyHint("tui.select.confirm", "save") +
-				"  " +
-				keyHint("tui.select.cancel", "cancel"),
+					"  " +
+					keyHint("tui.select.confirm", "save") +
+					"  " +
+					keyHint("tui.select.cancel", "cancel"),
 				1,
 				0,
 			),

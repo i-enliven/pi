@@ -390,14 +390,14 @@ describe("MCP connections", () => {
 			const response: JsonRpcMessage =
 				message.method === "initialize"
 					? {
-						jsonrpc: "2.0",
-						id: message.id,
-						result: {
-							protocolVersion: LATEST_PROTOCOL_VERSION,
-							capabilities: options.noTools ? { prompts: {} } : { tools: {} },
-							serverInfo: { name: "fake", version: "1.0.0" },
-						},
-					}
+							jsonrpc: "2.0",
+							id: message.id,
+							result: {
+								protocolVersion: LATEST_PROTOCOL_VERSION,
+								capabilities: options.noTools ? { prompts: {} } : { tools: {} },
+								serverInfo: { name: "fake", version: "1.0.0" },
+							},
+						}
 					: message.method === "tools/list"
 						? options.noTools
 							? { jsonrpc: "2.0", id: message.id, error: { code: -32601, message: "Method not found" } }
@@ -431,7 +431,7 @@ describe("MCP connections", () => {
 			createTransport: () => transports[opened++](),
 			credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
 			log,
-			onTools: () => { },
+			onTools: () => {},
 		});
 		return { connection, opened: () => opened };
 	}
@@ -481,7 +481,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 				cwd: tmpdir(),
 				createTransport: createDefaultTransport,
 				credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
-				onTools: () => { },
+				onTools: () => {},
 			});
 			try {
 				const result = await connection.callTool("cwd", {}, {});
@@ -662,7 +662,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 			createTransport: createDefaultTransport,
 			credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
 			providerToken: async (provider) => (provider === "internal" ? "tok" : undefined),
-			onTools: () => { },
+			onTools: () => {},
 		});
 		try {
 			expect(connection.oauthUrl).toBeUndefined();

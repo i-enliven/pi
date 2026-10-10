@@ -540,15 +540,15 @@ export abstract class TuiBase extends Container implements TUI {
 
 	protected abstract doRender(): void;
 
-	protected resetRenderState(): void { }
+	protected resetRenderState(): void {}
 
-	protected beforeTerminalStart(): void { }
+	protected beforeTerminalStart(): void {}
 
-	protected afterTerminalStart(): void { }
+	protected afterTerminalStart(): void {}
 
-	protected beforeTerminalStop(_options: TuiStopOptions): void { }
+	protected beforeTerminalStop(_options: TuiStopOptions): void {}
 
-	protected afterTerminalStop(_options: TuiStopOptions): void { }
+	protected afterTerminalStop(_options: TuiStopOptions): void {}
 
 	get fullRedraws(): number {
 		return this.fullRedrawCount;
@@ -879,9 +879,9 @@ export abstract class TuiBase extends Container implements TUI {
 			});
 			return result
 				? {
-					hit: true,
-					result: result.focus ? { ...result, focusTarget: layout.entry.component } : result,
-				}
+						hit: true,
+						result: result.focus ? { ...result, focusTarget: layout.entry.component } : result,
+					}
 				: { hit: true };
 		}
 		return { hit: false };

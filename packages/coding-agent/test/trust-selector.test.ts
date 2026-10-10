@@ -19,8 +19,8 @@ describe("TrustSelectorComponent", () => {
 			cwd: "/project",
 			savedDecision: { path: "/project", decision: true },
 			projectTrusted: true,
-			onSelect: () => { },
-			onCancel: () => { },
+			onSelect: () => {},
+			onCancel: () => {},
 		});
 
 		let output = stripAnsi(selector.render(120).join("\n"));
@@ -42,7 +42,7 @@ describe("TrustSelectorComponent", () => {
 			savedDecision: null,
 			projectTrusted: false,
 			onSelect,
-			onCancel: () => { },
+			onCancel: () => {},
 		});
 
 		selector.handleInput("\n");
@@ -55,8 +55,8 @@ describe("TrustSelectorComponent", () => {
 			cwd: "/parent/project/nested",
 			savedDecision: { path: "/parent", decision: true },
 			projectTrusted: true,
-			onSelect: () => { },
-			onCancel: () => { },
+			onSelect: () => {},
+			onCancel: () => {},
 		});
 
 		const output = stripAnsi(selector.render(120).join("\n"));
@@ -71,7 +71,7 @@ describe("TrustSelectorComponent", () => {
 			savedDecision: { path: "/parent", decision: true },
 			projectTrusted: true,
 			onSelect,
-			onCancel: () => { },
+			onCancel: () => {},
 		});
 
 		const output = stripAnsi(selector.render(120).join("\n"));

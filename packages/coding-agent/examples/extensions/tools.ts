@@ -90,7 +90,7 @@ export default function toolsExtension(pi: ExtensionAPI) {
 						render(_width: number) {
 							return [theme.fg("accent", theme.bold("Tool Configuration")), ""];
 						}
-						invalidate() { }
+						invalidate() {}
 					})(),
 				);
 

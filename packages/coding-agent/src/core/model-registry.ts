@@ -32,12 +32,12 @@ import type { VirtualModelDefinition } from "./virtual-models.ts";
 export type { ProviderConfigInput } from "./provider-composer.ts";
 export type ResolvedRequestAuth =
 	| {
-		ok: true;
-		apiKey?: string;
-		headers?: ProviderHeaders;
-		baseUrl?: string;
-		env?: Record<string, string>;
-	}
+			ok: true;
+			apiKey?: string;
+			headers?: ProviderHeaders;
+			baseUrl?: string;
+			env?: Record<string, string>;
+	  }
 	| { ok: false; error: string };
 export { clearApiKeyCache } from "./provider-composer.ts";
 

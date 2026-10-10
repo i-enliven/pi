@@ -79,7 +79,7 @@ describe("automatic compaction cancellation regressions", () => {
 		const harness = await createHarness({ settings: { compaction: { keepRecentTokens: 1 } } });
 		harnesses.push(harness);
 		seedCompactableSession(harness);
-		let markAuthStarted = () => { };
+		let markAuthStarted = () => {};
 		const authStarted = new Promise<void>((resolve) => {
 			markAuthStarted = resolve;
 		});

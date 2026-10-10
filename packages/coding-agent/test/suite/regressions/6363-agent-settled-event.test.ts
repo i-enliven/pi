@@ -90,11 +90,11 @@ describe("regression #6363: agent settled event and idle waiting", () => {
 	});
 
 	it("extension command waitForIdle waits for session-level settlement", async () => {
-		let releaseTool = () => { };
+		let releaseTool = () => {};
 		const released = new Promise<void>((resolve) => {
 			releaseTool = resolve;
 		});
-		let markCommandStarted = () => { };
+		let markCommandStarted = () => {};
 		const commandStarted = new Promise<void>((resolve) => {
 			markCommandStarted = resolve;
 		});
@@ -122,7 +122,7 @@ describe("regression #6363: agent settled event and idle waiting", () => {
 				fork: async () => ({ cancelled: false }),
 				navigateTree: async () => ({ cancelled: false }),
 				switchSession: async () => ({ cancelled: false }),
-				reload: async () => { },
+				reload: async () => {},
 			},
 		});
 		const toolStarted = new Promise<void>((resolve) => {

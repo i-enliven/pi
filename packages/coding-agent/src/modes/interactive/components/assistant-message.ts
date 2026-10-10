@@ -144,22 +144,22 @@ export class AssistantMessageComponent extends Container {
 				const thinkingComponent = hidden
 					? new Text(theme.italic(theme.fg("thinkingText", this.hiddenThinkingLabel)), this.outputPad, 0)
 					: new Markdown(
-						thinkingBlocks.join("\n\n"),
-						this.outputPad,
-						0,
-						this.markdownTheme,
-						{
-							color: (text: string) => theme.fg("thinkingText", text),
-							italic: true,
-						},
-						{
-							transform: createMarkdownTransform(
-								"assistant-thinking",
-								this.isStreaming,
-								this.markdownTransformers,
-							),
-						},
-					);
+							thinkingBlocks.join("\n\n"),
+							this.outputPad,
+							0,
+							this.markdownTheme,
+							{
+								color: (text: string) => theme.fg("thinkingText", text),
+								italic: true,
+							},
+							{
+								transform: createMarkdownTransform(
+									"assistant-thinking",
+									this.isStreaming,
+									this.markdownTransformers,
+								),
+							},
+						);
 				this.contentContainer.addChild(
 					new MouseRegion(thinkingComponent, (event) => {
 						if (event.type !== "click" || event.button !== "left") return undefined;

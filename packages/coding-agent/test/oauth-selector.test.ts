@@ -75,8 +75,8 @@ describe("OAuthSelectorComponent", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
 			[{ id: "google", name: "Google", authType: "api_key", status: undefined }],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		const output = stripAnsi(selector.render(120).join("\n"));
@@ -88,8 +88,8 @@ describe("OAuthSelectorComponent", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
 			[{ id: "anthropic", name: "Anthropic", authType: "api_key", status: { type: "oauth", source: "OAuth" } }],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		const output = stripAnsi(selector.render(120).join("\n"));
@@ -100,8 +100,8 @@ describe("OAuthSelectorComponent", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
 			[{ id: "openai", name: "OpenAI", authType: "api_key", status: { type: "api_key", source: "OPENAI_API_KEY" } }],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		const output = stripAnsi(selector.render(120).join("\n"));
@@ -120,8 +120,8 @@ describe("OAuthSelectorComponent", () => {
 					status: { type: "api_key", source: "key in models.json" },
 				},
 			],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		expect(stripAnsi(selector.render(120).join("\n"))).toContain("✓ key in models.json");
@@ -138,8 +138,8 @@ describe("OAuthSelectorComponent", () => {
 					status: { type: "api_key", source: "command in models.json" },
 				},
 			],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		expect(stripAnsi(selector.render(120).join("\n"))).toContain("✓ command in models.json");

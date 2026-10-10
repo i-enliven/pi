@@ -32,7 +32,7 @@ describe("MCP OAuth refresh", () => {
 				serverUrl: server.url,
 				store,
 				settings: () => ({}),
-				onChallenge: () => { },
+				onChallenge: () => {},
 			});
 			return { store, provider };
 		};

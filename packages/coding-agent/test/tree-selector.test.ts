@@ -147,8 +147,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"model-1", // currentLeafId is the model_change entry
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -174,8 +174,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"edit-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			expect(defaultSelector.getTreeList().getSelectedNode()?.entry.id).toBe("asst-1");
 
@@ -183,8 +183,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"edit-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 				undefined,
 				undefined,
 				"all",
@@ -214,8 +214,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"thinking-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -239,8 +239,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-2",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -268,8 +268,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-2",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -294,8 +294,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const plainLines = selector.render(30).map(stripVTControlCharacters);
@@ -318,8 +318,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			let copied: string | undefined;
 			selector.onCopy = (text) => {
@@ -344,8 +344,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -377,8 +377,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-2",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -405,8 +405,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 
 			const list = selector.getTreeList();
@@ -479,8 +479,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -515,8 +515,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -539,8 +539,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -575,8 +575,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -616,8 +616,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-1",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -658,8 +658,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-2",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -679,8 +679,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 
@@ -712,8 +712,8 @@ describe("TreeSelectorComponent", () => {
 				tree,
 				"asst-4a",
 				24,
-				() => { },
-				() => { },
+				() => {},
+				() => {},
 			);
 			const list = selector.getTreeList();
 

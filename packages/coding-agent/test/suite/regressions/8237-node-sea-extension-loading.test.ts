@@ -12,7 +12,7 @@ const state = vi.hoisted(() => {
 		jitiModuleLoads: 0,
 		virtualModulesLoads: 0,
 		createJiti: vi.fn((_id: unknown, _options: unknown) => ({
-			import: vi.fn(async () => () => { }),
+			import: vi.fn(async () => () => {}),
 		})),
 	};
 });

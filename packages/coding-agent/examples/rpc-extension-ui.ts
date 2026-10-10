@@ -93,7 +93,7 @@ class OutputLog implements Component {
 		}
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		if (this.lines.length === 0) return [""];
@@ -127,7 +127,7 @@ class LoadingIndicator implements Component {
 		}
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(_width: number): string[] {
 		return [`${BLUE}${BOLD}Agent:${RESET} ${DIM}Working${".".repeat(this.dots)}${RESET}`];

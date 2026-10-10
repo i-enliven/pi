@@ -68,7 +68,7 @@ describe("credential print commands", () => {
 
 	test("reports unknown auth options like package commands", async () => {
 		const originalExitCode = process.exitCode;
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 		try {
 			process.exitCode = undefined;
 			await main(["auth", "check", "--provider", "openai-codex", "--credentails"]);

@@ -7,7 +7,7 @@ import { stripAnsi } from "../src/utils/ansi.ts";
 import { createHarness, type Harness } from "./suite/harness.ts";
 
 function createFakeTui(): TUI {
-	return { requestRender: () => { } } as unknown as TUI;
+	return { requestRender: () => {} } as unknown as TUI;
 }
 
 describe("model selector", () => {
@@ -39,8 +39,8 @@ describe("model selector", () => {
 			currentModel,
 			harness.session.modelRuntime,
 			[],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		const getModelRow = (id: string): string | undefined =>
@@ -66,8 +66,8 @@ describe("model selector", () => {
 			currentModel,
 			harness.session.modelRuntime,
 			[],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 			undefined,
 			saveDefault,
 		);
@@ -94,8 +94,8 @@ describe("model selector", () => {
 			harness.getModel(),
 			harness.session.modelRuntime,
 			[],
-			() => { },
-			() => { },
+			() => {},
+			() => {},
 		);
 
 		await vi.waitFor(() => {

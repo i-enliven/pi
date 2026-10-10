@@ -32,18 +32,18 @@ export type ProxyAssistantMessageEvent =
 	| { type: "toolcall_delta"; contentIndex: number; delta: string }
 	| { type: "toolcall_end"; contentIndex: number; toolCall: ToolCall }
 	| {
-		type: "done";
-		reason: Extract<StopReason, "stop" | "length" | "toolUse">;
-		usage: AssistantMessage["usage"];
-		providerThinkingLevel?: string;
-	}
+			type: "done";
+			reason: Extract<StopReason, "stop" | "length" | "toolUse">;
+			usage: AssistantMessage["usage"];
+			providerThinkingLevel?: string;
+	  }
 	| {
-		type: "error";
-		reason: Extract<StopReason, "aborted" | "error">;
-		errorMessage?: string;
-		usage: AssistantMessage["usage"];
-		providerThinkingLevel?: string;
-	};
+			type: "error";
+			reason: Extract<StopReason, "aborted" | "error">;
+			errorMessage?: string;
+			usage: AssistantMessage["usage"];
+			providerThinkingLevel?: string;
+	  };
 
 type ProxySerializableStreamOptions = Pick<
 	SimpleStreamOptions,
@@ -135,7 +135,7 @@ export function streamProxy(
 
 		const abortHandler = () => {
 			if (reader) {
-				reader.cancel("Request aborted by user").catch(() => { });
+				reader.cancel("Request aborted by user").catch(() => {});
 			}
 		};
 

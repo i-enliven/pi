@@ -348,10 +348,10 @@ function renderVisualBoard(state: GameState, maxWidth: number): string[] {
 		state.status !== "playing"
 			? undefined
 			: {
-				row: isUserTurn ? state.userCursorRow : state.agentCursorRow,
-				col: isUserTurn ? state.userCursorCol : state.agentCursorCol,
-				owner: (isUserTurn ? "user" : "agent") as "user" | "agent",
-			};
+					row: isUserTurn ? state.userCursorRow : state.agentCursorRow,
+					col: isUserTurn ? state.userCursorCol : state.agentCursorCol,
+					owner: (isUserTurn ? "user" : "agent") as "user" | "agent",
+				};
 	return renderBoard({ board: state.board, maxWidth, cursor });
 }
 
@@ -523,7 +523,7 @@ class BannerMessageComponent implements Component {
 		this.theme = theme;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const dim = (s: string) => this.theme.fg("dim", s);
@@ -556,7 +556,7 @@ class GameOverMessageComponent implements Component {
 		this.theme = theme;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const dim = (s: string) => this.theme.fg("dim", s);

@@ -188,7 +188,7 @@ export type PrepareRequest = (
 	signal?: AbortSignal,
 ) => AgentRequestUpdate | void | Promise<AgentRequestUpdate | undefined> | Promise<void>;
 
-export interface PrepareNextTurnContext extends AgentTurnContext { }
+export interface PrepareNextTurnContext extends AgentTurnContext {}
 
 export interface AgentLoopConfig extends SimpleStreamOptions {
 	model: Model<any>;
@@ -529,11 +529,11 @@ export type AgentEvent =
 	| { type: "tool_execution_start"; toolCallId: string; toolName: string; args: any }
 	| { type: "tool_execution_update"; toolCallId: string; toolName: string; args: any; partialResult: any }
 	| {
-		type: "tool_execution_end";
-		toolCallId: string;
-		toolName: string;
-		result: any;
-		isError: boolean;
-		/** Milliseconds `execute()` took, measured with a monotonic clock; absent when the tool did not run. */
-		durationMs?: number;
-	};
+			type: "tool_execution_end";
+			toolCallId: string;
+			toolName: string;
+			result: any;
+			isError: boolean;
+			/** Milliseconds `execute()` took, measured with a monotonic clock; absent when the tool did not run. */
+			durationMs?: number;
+	  };

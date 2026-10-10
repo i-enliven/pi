@@ -109,7 +109,7 @@ describe("FileModelsStore", () => {
 		const lockGranted = new Promise<void>((resolve) => {
 			grantLock = resolve;
 		});
-		const release = vi.fn(async () => { });
+		const release = vi.fn(async () => {});
 		const lockSpy = vi.spyOn(lockfile, "lock").mockImplementation(async () => {
 			await lockGranted;
 			return release;

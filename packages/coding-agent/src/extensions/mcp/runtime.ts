@@ -205,16 +205,16 @@ export class McpServerConnection implements McpToolCaller, McpResourceServer {
 		const provider = "url" in this.entry.config ? this.entry.config.auth?.provider : undefined;
 		this.authProvider = url
 			? createMcpAuthProvider({
-				serverUrl: url,
-				store: options.credentials.forServer(this.entry.name, url),
-				settings: () => this.oauthSettings(),
-				onChallenge: (challenge) => {
-					this.challenge = challenge;
-				},
-			})
+					serverUrl: url,
+					store: options.credentials.forServer(this.entry.name, url),
+					settings: () => this.oauthSettings(),
+					onChallenge: (challenge) => {
+						this.challenge = challenge;
+					},
+				})
 			: provider
 				? // Read on every request, so the provider's refreshes apply; MCP stores no copy.
-				{ token: async () => options.providerToken?.(provider), settled: async () => { } }
+					{ token: async () => options.providerToken?.(provider), settled: async () => {} }
 				: undefined;
 	}
 

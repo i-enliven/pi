@@ -753,27 +753,27 @@ export async function main(args: string[], options?: MainOptions) {
 			extensionFlagValues: parsed.unknownFlags,
 			resourceLoaderReloadOptions: shouldResolveProjectTrust
 				? {
-					resolveProjectTrust: async ({ extensionsResult }) => {
-						const trusted = await resolveProjectTrusted({
-							cwd,
-							trustStore,
-							trustOverride: parsed.projectTrustOverride,
-							defaultProjectTrust: startupSettingsManager.getDefaultProjectTrust(),
-							extensionsResult,
-							projectTrustContext:
-								projectTrustContext ??
-								createProjectTrustContext({
-									cwd,
-									mode: isInitialRuntime ? trustPromptMode : appMode,
-									settingsManager: startupSettingsManager,
-									hasUI: isInitialRuntime && trustPromptMode === "interactive",
-								}),
-							onExtensionError: (message) => projectTrustDiagnostics.push({ type: "warning", message }),
-						});
-						projectTrustByCwd.set(cwd, trusted);
-						return trusted;
-					},
-				}
+						resolveProjectTrust: async ({ extensionsResult }) => {
+							const trusted = await resolveProjectTrusted({
+								cwd,
+								trustStore,
+								trustOverride: parsed.projectTrustOverride,
+								defaultProjectTrust: startupSettingsManager.getDefaultProjectTrust(),
+								extensionsResult,
+								projectTrustContext:
+									projectTrustContext ??
+									createProjectTrustContext({
+										cwd,
+										mode: isInitialRuntime ? trustPromptMode : appMode,
+										settingsManager: startupSettingsManager,
+										hasUI: isInitialRuntime && trustPromptMode === "interactive",
+									}),
+								onExtensionError: (message) => projectTrustDiagnostics.push({ type: "warning", message }),
+							});
+							projectTrustByCwd.set(cwd, trusted);
+							return trusted;
+						},
+					}
 				: undefined,
 			resourceLoaderOptions: {
 				additionalExtensionPaths: resolvedExtensionPaths,
@@ -940,7 +940,7 @@ export async function main(args: string[], options?: MainOptions) {
 		const timeout = setTimeout(() => controller.abort(), 15_000);
 		void modelRuntime
 			.refresh({ signal: controller.signal })
-			.catch(() => { })
+			.catch(() => {})
 			.finally(() => clearTimeout(timeout));
 	}
 

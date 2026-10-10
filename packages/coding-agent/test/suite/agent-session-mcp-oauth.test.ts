@@ -63,8 +63,8 @@ describe("AgentSession MCP OAuth", () => {
 					browser === "paste"
 						? Promise.resolve(redirectLocation)
 						: new Promise((resolve) =>
-							opts?.signal?.addEventListener("abort", () => resolve(undefined), { once: true }),
-						),
+								opts?.signal?.addEventListener("abort", () => resolve(undefined), { once: true }),
+							),
 			}),
 		});
 		return { harness, server, notifications, backend, opened };
@@ -230,7 +230,7 @@ describe("AgentSession MCP OAuth", () => {
 				agentDir,
 				credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
 				// The user never approves in the browser.
-				openUrl: () => { },
+				openUrl: () => {},
 				log: (line) => output.push(line),
 				error: (line) => output.push(line),
 			});

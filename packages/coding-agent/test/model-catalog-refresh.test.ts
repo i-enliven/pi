@@ -62,7 +62,7 @@ describe("interactive model catalog refresh", () => {
 		const runtime = {
 			refresh: vi.fn((options?: ModelsRefreshOptions) => {
 				if (options?.signal) refreshSignals.push(options.signal);
-				return new Promise<ModelsRefreshResult>(() => { });
+				return new Promise<ModelsRefreshResult>(() => {});
 			}),
 		};
 		const firstController = new AbortController();

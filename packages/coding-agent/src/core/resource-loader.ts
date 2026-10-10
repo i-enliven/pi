@@ -643,9 +643,9 @@ export class DefaultResourceLoader implements ResourceLoader {
 			agentsFiles: this.noContextFiles
 				? []
 				: loadProjectContextFiles({
-					cwd: this.cwd,
-					agentDir: this.agentDir,
-				}),
+						cwd: this.cwd,
+						agentDir: this.agentDir,
+					}),
 		};
 		const resolvedAgentsFiles = this.agentsFilesOverride ? this.agentsFilesOverride(agentsFiles) : agentsFiles;
 		this.agentsFiles = resolvedAgentsFiles.agentsFiles;

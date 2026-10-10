@@ -619,7 +619,7 @@ class TreeList implements Component {
 		return parts.join(" ");
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	getSearchQuery(): string {
 		return this.searchQuery;
@@ -818,9 +818,9 @@ class TreeList implements Component {
 					typeof entry.content === "string"
 						? entry.content
 						: entry.content
-							.filter((c): c is { type: "text"; text: string } => c.type === "text")
-							.map((c) => c.text)
-							.join("");
+								.filter((c): c is { type: "text"; text: string } => c.type === "text")
+								.map((c) => c.text)
+								.join("");
 				result = theme.fg("customMessageLabel", `[${entry.customType}]: `) + normalize(content);
 				break;
 			}
@@ -1169,7 +1169,7 @@ class SearchLine implements Component {
 		this.treeList = treeList;
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const query = this.treeList.getSearchQuery();
@@ -1179,12 +1179,12 @@ class SearchLine implements Component {
 		return [truncateToWidth(`  ${theme.fg("muted", "Type to search:")}`, width)];
 	}
 
-	handleInput(_keyData: string): void { }
+	handleInput(_keyData: string): void {}
 }
 
 /** Component that renders tree help as semantic rows with chunk-aware wrapping */
 class TreeHelp implements Component {
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const items = TREE_HELP_ITEMS.map(({ keys, label, labelFirst }) => {
@@ -1300,7 +1300,7 @@ class LabelInput implements Component, Focusable {
 		}
 	}
 
-	invalidate(): void { }
+	invalidate(): void {}
 
 	render(width: number): string[] {
 		const lines: string[] = [];

@@ -105,7 +105,7 @@ function renderEditTool(definition: ToolDefinition, cwd: string): string[] {
 		{ path: "notes.txt", oldText: "before", newText: "after" },
 		{},
 		definition,
-		{ requestRender() { } } as unknown as TUI,
+		{ requestRender() {} } as unknown as TUI,
 		cwd,
 	);
 	return component.render(40);

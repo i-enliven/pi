@@ -260,9 +260,9 @@ export default function (pi: ExtensionAPI) {
 					const added = todoList[todoList.length - 1];
 					return new Text(
 						theme.fg("success", "✓ Added ") +
-						theme.fg("accent", `#${added.id}`) +
-						" " +
-						theme.fg("muted", added.text),
+							theme.fg("accent", `#${added.id}`) +
+							" " +
+							theme.fg("muted", added.text),
 						0,
 						0,
 					);

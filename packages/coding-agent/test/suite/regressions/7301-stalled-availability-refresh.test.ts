@@ -16,8 +16,8 @@ interface StalledCredentialList {
 }
 
 function createDeferred(): Deferred {
-	let resolvePromise = () => { };
-	let rejectPromise = (_error: Error) => { };
+	let resolvePromise = () => {};
+	let rejectPromise = (_error: Error) => {};
 	const promise = new Promise<void>((resolve, reject) => {
 		resolvePromise = resolve;
 		rejectPromise = reject;

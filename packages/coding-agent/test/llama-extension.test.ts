@@ -212,17 +212,17 @@ describe("llama.cpp extension", () => {
 					data: [
 						loaded
 							? {
-								id: "qwen",
-								status: { value: "loaded" },
-								source: "preset",
-								meta: { n_ctx: 65536, n_ctx_train: 128000 },
-							}
+									id: "qwen",
+									status: { value: "loaded" },
+									source: "preset",
+									meta: { n_ctx: 65536, n_ctx_train: 128000 },
+								}
 							: {
-								id: "qwen",
-								status: { value: "unloaded", ...(unloadedArgs && { args: unloadedArgs }) },
-								source: "preset",
-								meta: { n_ctx_train: 128000 },
-							},
+									id: "qwen",
+									status: { value: "unloaded", ...(unloadedArgs && { args: unloadedArgs }) },
+									source: "preset",
+									meta: { n_ctx_train: 128000 },
+								},
 					],
 				});
 				return;
@@ -599,7 +599,7 @@ describe("llama.cpp extension", () => {
 		const credential = await auth.login!({
 			signal,
 			prompt: async (_prompt: AuthPrompt) => answers.shift()!,
-			notify: () => { },
+			notify: () => {},
 		});
 		expect(credential).toEqual({
 			type: "api_key",

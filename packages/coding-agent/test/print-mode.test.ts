@@ -58,20 +58,20 @@ function createAssistantMessage(options?: {
 function createRuntimeHost(assistantMessage: AssistantMessage): FakeRuntimeHost {
 	const extensionRunner: FakeExtensionRunner = {
 		hasHandlers: (eventType: string) => eventType === "session_shutdown",
-		emit: vi.fn(async () => { }),
+		emit: vi.fn(async () => {}),
 	};
 
 	const state = { messages: [assistantMessage] };
 
 	const session: FakeSession = {
 		sessionManager: { getHeader: () => undefined },
-		agent: { waitForIdle: async () => { }, subscribe: vi.fn(() => () => { }) },
+		agent: { waitForIdle: async () => {}, subscribe: vi.fn(() => () => {}) },
 		state,
 		extensionRunner,
-		bindExtensions: vi.fn(async () => { }),
-		subscribe: vi.fn(() => () => { }),
-		prompt: vi.fn(async () => { }),
-		reload: vi.fn(async () => { }),
+		bindExtensions: vi.fn(async () => {}),
+		subscribe: vi.fn(() => () => {}),
+		prompt: vi.fn(async () => {}),
+		reload: vi.fn(async () => {}),
 	};
 
 	return {
@@ -128,7 +128,7 @@ describe("runPrintMode", () => {
 			createAssistantMessage({ stopReason: "error", errorMessage: "provider failure" }),
 		);
 		const { session } = runtimeHost;
-		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => { });
+		const errorSpy = vi.spyOn(console, "error").mockImplementation(() => {});
 
 		const exitCode = await runPrintMode(runtimeHost as unknown as Parameters<typeof runPrintMode>[0], {
 			mode: "text",

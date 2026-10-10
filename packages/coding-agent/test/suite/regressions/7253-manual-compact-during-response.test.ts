@@ -24,11 +24,11 @@ describe("issue #7253: manual compaction during an active response", () => {
 	});
 
 	it("persists the aborted response before running the requested manual compaction", async () => {
-		let markSecondResponseStarted = () => { };
+		let markSecondResponseStarted = () => {};
 		const secondResponseStarted = new Promise<void>((resolve) => {
 			markSecondResponseStarted = resolve;
 		});
-		let releaseSecondResponse = () => { };
+		let releaseSecondResponse = () => {};
 		const secondResponseReleased = new Promise<void>((resolve) => {
 			releaseSecondResponse = resolve;
 		});
