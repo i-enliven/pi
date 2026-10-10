@@ -16,7 +16,6 @@ import { join } from "node:path";
 import { oauthErrorHtml, oauthSuccessHtml } from "@earendil-works/pi-ai/utils/oauth-page";
 import type { AuthProvider, McpFetch } from "@earendil-works/pi-mcp";
 import {
-	type AuthorizationServerMetadata,
 	authorizeMcp,
 	McpOAuthAuthorizationRequiredError,
 	McpOAuthProvider,
@@ -27,7 +26,6 @@ import {
 	OAuthCallbackServer,
 	type OAuthChallenge,
 	type OAuthClientInformationMixed,
-	type OAuthClientMetadataDocument,
 	parseWwwAuthenticate,
 	stepUpScope,
 } from "@earendil-works/pi-mcp/oauth";
@@ -38,8 +36,6 @@ import { mcpNamespace } from "../../core/mcp-servers.ts";
 
 const CALLBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";
-/** Where pi.dev serves pi's Client ID Metadata Documents: `client.json` and `<callback ID>/client.json`. */
-const CLIENT_METADATA_BASE_URL = "https://pi.dev/oauth";
 /** Redirect URI for refreshes when none is stored. Refreshing never redirects the user. */
 const FALLBACK_REDIRECT_URL = `http://${CALLBACK_HOST}${CALLBACK_PATH}`;
 /** Access tokens this close to expiry are refreshed before they are sent. */
@@ -66,8 +62,6 @@ export interface McpOAuthSettings {
 	scope?: string;
 	/** `client_name` for dynamic client registration. Default: `APP_NAME`. */
 	clientName?: string;
-	/** See `McpOAuthConfig.clientRegistration`. */
-	clientRegistration?: "dcr" | "cimd";
 	/** See `McpOAuthConfig.authServerMetadataUrl`. */
 	authServerMetadataUrl?: URL;
 }
@@ -235,41 +229,6 @@ function registeredRedirectUrls(client: OAuthClientInformationMixed | undefined)
 	return client && "redirect_uris" in client ? client.redirect_uris : [];
 }
 
-/** 12 characters identifying an MCP server URL in callback paths, computed like Codex does. */
-function callbackId(serverUrl: string): string {
-	const url = new URL(serverUrl);
-	url.hash = "";
-	return createHash("sha256").update(url.href).digest().subarray(0, 9).toString("base64url");
-}
-
-/**
- * pi's Client ID Metadata Document, for `clientRegistration: "cimd"`, chosen like Codex chooses its own.
- * The configuration ensures the default callback path. Without the `iss` parameter in authorization
- * responses (RFC 9207), the redirect URI and the document are specific to the MCP server, so a response
- * cannot be mixed up with one from another authorization server (RFC 9700 section 4.4.2.2).
- */
-function clientMetadataDocument(
-	serverUrl: string,
-	redirectUrl: string,
-	metadata: AuthorizationServerMetadata | undefined,
-): OAuthClientMetadataDocument {
-	if (
-		!metadata?.client_id_metadata_document_supported ||
-		!metadata.token_endpoint_auth_methods_supported?.includes("none")
-	) {
-		throw new Error(
-			'The authorization server does not support Client ID Metadata Documents for public clients; remove oauth.clientRegistration "cimd"',
-		);
-	}
-	if (metadata.authorization_response_iss_parameter_supported) {
-		return { url: `${CLIENT_METADATA_BASE_URL}/client.json`, redirectUrl };
-	}
-	const id = callbackId(serverUrl);
-	const redirect = new URL(redirectUrl);
-	redirect.pathname = `${CALLBACK_PATH}/${id}`;
-	return { url: `${CLIENT_METADATA_BASE_URL}/${id}/client.json`, redirectUrl: redirect.href };
-}
-
 function createProvider(
 	serverUrl: string,
 	store: McpOAuthStateStore,
@@ -281,10 +240,6 @@ function createProvider(
 		serverUrl,
 		redirectUrl,
 		clientMetadata: { client_name: settings.clientName ?? APP_NAME },
-		clientMetadataDocument:
-			settings.clientRegistration === "cimd"
-				? (metadata) => clientMetadataDocument(serverUrl, redirectUrl, metadata)
-				: undefined,
 		clientId: settings.clientId,
 		clientSecret: settings.clientSecret,
 		store,
@@ -487,25 +442,15 @@ export async function signInMcpServer(options: {
 	const registered = registeredRedirectUrls(stored?.clientInformation)[0];
 	const preferredPort =
 		callbackOptions.port ?? (registered ? Number(new URL(registered).port) || undefined : undefined);
-	const cimd = settings.clientRegistration === "cimd";
-	const callback = await listenForCallback(
-		callbackOptions,
-		// The redirect URI of a server-specific Client ID Metadata Document.
-		cimd ? [`${CALLBACK_PATH}/${callbackId(serverUrl)}`] : [],
-		preferredPort,
-		callbackOptions.port !== undefined,
-	);
+	const callback = await listenForCallback(callbackOptions, [], preferredPort, callbackOptions.port !== undefined);
 	const redirectUrl = callbackOptions.fixedRedirectUrl ?? callback.redirectUrl;
 	try {
 		if (stored) {
 			const next: McpOAuthState = { ...stored };
 			// Every sign-in gets a fresh `state` parameter.
 			delete next.oauthState;
-			// A registered client cannot use another redirect URI, and its tokens belong to it. A Client ID
-			// Metadata Document is not stored, so with one, a stored client was registered before and is replaced.
-			const keepClient =
-				settings.clientId ||
-				(cimd ? !stored.clientInformation : registeredRedirectUrls(stored.clientInformation).includes(redirectUrl));
+			// A registered client cannot use another redirect URI, and its tokens belong to it.
+			const keepClient = settings.clientId || registeredRedirectUrls(stored.clientInformation).includes(redirectUrl);
 			if (!keepClient) {
 				delete next.clientInformation;
 				delete next.tokens;
