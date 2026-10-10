@@ -3,13 +3,11 @@ import type { ToolResultMessage } from "@earendil-works/pi-ai/compat";
 import { Type } from "typebox";
 import { afterEach, describe, expect, it } from "vitest";
 import type { ExtensionAPI } from "../../src/core/extensions/types.ts";
-import { createCodemodeExtension } from "../../src/extensions/codemode/index.ts";
-import { createToolSearchExtension } from "../../src/extensions/tool-search/index.ts";
 import { createHarness, type Harness } from "./harness.ts";
 
 /**
  * A tool that calls other tools, built only on the extension API: its own name, exposure, loadout
- * hook, and ctx.executeTool(). Codemode and tool search use the same mechanisms.
+ * hook, and ctx.executeTool().
  */
 function orchestratorExtension(pi: ExtensionAPI): void {
 	pi.registerTool({
@@ -24,7 +22,7 @@ function orchestratorExtension(pi: ExtensionAPI): void {
 		label: "helper",
 		description: "Only reachable from other tools.",
 		parameters: Type.Object({}),
-		exposure: "codemode",
+		exposure: "direct",
 		execute: async () => ({ content: [{ type: "text", text: "helped" }], details: {} }),
 	});
 	pi.registerTool({
@@ -38,7 +36,8 @@ function orchestratorExtension(pi: ExtensionAPI): void {
 				run_tools: `Runs tools: ${loadout.callable.map((tool) => tool.name).join(", ")}`,
 				echo: "Echo text (also callable from run_tools).",
 			},
-			hiddenDeclarations: ["echo"],
+			// Callable from run_tools, but never declared to the model.
+			hiddenDeclarations: ["echo", "helper"],
 		}),
 		execute: async (_id, _params, _signal, _onUpdate, ctx) => {
 			const helper = await ctx.executeTool("helper", {});
@@ -75,7 +74,7 @@ describe("AgentSession tool orchestration", () => {
 		harnesses.push(harness);
 		await harness.session.bindExtensions({});
 
-		expect(harness.session.getActiveToolNames()).toEqual(["echo", "run_tools"]);
+		expect(harness.session.getActiveToolNames()).toEqual(["echo", "helper", "run_tools"]);
 		expect(harness.session.getCallableToolNames()).toEqual(["echo", "helper"]);
 		const find = (name: string) => harness.session.agent.state.tools.find((tool) => tool.name === name);
 		expect(find("run_tools")?.description).toBe("Runs tools: echo, helper");
@@ -91,7 +90,7 @@ describe("AgentSession tool orchestration", () => {
 		]);
 		await harness.session.prompt("go");
 
-		// echo stays active, but its declaration is left out of requests.
+		// echo and helper stay active, but their declarations are left out of requests.
 		expect(requestTools[0]).toEqual(["run_tools"]);
 		const result = harness.session.messages.find(
 			(message): message is ToolResultMessage => message.role === "toolResult",
@@ -110,24 +109,6 @@ describe("AgentSession tool orchestration", () => {
 			.getBranch()
 			.find((entry) => entry.type === "message" && entry.message.role === "toolResult");
 		expect(persisted?.type === "message" && persisted.message).toMatchObject({ nestedCalls: result.nestedCalls });
-	});
-
-	it("registers codemode and tool_search inactive until they are named", async () => {
-		const extensionFactories = [createCodemodeExtension(), createToolSearchExtension()];
-		const plain = await createHarness({ extensionFactories });
-		harnesses.push(plain);
-		expect(plain.session.getAllTools().map((tool) => tool.name)).toEqual(
-			expect.arrayContaining(["codemode", "tool_search"]),
-		);
-		expect(plain.session.getActiveToolNames()).toEqual(["read", "bash", "edit", "write"]);
-
-		// --tools and the defaultTools setting name them explicitly.
-		const allowed = await createHarness({ allowedToolNames: ["read", "codemode"], extensionFactories });
-		harnesses.push(allowed);
-		expect(allowed.session.getActiveToolNames()).toEqual(["read", "codemode"]);
-		const initial = await createHarness({ initialActiveToolNames: ["tool_search"], extensionFactories });
-		harnesses.push(initial);
-		expect(initial.session.getActiveToolNames()).toEqual(["tool_search"]);
 	});
 
 	it("leaves results without nested calls unchanged", async () => {

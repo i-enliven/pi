@@ -4,10 +4,11 @@
  * Results map onto pi's model-facing content (text and images). Text over 20KB keeps its start and
  * end with the middle cut out, like Codex does, and the full text is saved to a temp file the model
  * can read. Binary resources other than images are saved to temp files too, and resource links name
- * the `read_mcp_resource` tool. Codemode scripts receive the whole `CallToolResult` without `_meta`
- * (`content` blocks as sent by the server, `structuredContent`, `isError`), never truncated: it is
- * the tool's `structuredContent`, and every MCP tool declares a `CallToolResult` output schema. MCP
- * errors (`isError`) are error results for the model, but scripts still resolve to the result.
+ * the `read_mcp_resource` tool. Programmatic callers receive the whole `CallToolResult` without
+ * `_meta` (`content` blocks as sent by the server, `structuredContent`, `isError`), never truncated:
+ * it is the tool's `structuredContent`, and every MCP tool declares a `CallToolResult` output
+ * schema. MCP errors (`isError`) are error results for the model, but callers still resolve to the
+ * result.
  */
 
 import { createHash } from "node:crypto";
@@ -22,13 +23,7 @@ import {
 } from "@earendil-works/pi-mcp";
 import { Container, Spacer, Text } from "@earendil-works/pi-tui";
 import type { TSchema } from "typebox";
-import type {
-	ToolAnnotations,
-	ToolDefinition,
-	ToolExposure,
-	ToolNamespace,
-	ToolRenderers,
-} from "../../core/extensions/types.ts";
+import type { ToolAnnotations, ToolDefinition, ToolNamespace, ToolRenderers } from "../../core/extensions/types.ts";
 import { READ_MCP_RESOURCE_TOOL } from "../../core/mcp-servers.ts";
 import { formatToolCallWithArgs, getTextOutput, replaceTabs } from "../../core/tools/render-utils.ts";
 import { formatSize, truncateMiddle } from "../../core/tools/truncate.ts";
@@ -36,14 +31,6 @@ import { keyHint } from "../../modes/interactive/components/keybinding-hints.ts"
 import { VisualLinePreview } from "../../modes/interactive/components/visual-truncate.ts";
 import { writeOutputFile } from "../../utils/output-files.ts";
 import type { McpExposure } from "./config.ts";
-
-/**
- * Tool exposure of an MCP exposure. `codemode` and `deferred` both leave tools out of the codemode
- * description; they differ only in which tool the MCP extension activates to reach them.
- */
-export function toToolExposure(exposure: McpExposure): ToolExposure {
-	return exposure === "codemode" ? "deferred" : exposure;
-}
 
 /** Provider tool names are limited to 64 characters of `[A-Za-z0-9_-]`. */
 const MAX_TOOL_NAME_LENGTH = 64;
@@ -77,8 +64,8 @@ export interface McpToolCaller {
 
 /**
  * `mcp__<server>__<tool>`, sanitized and shortened with a hash suffix when too long. Like Codex,
- * everything but `[A-Za-z0-9_]` becomes `_`, so the name is also the identifier codemode scripts
- * call it by. `isTaken` reports names used by a different MCP tool: sanitizing can map two tools to
+ * everything but `[A-Za-z0-9_]` becomes `_`, so the name is a valid provider tool identifier.
+ * `isTaken` reports names used by a different MCP tool: sanitizing can map two tools to
  * one name (`a-b` and `a_b`), which then get the hash suffix.
  */
 export function createMcpToolName(
@@ -100,9 +87,8 @@ function textOf(content: readonly (TextContent | ImageContent)[]): string {
 }
 
 /**
- * Output schema of every MCP tool: the `CallToolResult` scripts receive, with the tool's own output
- * schema as `structuredContent`. Codemode detects this shape to render `CallToolResult<T>`
- * declarations.
+ * Output schema of every MCP tool: the `CallToolResult` programmatic callers receive, with the
+ * tool's own output schema as `structuredContent`.
  */
 export function createMcpResultSchema(structuredContentSchema: Record<string, unknown> | undefined): TSchema {
 	return {
@@ -274,7 +260,7 @@ export function createMcpToolDefinition(options: {
 		description: tool.description?.trim() || title || `MCP tool ${tool.name} from server ${server}`,
 		parameters: toParameters(tool.inputSchema),
 		outputSchema: createMcpResultSchema(tool.outputSchema),
-		exposure: toToolExposure(options.exposure),
+		exposure: options.exposure,
 		namespace: options.namespace,
 		...(annotations ? { annotations } : {}),
 		...createMcpToolRenderers(label),

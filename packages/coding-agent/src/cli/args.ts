@@ -402,11 +402,11 @@ ${chalk.bold("Examples:")}
   # Read-only mode (no file modifications possible)
   ${APP_NAME} --tools read,grep,find,ls -p "Review the code in src/"
 
-  # Add codemode to the default tools
-  ${APP_NAME} --tools +codemode
+  # Add a tool to the default tools
+  ${APP_NAME} --tools +ask_question
 
-  # Codemode with only the tools of one MCP server
-  ${APP_NAME} --tools read,bash,codemode,'mcp__radius__*'
+  # Only the built-in tools plus those of one MCP server
+  ${APP_NAME} --tools read,bash,'mcp__docs__*'
 
   # Disable one tool while keeping the rest available
   ${APP_NAME} --exclude-tools ask_question

@@ -76,7 +76,7 @@ export interface CreateAgentSessionOptions {
 	 * selection when configured. Otherwise it enables the default built-in tools
 	 * (read, bash, edit, write). Extension/custom tools remain enabled unless
 	 * `noTools` changes that default. When provided, only matching tools are
-	 * enabled. MCP tools stay registered for codemode and tool search unless an
+	 * enabled. MCP tools stay registered, but not declared to the model, unless an
 	 * entry starts with `mcp__`; then only matching MCP tools are kept. An empty
 	 * list, like `noTools: "all"`, disables MCP tools too.
 	 *
