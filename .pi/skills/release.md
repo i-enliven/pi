@@ -1,6 +1,6 @@
 ---
 name: release
-description: Prepare, publish, verify, and recover pi releases. Use for release preparation, local release smoke tests, publishing, and failed release CI or announcements.
+description: Prepare, tag, publish, and verify pi fork releases, including the GitHub Release that pi update reads. Use for release preparation, local release smoke tests, tagging, and recovery.
 ---
 
 # Releasing pi
@@ -9,9 +9,9 @@ Run repository commands from the repo root (two directories above this skill), u
 
 **Lockstep versioning**: all packages share one version; every release updates all together. `patch` = fixes + additions, `minor` = breaking changes. No major releases.
 
-1. **Update CHANGELOGs**: ask the user whether they ran the `/cl` prompt on the latest commit on `main`. If not, they must run `/cl` first to audit and update each package's `[Unreleased]` section before releasing.
+**This fork publishes nothing to npm.** A release is a version bump, a git tag, and a GitHub Release on `i-enliven/pi`. There is no release CI (`.github/` is deleted), so pushing a tag publishes git refs only. `pi update` and the startup version check read `releases/latest` from the fork repository (`PI_UPDATE_REPO` overrides it) and fall back to the `main` branch `packages/coding-agent/package.json` version while no release exists. The repository keeps no `CHANGELOG.md` files; write the release notes for the GitHub Release by hand.
 
-2. **Local smoke test**: build an unpublished release and smoke test from outside the repo (so it can't resolve workspace files):
+1. **Local smoke test**: build an unreleased release and smoke test it from outside the repo (so it cannot resolve workspace files):
    ```bash
    npm run release:local -- --out /tmp/pi-local-release --force
    cd /tmp
@@ -34,19 +34,29 @@ Run repository commands from the repo root (two directories above this skill), u
 
    Load and follow [interactive-testing.md](interactive-testing.md) for the tmux workflow. Start each release binary from `/tmp`, not the repo root.
 
+2. **Refresh the committed Nix model catalog** when model data changed: `npm run sync:nix-model-catalog`. The Nix build hydrates from `nix/model-catalog/models.all.json` without network access.
+
 3. **Run the release script**:
    ```bash
    PI_ALLOW_LOCKFILE_CHANGE=1 npm_config_min_release_age=0 npm run release:patch    # fixes + additions
    PI_ALLOW_LOCKFILE_CHANGE=1 npm_config_min_release_age=0 npm run release:minor    # breaking changes
    ```
+   The script bumps all package versions, regenerates release artifacts, runs `npm run check`, builds the packages, runs `./test.sh`, checks the packed coding-agent consumer install, commits `Release vX.Y.Z`, tags `vX.Y.Z`, then pushes `main` and the tag.
+
+   Use `npm_config_min_release_age=0` only for the release command. The repo's normal npm age gate can otherwise block the release lockfile refresh when the current workspace package version was installed recently. Review any lockfile or install lock diffs the release creates before push.
+
    If the test suite already passed in `npm run release:local` and only fails from machine load, `PI_RELEASE_SKIP_TESTS=1` skips `./test.sh` in the release script; checks and the packed install check still run. Use it only with the user's approval.
 
-   Use `npm_config_min_release_age=0` only for the release command. The repo's normal npm age gate can otherwise block the release lockfile refresh when the current workspace package version was published recently. Review any lockfile or install lock diffs the release creates before push.
+   Never rerun the release script after a tag was pushed.
 
-   Before releasing, refresh the committed Nix model catalog (`npm run sync:nix-model-catalog`) when model data changed; the Nix build hydrates from `nix/model-catalog/models.all.json` without network access. The release script bumps all package versions, updates changelogs, regenerates release artifacts, runs `npm run check`, commits `Release vX.Y.Z`, tags `vX.Y.Z`, adds fresh `## [Unreleased]` changelog sections, commits `Add [Unreleased] section for next cycle`, then pushes `main` and the tag. Do not rerun the release script after a tag was pushed.
+4. **Publish the GitHub Release**: the tag alone does not create a release, and non-checkout installs only learn about a new version from `releases/latest`. Write the notes, then:
+   ```bash
+   gh release create v<X.Y.Z> --title "v<X.Y.Z>" --notes-file /tmp/notes.md
+   ```
+   State that the fork does not publish to npm and link the source install steps, as the `v1.1.0` release does. `npm run release:fix-links` rewrites floating or relative links in already-published release notes.
 
-4. **CI publishes the npm release**: pushing the `vX.Y.Z` tag triggers `.github/workflows/build-binaries.yml`. The `publish-npm` job uses npm trusted publishing through GitHub Actions OIDC with environment `npm-publish`; no local `npm publish`, `npm whoami`, OTP, or WebAuthn flow is required.
+5. **Verify the release**:
+   - Source checkout: in a clone that is behind the tag, `pi update` fetches the update remote (`fork`, `PI_UPDATE_REMOTE`, the tracked upstream, then `origin`), reports the commits behind, then runs `git pull --ff-only`, `npm install --ignore-scripts`, and `npm run build`.
+   - Non-checkout install (a global install from a clone, or the packed installs under `/tmp/pi-local-release`): `pi update` prints the fork clone/build/install commands for the new version and renders the release body as the update note.
 
-5. **CI builds the Nix release**: the tag push also triggers `.github/workflows/nix.yml`, which builds the tagged flake on Linux and macOS and then fast-forwards the `stable` branch to the release commit. `nix run github:earendil-works/pi/stable` runs the latest release. If the Nix build fails, `stable` stays on the previous release; the tag cannot be fixed, so fix `main` and ship the fix in the next release.
-
-6. **If CI publish fails**: inspect the failed job. The publish helper is idempotent and skips package versions already present on npm. Rerun the failed job or workflow after fixing CI or transient npm issues. Do not rerun `npm run release:patch` or `npm run release:minor` for the same version.
+6. **If something is wrong after the tag is pushed**: do not rerun the release script or move the tag. Fix `main`, then ship the fix in the next release.

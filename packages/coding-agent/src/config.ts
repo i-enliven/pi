@@ -31,7 +31,7 @@ export const isBundledNode = typeof PI_BUNDLED_NODE !== "undefined" && PI_BUNDLE
 // =============================================================================
 
 /**
- * Get the base directory for resolving package assets (themes, package.json, README.md, CHANGELOG.md).
+ * Get the base directory for resolving package assets (themes, package.json, README.md).
  * - For Bun binary: returns the directory containing the executable
  * - For Node.js: returns the package root containing package.json
  * - Ignores Bun binary metadata copied into dist/ when the package root is available
@@ -116,11 +116,6 @@ export function getDocsPath(): string {
 /** Get path to examples directory */
 export function getExamplesPath(): string {
 	return resolve(join(getPackageDir(), "examples"));
-}
-
-/** Get path to CHANGELOG.md */
-export function getChangelogPath(): string {
-	return resolve(join(getPackageDir(), "CHANGELOG.md"));
 }
 
 /**

@@ -1,38 +1,28 @@
 #!/usr/bin/env node
 
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from "node:fs";
+import { mkdtempSync, rmSync, writeFileSync } from "node:fs";
 import { tmpdir } from "node:os";
 import path from "node:path";
 
-const DEFAULT_REPO = "earendil-works/pi";
-const DEFAULT_BASE_PATH = "packages/coding-agent";
-const DEFAULT_CHANGELOG = "packages/coding-agent/CHANGELOG.md";
-const DEFAULT_FIX_SINCE_TAG = "v0.74.0";
+const DEFAULT_REPO = "i-enliven/pi";
+const DEFAULT_BASE_PATH = ".";
+const DEFAULT_FIX_SINCE_TAG = "v1.1.0";
 const LEGACY_REPO_RE = /^https:\/\/github\.com\/(?:badlogic|earendil-works)\/pi-mono(?=\/|$)/;
 const URL_SCHEME_RE = /^[a-z][a-z0-9+.-]*:/i;
 const INLINE_MARKDOWN_LINK_RE = /(!?\[[^\]\n]+\]\()([^\s)]+)((?:\s+[^)]*)?\))/g;
 
 function printUsage() {
-	console.log(`Usage: node scripts/release-notes.mjs <command> [options]
+	console.log(`Usage: node scripts/release-notes.mjs fix-github-releases [options]
 
-Commands:
-  extract              Extract release notes from the coding-agent changelog
-  fix-github-releases  Rewrite existing GitHub release note links in place
+Rewrite links in existing GitHub release notes so repository links point at the
+release tag instead of a floating branch, and relative links point at the fork.
 
-extract options:
-  --version <x.y.z>    Version to extract
-  --tag <vX.Y.Z>       Release tag used for repository links (defaults to v<version>)
-  --changelog <path>   Changelog path (default: ${DEFAULT_CHANGELOG})
-  --out <path>         Output file (default: stdout)
-  --repo <owner/repo>  GitHub repository for generated links (default: ${DEFAULT_REPO})
-  --base-path <path>   Base path for relative changelog links (default: ${DEFAULT_BASE_PATH})
-
-fix-github-releases options:
+Options:
   --repo <owner/repo>     GitHub repository to patch (default: ${DEFAULT_REPO})
   --tag <vX.Y.Z>          Patch only one release tag
   --since-tag <vX.Y.Z>    Oldest release tag to patch (default: ${DEFAULT_FIX_SINCE_TAG})
-  --base-path <path>      Base path for relative changelog links (default: ${DEFAULT_BASE_PATH})
+  --base-path <path>      Repository path that relative links resolve against (default: ${DEFAULT_BASE_PATH})
   --dry-run               Print releases that would change without updating GitHub
 `);
 }
@@ -60,13 +50,10 @@ function run(command, args, options = {}) {
 function parseOptions(args) {
 	const options = {
 		basePath: DEFAULT_BASE_PATH,
-		changelog: DEFAULT_CHANGELOG,
 		dryRun: false,
-		out: undefined,
 		repo: DEFAULT_REPO,
 		sinceTag: DEFAULT_FIX_SINCE_TAG,
 		tag: undefined,
-		version: undefined,
 	};
 
 	for (let i = 0; i < args.length; i++) {
@@ -80,7 +67,7 @@ function parseOptions(args) {
 			continue;
 		}
 
-		const optionNames = new Set(["--base-path", "--changelog", "--out", "--repo", "--since-tag", "--tag", "--version"]);
+		const optionNames = new Set(["--base-path", "--repo", "--since-tag", "--tag"]);
 		if (!optionNames.has(arg)) {
 			throw new Error(`Unknown option: ${arg}`);
 		}
@@ -91,12 +78,9 @@ function parseOptions(args) {
 		}
 
 		if (arg === "--base-path") options.basePath = value;
-		if (arg === "--changelog") options.changelog = value;
-		if (arg === "--out") options.out = value;
 		if (arg === "--repo") options.repo = value;
 		if (arg === "--since-tag") options.sinceTag = value;
 		if (arg === "--tag") options.tag = value;
-		if (arg === "--version") options.version = value;
 	}
 
 	return options;
@@ -125,25 +109,6 @@ function compareVersions(a, b) {
 	}
 
 	return 0;
-}
-
-function escapeRegExp(value) {
-	return value.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-}
-
-function extractChangelogSection(changelog, version) {
-	const headingRe = new RegExp(`^## \\[${escapeRegExp(version)}\\](?:\\s+-\\s+\\d{4}-\\d{2}-\\d{2})?\\s*$`, "m");
-	const heading = headingRe.exec(changelog);
-
-	if (!heading) {
-		return "";
-	}
-
-	const sectionStart = heading.index + heading[0].length;
-	const rest = changelog.slice(sectionStart);
-	const nextHeading = rest.search(/^## \[/m);
-	const section = nextHeading === -1 ? rest : rest.slice(0, nextHeading);
-	return section.trim();
 }
 
 function splitLocalTarget(target) {
@@ -238,33 +203,6 @@ function normalizeReleaseNoteLinks(markdown, options) {
 	return { changes, markdown: normalized };
 }
 
-function writeOutput(content, outPath) {
-	if (outPath) {
-		writeFileSync(outPath, content);
-		return;
-	}
-
-	process.stdout.write(content);
-}
-
-function extractReleaseNotes(options) {
-	const version = options.version ?? (options.tag ? versionFromTag(options.tag) : undefined);
-	if (!version) {
-		throw new Error("extract requires --version or --tag");
-	}
-
-	if (!existsSync(options.changelog)) {
-		throw new Error(`Changelog does not exist: ${options.changelog}`);
-	}
-
-	const tag = normalizeTag(options.tag ?? version);
-	const changelog = readFileSync(options.changelog, "utf8");
-	const section = extractChangelogSection(changelog, version);
-	const rawNotes = section ? `${section}\n` : `Release ${version}\n`;
-	const { markdown } = normalizeReleaseNoteLinks(rawNotes, { basePath: options.basePath, repo: options.repo, tag });
-	writeOutput(markdown, options.out);
-}
-
 function listGithubReleases(repo) {
 	const output = run("gh", ["api", `repos/${repo}/releases`, "--paginate", "--jq", ".[] | {id, tag_name, body} | @json"], {
 		capture: true,
@@ -345,19 +283,11 @@ function fixGithubReleases(options) {
 
 try {
 	const [command, ...args] = process.argv.slice(2);
-	if (!command || command === "--help") {
+	if (command !== "fix-github-releases") {
 		printUsage();
-		process.exit(command ? 0 : 1);
+		process.exit(command === "--help" ? 0 : 1);
 	}
-
-	const options = parseOptions(args);
-	if (command === "extract") {
-		extractReleaseNotes(options);
-	} else if (command === "fix-github-releases") {
-		fixGithubReleases(options);
-	} else {
-		throw new Error(`Unknown command: ${command}`);
-	}
+	fixGithubReleases(parseOptions(args));
 } catch (error) {
 	console.error(error instanceof Error ? error.message : error);
 	process.exit(1);

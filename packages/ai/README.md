@@ -1817,9 +1817,10 @@ Official docs: [Application Default Credentials](https://cloud.google.com/docs/a
 The quickest way to authenticate:
 
 ```bash
-npx @i-enliven/pi-ai login              # interactive provider selection
-npx @i-enliven/pi-ai login anthropic    # login to specific provider
-npx @i-enliven/pi-ai list               # list available providers
+# from the repository root, after npm run build
+node packages/ai/dist/cli.js login              # interactive provider selection
+node packages/ai/dist/cli.js login anthropic    # login to specific provider
+node packages/ai/dist/cli.js list               # list available providers
 ```
 
 Credentials are saved to `auth.json` in the current directory.
@@ -1942,15 +1943,6 @@ Update `packages/ai/README.md`:
 - Add to the Supported Providers table
 - Document any provider-specific options or authentication requirements
 - Add environment variable to the Environment Variables section
-
-#### 8. Changelog
-
-Add an entry to `packages/ai/CHANGELOG.md` under `## [Unreleased]`:
-
-```markdown
-### Added
-- Added support for [Provider Name] provider ([#PR](link) by [@author](link))
-```
 
 ## License
 

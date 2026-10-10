@@ -161,7 +161,6 @@ The built-in extensions are named `builtin:mcp` and `builtin:llama.cpp` in `exte
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `collapseChangelog` | boolean | `false` | Show a condensed changelog after an update. |
 | `enableInstallTelemetry` | boolean | `true` | Enable anonymous install/update reporting and selected provider attribution headers. Does not control update checks. |
 | `enableAnalytics` | boolean | `false` | Opt in to analytics data sharing. Currently used only by the experimental first-run setup. |
 | `warnings.anthropicExtraUsage` | boolean | `true` | Warn when Anthropic subscription authentication may use paid extra usage. |

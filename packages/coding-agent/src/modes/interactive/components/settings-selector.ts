@@ -80,7 +80,6 @@ export interface SettingsConfig {
 	hideThinkingBlock: boolean;
 	mermaidRenderingMode: MermaidRenderingMode;
 	showCacheMissNotices: boolean;
-	collapseChangelog: boolean;
 	enableInstallTelemetry: boolean;
 	doubleEscapeAction: "fork" | "tree" | "none";
 	treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
@@ -119,7 +118,6 @@ export interface SettingsCallbacks {
 	onHideThinkingBlockChange: (hidden: boolean) => void;
 	onMermaidRenderingModeChange: (mode: MermaidRenderingMode) => void;
 	onShowCacheMissNoticesChange: (shown: boolean) => void;
-	onCollapseChangelogChange: (collapsed: boolean) => void;
 	onEnableInstallTelemetryChange: (enabled: boolean) => void;
 	onDoubleEscapeActionChange: (action: "fork" | "tree" | "none") => void;
 	onTreeFilterModeChange: (mode: "default" | "no-tools" | "user-only" | "labeled-only" | "all") => void;
@@ -545,13 +543,6 @@ export class SettingsSelectorComponent extends Container {
 				values: ["true", "false"],
 			},
 			{
-				id: "collapse-changelog",
-				label: "Collapse changelog",
-				description: "Show condensed changelog after updates",
-				currentValue: config.collapseChangelog ? "true" : "false",
-				values: ["true", "false"],
-			},
-			{
 				id: "quiet-startup",
 				label: "Quiet startup",
 				description: "Disable verbose printing at startup (header: keep only the startup header)",
@@ -561,7 +552,7 @@ export class SettingsSelectorComponent extends Container {
 			{
 				id: "install-telemetry",
 				label: "Install telemetry",
-				description: "Send an anonymous version/update ping after changelog-detected updates",
+				description: "Send an anonymous version/update ping after detected updates",
 				currentValue: config.enableInstallTelemetry ? "true" : "false",
 				values: ["true", "false"],
 			},
@@ -916,9 +907,6 @@ export class SettingsSelectorComponent extends Container {
 						break;
 					case "cache-miss-notices":
 						callbacks.onShowCacheMissNoticesChange(newValue === "true");
-						break;
-					case "collapse-changelog":
-						callbacks.onCollapseChangelogChange(newValue === "true");
 						break;
 					case "quiet-startup":
 						callbacks.onQuietStartupChange(newValue === "header" ? "header" : newValue === "true");

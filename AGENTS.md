@@ -73,8 +73,6 @@ If rebase conflicts occur:
 
 ## Issues and PRs
 
-See `CONTRIBUTING.md` for the contributor gate (auto-close workflows, `lgtm`/`lgtmi`, quality bar).
-
 When reviewing PRs:
 
 - Do not run `gh pr checkout`, `git switch`, or otherwise move the worktree to the PR branch unless the user explicitly asks.
@@ -99,26 +97,9 @@ When closing issues via commit:
 
 For testing pi's interactive mode, load and follow [.pi/skills/interactive-testing.md](.pi/skills/interactive-testing.md).
 
-## Changelog
-
-Location: `packages/*/CHANGELOG.md` (one per package).
-
-Sections under `## [Unreleased]`: `### Breaking Changes` (API changes requiring migration), `### Added`, `### Changed`, `### Fixed`, `### Removed`.
-
-Rules:
-
-- All new entries go under `## [Unreleased]`. Read the full section first and append to existing subsections; never duplicate them.
-- Released version sections (e.g. `## [0.12.2]`) are immutable; never modify them.
-- Do not create changelog entries when working on a branch other than `main` or pull request
-
-Attribution:
-
-- Internal (from issues): `Fixed foo bar ([#123](https://github.com/i-enliven/pi/issues/123))`
-- External contributions: `Added feature X ([#456](https://github.com/i-enliven/pi/pull/456) by [@username](https://github.com/username))`
-
 ## Releasing
 
-For release preparation, publishing, verification, or recovery, load and follow [.pi/skills/release.md](.pi/skills/release.md).
+This fork does not publish to npm. A release is a version bump, a git tag, and a GitHub Release; `pi update` and the startup version check read the fork's GitHub Releases. For release preparation, publishing the GitHub Release, verification, or recovery, load and follow [.pi/skills/release.md](.pi/skills/release.md).
 
 ## User Override
 

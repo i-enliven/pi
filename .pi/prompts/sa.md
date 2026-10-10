@@ -32,7 +32,7 @@ GitHub does not expose repository security advisory comments/discussion through 
    - Never pretend comments were read.
 4. Investigate independently:
    - Read the advisory text, metadata, affected package(s), version ranges, CVSS, CWE, references, and linked issues/PRs/commits.
-   - Inspect relevant code history, releases, changelogs, package metadata, and tags.
+   - Inspect relevant code history, releases, package metadata, and tags.
    - Determine whether the vulnerability is already fixed.
    - If fixed, identify the patched version(s) and the correct affected version range.
    - Do not trust the reporter's analysis without verification.

@@ -118,7 +118,6 @@ import { withBuiltInRenderers } from "../../core/tools/renderers/index.ts";
 import type { TruncationResult } from "../../core/tools/truncate.ts";
 import { hasTrustRequiringProjectResources, ProjectTrustStore } from "../../core/trust-manager.ts";
 import { getUsageCostBreakdown } from "../../core/usage-totals.ts";
-import { getChangelogPath, getNewEntries, normalizeChangelogLinks, parseChangelog } from "../../utils/changelog.ts";
 import { copyToClipboard, readClipboardFilePaths, readClipboardText } from "../../utils/clipboard.ts";
 import { extensionForImageMimeType, readClipboardImage } from "../../utils/clipboard-image.ts";
 import { parseGitUrl } from "../../utils/git.ts";
@@ -481,8 +480,6 @@ export class InteractiveMode {
 
 	private lastSigintTime = 0;
 	private lastEscapeTime = 0;
-	private changelogMarkdown: string | undefined = undefined;
-	private startupNoticesShown = false;
 	private anthropicSubscriptionWarningShown = false;
 
 	// Status line tracking (for mutating immediately-sequential status updates)
@@ -569,7 +566,7 @@ export class InteractiveMode {
 	// Header container that holds the built-in or custom header
 	private headerContainer: Container;
 
-	// Built-in header (logo + keybinding hints + changelog)
+	// Built-in header (logo + keybinding hints)
 	private builtInHeader: Component | undefined = undefined;
 
 	// Custom header from extension (undefined = use built-in header)
@@ -831,36 +828,6 @@ export class InteractiveMode {
 		}
 	}
 
-	private showStartupNoticesIfNeeded(): void {
-		if (this.startupNoticesShown) {
-			return;
-		}
-		this.startupNoticesShown = true;
-
-		if (!this.changelogMarkdown) {
-			return;
-		}
-
-		if (this.chatContainer.children.length > 0) {
-			this.chatContainer.addChild(new Spacer(1));
-		}
-		this.chatContainer.addChild(new DynamicBorder());
-		if (this.settingsManager.getCollapseChangelog()) {
-			const versionMatch = this.changelogMarkdown.match(/##\s+\[?(\d+\.\d+\.\d+)\]?/);
-			const latestVersion = versionMatch ? versionMatch[1] : this.version;
-			const condensedText = `Updated to v${latestVersion}. Use ${theme.bold("/changelog")} to view full changelog.`;
-			this.chatContainer.addChild(new Text(condensedText, 1, 0));
-		} else {
-			this.chatContainer.addChild(new ThemedText(() => theme.bold(theme.fg("accent", "What's New")), 1, 0));
-			this.chatContainer.addChild(new Spacer(1));
-			this.chatContainer.addChild(
-				new Markdown(this.changelogMarkdown.trim(), 1, 0, this.getMarkdownThemeWithSettings()),
-			);
-			this.chatContainer.addChild(new Spacer(1));
-		}
-		this.chatContainer.addChild(new DynamicBorder());
-	}
-
 	private mountInteractiveTui(tui: TuiMainScreen | TuiAltScreen, components: readonly Component[]): void {
 		for (const component of components) tui.addChild(component);
 		if (TuiLayouts.isViewportTUI(tui)) {
@@ -935,9 +902,6 @@ export class InteractiveMode {
 		if (this.isInitialized) return;
 
 		this.registerSignalHandlers();
-
-		// Load changelog (only show new entries, skip for resumed sessions)
-		this.changelogMarkdown = this.getChangelogForDisplay();
 
 		if (this.session.scopedModels.length > 0 && this.shouldShowStartupDetails()) {
 			const modelList = this.session.scopedModels
@@ -1142,7 +1106,7 @@ export class InteractiveMode {
 			const timeout = setTimeout(() => controller.abort(), 15_000);
 			void refreshModelCatalogs(this.session.modelRuntime, controller.signal)
 				.then(() => this.updateAvailableProviderCount())
-				.catch(() => { })
+				.catch(() => {})
 				.finally(() => clearTimeout(timeout));
 		}
 
@@ -1311,35 +1275,6 @@ export class InteractiveMode {
 
 		if (extendedKeysFormat === "xterm") {
 			return "tmux extended-keys-format is xterm. Pi works best with csi-u. Add `set -g extended-keys-format csi-u` to ~/.tmux.conf and restart tmux.";
-		}
-
-		return undefined;
-	}
-
-	/**
-	 * Get changelog entries to display on startup.
-	 * Only shows new entries since last seen version, skips for resumed sessions.
-	 */
-	private getChangelogForDisplay(): string | undefined {
-		// Skip changelog for resumed/continued sessions (already have messages)
-		if (this.session.state.messages.length > 0) {
-			return undefined;
-		}
-
-		const lastVersion = this.settingsManager.getLastChangelogVersion();
-		const changelogPath = getChangelogPath();
-		const entries = parseChangelog(changelogPath);
-
-		if (!lastVersion) {
-			// Fresh install - record the version, don't show changelog
-			this.settingsManager.setLastChangelogVersion(VERSION);
-			return undefined;
-		}
-
-		const newEntries = getNewEntries(entries, lastVersion);
-		if (newEntries.length > 0) {
-			this.settingsManager.setLastChangelogVersion(VERSION);
-			return newEntries.map((e) => normalizeChangelogLinks(e.content, e)).join("\n\n");
 		}
 
 		return undefined;
@@ -2012,7 +1947,6 @@ export class InteractiveMode {
 		const extensionRunner = this.session.extensionRunner;
 		this.setupExtensionShortcuts(extensionRunner);
 		this.showLoadedResources({ force: false, showDiagnosticsWhenQuiet: true });
-		this.showStartupNoticesIfNeeded();
 	}
 
 	private applyFullscreenScrollbarSetting(): void {
@@ -2316,7 +2250,7 @@ export class InteractiveMode {
 	private showWorkingStatusIndicator(): void {
 		const colorFn = isWorkingStatusEditor(this.editor)
 			? (text: string) =>
-				(this.editor.borderColor ?? theme.getThinkingBorderColor(this.session.thinkingLevel || "off"))(text)
+					(this.editor.borderColor ?? theme.getThinkingBorderColor(this.session.thinkingLevel || "off"))(text)
 			: undefined;
 		this.showStatusIndicator(
 			new WorkingStatusIndicator(
@@ -3227,11 +3161,6 @@ export class InteractiveMode {
 			}
 			if (text === "/session") {
 				this.handleSessionCommand();
-				this.editor.setText("");
-				return;
-			}
-			if (text === "/changelog") {
-				this.handleChangelogCommand();
 				this.editor.setText("");
 				return;
 			}
@@ -4330,13 +4259,13 @@ export class InteractiveMode {
 		this.isShuttingDown = true;
 		try {
 			this.unregisterSignalHandlers();
-		} catch { }
+		} catch {}
 		try {
 			killTrackedDetachedChildren();
-		} catch { }
+		} catch {}
 		try {
 			this.ui.stop();
-		} catch { }
+		} catch {}
 		console.error(`${APP_NAME} exiting due to uncaughtException:`);
 		console.error(error);
 		const extensionHint = this.getCrashExtensionHint(error);
@@ -4414,11 +4343,11 @@ export class InteractiveMode {
 		// Keep the event loop alive while suspended. Without this, stopping the TUI
 		// can leave Node with no ref'ed handles, causing the process to exit on fg
 		// before the SIGCONT handler gets a chance to restore the terminal.
-		const suspendKeepAlive = setInterval(() => { }, 2 ** 30);
+		const suspendKeepAlive = setInterval(() => {}, 2 ** 30);
 
 		// Ignore SIGINT while suspended so Ctrl+C in the terminal does not
 		// kill the backgrounded process. The handler is removed on resume.
-		const ignoreSigint = () => { };
+		const ignoreSigint = () => {};
 		process.on("SIGINT", ignoreSigint);
 
 		// Set up handler to restore TUI when resumed
@@ -4606,12 +4535,12 @@ export class InteractiveMode {
 		const updateInstruction = () =>
 			theme.fg("muted", `New version ${release.version} is available. Run `) +
 			theme.fg("accent", `${APP_NAME} update`);
-		const changelogUrl = "https://github.com/i-enliven/pi/releases";
-		const changelogLine = () => {
-			const changelogLink = getCapabilities().hyperlinks
-				? hyperlink(theme.fg("accent", changelogUrl), changelogUrl)
-				: theme.fg("accent", changelogUrl);
-			return theme.fg("muted", "Changelog: ") + changelogLink;
+		const releasesUrl = "https://github.com/i-enliven/pi/releases";
+		const releasesLine = () => {
+			const releasesLink = getCapabilities().hyperlinks
+				? hyperlink(theme.fg("accent", releasesUrl), releasesUrl)
+				: theme.fg("accent", releasesUrl);
+			return theme.fg("muted", "Releases: ") + releasesLink;
 		};
 		const note = release.note?.trim();
 
@@ -4629,7 +4558,7 @@ export class InteractiveMode {
 			);
 			this.chatContainer.addChild(new Spacer(1));
 		}
-		this.chatContainer.addChild(new ThemedText(changelogLine, 1, 0));
+		this.chatContainer.addChild(new ThemedText(releasesLine, 1, 0));
 		this.chatContainer.addChild(new DynamicBorder((text) => theme.fg("warning", text)));
 		this.ui.requestRender();
 	}
@@ -4762,7 +4691,8 @@ export class InteractiveMode {
 			this.compactionQueuedMessages = queuedMessages;
 			this.updatePendingMessagesDisplay();
 			this.showError(
-				`Failed to send queued message${queuedMessages.length > 1 ? "s" : ""}: ${error instanceof Error ? error.message : String(error)
+				`Failed to send queued message${queuedMessages.length > 1 ? "s" : ""}: ${
+					error instanceof Error ? error.message : String(error)
 				}`,
 			);
 		};
@@ -4905,7 +4835,6 @@ export class InteractiveMode {
 					availableThemes: getAvailableThemes(),
 					hideThinkingBlock: this.hideThinkingBlock,
 					mermaidRenderingMode: this.settingsManager.getMermaidRenderingMode(),
-					collapseChangelog: this.settingsManager.getCollapseChangelog(),
 					enableInstallTelemetry: this.settingsManager.getEnableInstallTelemetry(),
 					doubleEscapeAction: this.settingsManager.getDoubleEscapeAction(),
 					treeFilterMode: this.settingsManager.getTreeFilterMode(),
@@ -5014,9 +4943,6 @@ export class InteractiveMode {
 					onShowCacheMissNoticesChange: (shown) => {
 						this.settingsManager.setShowCacheMissNotices(shown);
 						this.rebuildChatFromMessages();
-					},
-					onCollapseChangelogChange: (collapsed) => {
-						this.settingsManager.setCollapseChangelog(collapsed);
 					},
 					onEnableInstallTelemetryChange: (enabled) => {
 						this.settingsManager.setEnableInstallTelemetry(enabled);
@@ -5760,9 +5686,9 @@ export class InteractiveMode {
 			const authStatus = this.session.modelRuntime.getProviderAuthStatus(provider.id);
 			const status = authStatus.configured
 				? {
-					type: this.session.modelRuntime.isUsingOAuth(provider.id) ? ("oauth" as const) : ("api_key" as const),
-					source: authStatus.label ?? authStatus.source,
-				}
+						type: this.session.modelRuntime.isUsingOAuth(provider.id) ? ("oauth" as const) : ("api_key" as const),
+						source: authStatus.label ?? authStatus.source,
+					}
 				: undefined;
 			const subscription = provider.auth.oauth?.isSubscription === true;
 			if ((!authType || authType === "oauth") && provider.auth.oauth) {
@@ -6280,7 +6206,7 @@ export class InteractiveMode {
 
 	private async showLoginDialog(providerId: string, providerName: string, onBack?: () => void): Promise<void> {
 		const previousModel = this.session.model;
-		const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => { }, providerName);
+		const dialog = new LoginDialogComponent(this.ui, providerId, (_success, _message) => {}, providerName);
 		this.editorContainer.clear();
 		this.editorContainer.addChild(dialog);
 		this.ui.setFocus(dialog);
@@ -6657,27 +6583,6 @@ export class InteractiveMode {
 
 		this.chatContainer.addChild(new Spacer(1));
 		this.chatContainer.addChild(new ThemedText(renderInfo, 1, 0));
-		this.ui.requestRender();
-	}
-
-	private handleChangelogCommand(): void {
-		const changelogPath = getChangelogPath();
-		const allEntries = parseChangelog(changelogPath);
-
-		const changelogMarkdown =
-			allEntries.length > 0
-				? allEntries
-					.reverse()
-					.map((e) => normalizeChangelogLinks(e.content, e))
-					.join("\n\n")
-				: "No changelog entries found.";
-
-		this.chatContainer.addChild(new Spacer(1));
-		this.chatContainer.addChild(new DynamicBorder());
-		this.chatContainer.addChild(new ThemedText(() => theme.bold(theme.fg("accent", "What's New")), 1, 0));
-		this.chatContainer.addChild(new Spacer(1));
-		this.chatContainer.addChild(new Markdown(changelogMarkdown, 1, 1, this.getMarkdownThemeWithSettings()));
-		this.chatContainer.addChild(new DynamicBorder());
 		this.ui.requestRender();
 	}
 

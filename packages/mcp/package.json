@@ -26,14 +26,12 @@
 	"files": [
 		"dist",
 		"README.md",
-		"CHANGELOG.md",
 		"LICENSES"
 	],
 	"scripts": {
 		"clean": "shx rm -rf dist",
 		"build": "tsc -p tsconfig.build.json",
-		"test": "vitest --run",
-		"prepublishOnly": "npm run clean && npm run build"
+		"test": "vitest --run"
 	},
 	"keywords": [
 		"mcp",

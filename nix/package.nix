@@ -16,7 +16,7 @@
 let
   nodejs = nodejs_22;
   packageJson = lib.importJSON (source + "/packages/coding-agent/package.json");
-  # Lockfile root for the published coding agent. It pins the coding agent's
+  # Lockfile root for a coding agent install. It pins the coding agent's
   # runtime dependency tree and is kept in sync with package-lock.json by
   # `npm run check`.
   installLock = source + "/packages/coding-agent/install-lock";

@@ -13,7 +13,7 @@ import { execNpmSync } from "./npm-command.mjs";
 function printUsage() {
 	console.log(`Usage: node scripts/local-release.mjs [options]
 
-Builds and packs the publishable packages, then installs the tarballs into
+Builds and packs the workspace packages, then installs the tarballs into
 isolated directories outside the repository for local release testing.
 
 Options:
