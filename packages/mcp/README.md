@@ -4,6 +4,23 @@ A small, standalone Model Context Protocol client. It does not depend on the off
 
 The package provides a transport-neutral client core, stdio and Streamable HTTP transports, and an in-memory testing transport.
 
+## Installation
+
+This fork does not publish to npm. Build the package from a clone of the fork repository:
+
+```bash
+git clone https://github.com/i-enliven/pi
+cd pi
+npm install --ignore-scripts
+npm run build
+```
+
+The built package is at `packages/mcp`. Install it into your own project from the checkout:
+
+```bash
+npm install --ignore-scripts /path/to/pi/packages/mcp
+```
+
 ## Usage
 
 ```typescript
@@ -52,8 +69,6 @@ const tools: AgentTool[] = (await client.listTools()).map((tool) => ({
 	},
 }));
 ```
-
-The [mcp-codemode example](https://github.com/earendil-works/pi/tree/main/packages/agent/examples/mcp-codemode) also forwards progress, passes `structuredContent` through, and lets `@earendil-works/pi-codemode` scripts call the tools.
 
 ### OAuth
 

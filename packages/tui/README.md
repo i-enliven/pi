@@ -15,6 +15,23 @@ Minimal terminal UI framework with differential rendering and synchronized outpu
 - **Inline Images**: Renders images in terminals that support Kitty or iTerm2 graphics protocols
 - **Autocomplete Support**: File paths and slash commands
 
+## Installation
+
+This fork does not publish to npm. Build the package from a clone of the fork repository:
+
+```bash
+git clone https://github.com/i-enliven/pi
+cd pi
+npm install --ignore-scripts
+npm run build
+```
+
+The built package is at `packages/tui`. Install it into your own project from the checkout:
+
+```bash
+npm install --ignore-scripts /path/to/pi/packages/tui
+```
+
 ## Quick Start
 
 ```typescript

@@ -97,8 +97,19 @@ Unified LLM API with provider collections, automatic auth resolution, token and 
 
 ## Installation
 
+This fork does not publish to npm. Build the package from a clone of the fork repository:
+
 ```bash
-npm install @earendil-works/pi-ai
+git clone https://github.com/i-enliven/pi
+cd pi
+npm install --ignore-scripts
+npm run build
+```
+
+The built package is at `packages/ai`. Install it into your own project from the checkout:
+
+```bash
+npm install --ignore-scripts /path/to/pi/packages/ai
 ```
 
 TypeBox exports are re-exported from `@earendil-works/pi-ai`: `Type`, `Static`, and `TSchema`.
