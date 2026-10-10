@@ -47,6 +47,10 @@ describe("bug report prompt", () => {
 			expect(descriptionEditor).toBeInstanceOf(ExtensionEditorComponent);
 			if (!(descriptionEditor instanceof ExtensionEditorComponent)) throw new Error("Missing description editor");
 			descriptionEditor.handleInput("\x1b[200~Request failed\r\n  ↳ pi exiting...\r\nstack trace\x1b[201~");
+			const descriptionLines = descriptionEditor.render(120).map(stripTerminalSequences);
+			expect(descriptionLines.some((line) => line.includes("Request failed"))).toBe(true);
+			expect(descriptionLines.some((line) => line.includes("↳ pi exiting..."))).toBe(true);
+			expect(descriptionLines.some((line) => line.includes("stack trace"))).toBe(true);
 			descriptionEditor.handleInput("\r");
 			expect(editorContainer.children[0]).toBe(editor);
 
@@ -63,21 +67,7 @@ describe("bug report prompt", () => {
 			const summarySelector = editorContainer.children[0];
 			if (!(summarySelector instanceof ExtensionSelectorComponent)) throw new Error("Missing summary selector");
 			expect(summarySelector.render(120).join("\n")).toContain("Attach a summary written by");
-			summarySelector.handleInput("j");
-			summarySelector.handleInput("\r");
-			expect(editorContainer.children[0]).toBe(editor);
-
-			await vi.waitFor(() => expect(editorContainer.children[0]).toBeInstanceOf(ExtensionSelectorComponent));
-			const deliverySelector = editorContainer.children[0];
-			if (!(deliverySelector instanceof ExtensionSelectorComponent)) throw new Error("Missing delivery selector");
-			const deliveryLines = deliverySelector.render(120).map(stripTerminalSequences);
-			expect(deliveryLines.some((line) => line.includes("Description: Request failed"))).toBe(true);
-			expect(deliveryLines.some((line) => line.includes("↳ pi exiting..."))).toBe(true);
-			expect(deliveryLines.some((line) => line.includes("stack trace"))).toBe(true);
-
-			deliverySelector.handleInput("j");
-			deliverySelector.handleInput("j");
-			deliverySelector.handleInput("\r");
+			summarySelector.handleInput("\x1b");
 			await report;
 			expect(showStatus).toHaveBeenCalledWith("Bug report cancelled");
 		} finally {

@@ -6,16 +6,16 @@ describe("compaction file operations", () => {
 	it("include files touched by nested calls recorded on tool results", () => {
 		const result: ToolResultMessage = {
 			role: "toolResult",
-			toolCallId: "codemode-1",
-			toolName: "codemode",
+			toolCallId: "orchestrator-1",
+			toolName: "orchestrator",
 			content: [],
 			isError: false,
 			timestamp: 0,
 			nestedCalls: {
 				calls: [
-					{ id: "codemode-1/1", name: "read", arguments: { path: "a.ts" }, status: "ok" },
-					{ id: "codemode-1/2", name: "edit", arguments: { path: "b.ts", edits: [] }, status: "ok" },
-					{ id: "codemode-1/3", name: "write", argumentsBytes: 40000, status: "ok" },
+					{ id: "orchestrator-1/1", name: "read", arguments: { path: "a.ts" }, status: "ok" },
+					{ id: "orchestrator-1/2", name: "edit", arguments: { path: "b.ts", edits: [] }, status: "ok" },
+					{ id: "orchestrator-1/3", name: "write", argumentsBytes: 40000, status: "ok" },
 				],
 				complete: false,
 			},

@@ -125,14 +125,14 @@ See [Settings](settings.md#tools) for configuring the default tool selection.
 - `-nt`, `--no-tools`<br>
   Starts with all built-in, extension, custom, and MCP tools disabled.
 
-Default enabled tools are `read`, `bash`, `edit`, and `write`, unless `defaultTools` changes them. `--tools` with plain names replaces the whole selection, so name every tool you want. Like `defaultTools`, it also accepts a list of only `+name` and `-name` entries, which adds tools to or removes them from the default selection: `pi --tools +codemode,-write` keeps the other default tools, enables `codemode`, and disables `write`. These entries take exact tool names, not `*` patterns; use `--exclude-tools` to disable tools by pattern. Plain names and `+name`/`-name` entries cannot be mixed. `/reload` enables tools newly added to `defaultTools`, but a tool removed with `-name` stays removed.
+Default enabled tools are `read`, `bash`, `edit`, and `write`, unless `defaultTools` changes them. `--tools` with plain names replaces the whole selection, so name every tool you want. Like `defaultTools`, it also accepts a list of only `+name` and `-name` entries, which adds tools to or removes them from the default selection: `pi --tools +grep,-write` keeps the other default tools, enables `grep`, and disables `write`. These entries take exact tool names, not `*` patterns; use `--exclude-tools` to disable tools by pattern. Plain names and `+name`/`-name` entries cannot be mixed. `/reload` enables tools newly added to `defaultTools`, but a tool removed with `-name` stays removed.
 
 <a id="mcp-tools"></a>
 
-`--tools` selects the tools declared to the model. It does not remove MCP tools, whose reach is set by their [exposure](mcp.md#control-tool-exposure): `pi --tools read,codemode` keeps every MCP tool callable from codemode scripts. An MCP tool that no entry names or matches is never declared directly, whatever its exposure; only `tool_search`, if listed, can load it. Once an entry starts with `mcp__`, `--tools` filters MCP tools too, so this keeps only the tools of the `radius` server:
+`--tools` selects the tools declared to the model. It does not remove MCP tools unless one of its entries starts with `mcp__`, in which case `--tools` filters MCP tools too, so this keeps only the tools of the `docs` server:
 
 ```sh
-pi --tools read,bash,codemode,'mcp__radius__*'
+pi --tools read,bash,'mcp__docs__*'
 ```
 
 The MCP resource tools (`list_mcp_resources`, `list_mcp_resource_templates`, `read_mcp_resource`) count as MCP tools. To remove MCP tools, use `--exclude-tools 'mcp__*'` or [`--no-mcp`](#resource-options).
@@ -148,38 +148,7 @@ The MCP resource tools (`list_mcp_resources`, `list_mcp_resource_templates`, `re
 | `find` | Find paths using glob patterns |
 | `ls` | List directory contents |
 
-Built-in extensions add two more tools. They are off by default; the MCP extension turns them on when an MCP server needs them (see [MCP](mcp.md#exposure)). To enable them yourself, name them in `--tools` or `defaultTools`.
-
-| Built-in extension | Purpose |
-|---|---|
-| `codemode` | Run JavaScript that calls the other tools, for example in parallel with `Promise.allSettled`; only the script's output reaches the model |
-| `tool_search` | Search tools that are not declared to the model (`codemode` and `deferred` exposure, such as MCP tools) and declare the matches for the next call |
-
-### Enable codemode
-
-To turn on `codemode` for every session, add it to the default tools in `~/.pi/agent/settings.json` or a project's `.pi/settings.json`:
-
-```json
-{
-  "defaultTools": ["+codemode"]
-}
-```
-
-This keeps `read`, `bash`, `edit`, and `write` and adds `codemode`. For one invocation, add it with `--tools`:
-
-```sh
-pi --tools +codemode
-```
-
-Codemode is useful without MCP: scripts can run several tool calls in parallel, filter large output before it reaches the model, call classifier models such as TypeSafe's Jev through `models.classify()` (see [Classifier models](models.md#use-classifier-models)), and generate images through `models.generateImages()` (see [Image models](models.md#use-image-models)).
-
-### How codemode works
-
-Scripts run in a QuickJS sandbox and reach the other tools through `tools.<name>(args)`. [Codemode](codemode.md) describes the script API, how tools are listed and found, the `store()` and `models` globals, and the limits.
-
-### Tool search
-
-`tool_search` is off by default; enable it with `"defaultTools": ["+tool_search"]` or `--tools`. It uses the same ranking as `searchTools()` over tools that are not declared yet and declares the matches for the next model call. Loaded tools are recorded in the session like other tool changes, so they stay declared on that branch.
+Built-in extensions add the MCP tools: the tools of connected servers plus the resource tools. They are off by default; the MCP extension turns them on when servers need them (see [MCP](mcp.md#control-tool-exposure)).
 
 <a id="resource-options"></a>
 

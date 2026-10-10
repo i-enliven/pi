@@ -41,27 +41,19 @@ export function isMcpToolName(name: string): boolean {
 }
 
 /**
- * - `codemode`: tools are callable from codemode scripts but neither declared to the model nor
- *   listed in the codemode description, which lists only the server's namespace. Scripts find them
- *   with `searchTools()`. `codemode-deferred` is accepted as an alias.
- * - `deferred`: not declared to the model until the `tool_search` tool loads them; the model then
- *   calls them directly. Does not need codemode.
- * - `direct`: tools are declared to the model like any other tool (and callable from codemode).
+ * - `direct`: tools are declared to the model like any other tool.
  * - `hidden`: tools are registered but unreachable.
  */
-export type McpExposure = "codemode" | "deferred" | "direct" | "hidden";
+export type McpExposure = "direct" | "hidden";
 
-const MCP_EXPOSURES: readonly string[] = ["codemode", "deferred", "direct", "hidden"] satisfies McpExposure[];
-
-/** Older exposure names, accepted in configs and replaced by their current name when validated. */
-const MCP_EXPOSURE_ALIASES: Readonly<Record<string, McpExposure>> = { "codemode-deferred": "codemode" };
+const MCP_EXPOSURES: readonly string[] = ["direct", "hidden"] satisfies McpExposure[];
 
 interface McpServerConfigBase {
-	/** Default: `codemode`. */
+	/** Default: `direct`. */
 	exposure?: McpExposure;
 	/**
-	 * What the server offers, in a sentence. The `mcp_servers` system prompt section lists the server
-	 * with it, tool search ranks the server's tools by it, and codemode's `describeNamespace()` returns it.
+	 * What the server offers, in a sentence. It is shown with the server's tools in model-facing
+	 * tool listings.
 	 */
 	description?: string;
 	/**
@@ -212,24 +204,6 @@ function isExposure(value: unknown): value is McpExposure {
 	return typeof value === "string" && MCP_EXPOSURES.includes(value);
 }
 
-/** The exposure an alias stands for; other values are returned unchanged. */
-function resolveExposureAlias(value: unknown): unknown {
-	return typeof value === "string" ? (MCP_EXPOSURE_ALIASES[value] ?? value) : value;
-}
-
-/** A copy of the server entry with exposure aliases replaced by their current names. */
-function resolveExposureAliases(value: Record<string, unknown>): Record<string, unknown> {
-	const { exposure, toolExposure } = value;
-	const resolved: Record<string, unknown> = { ...value };
-	if (exposure !== undefined) resolved.exposure = resolveExposureAlias(exposure);
-	if (isRecord(toolExposure)) {
-		resolved.toolExposure = Object.fromEntries(
-			Object.entries(toolExposure).map(([tool, entry]) => [tool, resolveExposureAlias(entry)]),
-		);
-	}
-	return resolved;
-}
-
 /** Exposure of one tool of a server: its `toolExposure` entry, else the server's `exposure`. */
 export function getMcpToolExposure(config: McpServerConfig, toolName: string): McpExposure {
 	const overrides = config.toolExposure ?? {};
@@ -238,17 +212,17 @@ export function getMcpToolExposure(config: McpServerConfig, toolName: string): M
 	for (const [pattern, exposure] of Object.entries(overrides)) {
 		if (pattern.includes("*") && toolPatternRegExp(pattern).test(toolName)) return exposure;
 	}
-	return config.exposure ?? "codemode";
+	return config.exposure ?? "direct";
 }
 
 /**
- * Validate one server entry of the `mcpServers` shape. Returns a copy of the config with exposure
- * aliases resolved, or an error message.
+ * Validate one server entry of the `mcpServers` shape. Returns a copy of the config, or an error
+ * message.
  */
 export function validateMcpServerConfig(name: string, raw: unknown): McpServerConfig | string {
 	if (!SERVER_NAME.test(name)) return `invalid server name "${name}" (use letters, digits, "_" and "-")`;
 	if (!isRecord(raw)) return `server "${name}" must be an object`;
-	const value = resolveExposureAliases(raw);
+	const value = raw;
 	const { type, exposure, enabled, timeout, toolExposure, description } = value;
 	const exposures = MCP_EXPOSURES.map((value) => `"${value}"`).join(", ");
 	if (exposure !== undefined && !isExposure(exposure)) {

@@ -20,7 +20,6 @@ import {
 	type McpServerEntry,
 	updateMcpServerConfig,
 } from "../src/extensions/mcp/config.ts";
-import { MAX_SERVERS_SECTION_CHARS, renderServersSection } from "../src/extensions/mcp/index.ts";
 import {
 	createDefaultTransport,
 	McpOAuthCredentialStore,
@@ -122,41 +121,32 @@ describe("MCP config", () => {
 		expect(errors).toEqual([expect.stringContaining('server "work_files" conflicts with "work-files"')]);
 	});
 
-	it("validates exposure and reads autoEnableCodemode with project precedence", () => {
+	it("validates exposure and description", () => {
 		const paths = setup(
 			{
-				autoEnableCodemode: false,
 				mcpServers: {
-					later: { command: "x", exposure: "deferred" },
-					// `codemode-deferred` is an alias for `codemode`.
-					scripts: { command: "x", exposure: "codemode-deferred", toolExposure: { a: "codemode-deferred" } },
+					on: { command: "x", exposure: "direct", toolExposure: { a: "direct" } },
 					off: { command: "x", exposure: "hidden" },
-					wrong: { command: "x", exposure: "model-only" },
+					wrong: { command: "x", exposure: "codemode" },
 					described: { command: "x", description: "Docs search" },
 					badDescription: { command: "x", description: 1 },
 				},
 			},
-			{ autoEnableCodemode: "yes", mcpServers: {} },
+			{},
 		);
 
 		const untrusted = loadMcpConfig({ ...paths, projectTrusted: false });
-		expect(untrusted.autoEnableCodemode).toBe(false);
 		expect(untrusted.servers.map((server) => [server.name, server.config.exposure])).toEqual([
-			["later", "deferred"],
-			["scripts", "codemode"],
+			["on", "direct"],
 			["off", "hidden"],
 			["described", undefined],
 		]);
-		expect(untrusted.servers[1].config.toolExposure).toEqual({ a: "codemode" });
-		expect(untrusted.servers[3].config.description).toBe("Docs search");
+		expect(untrusted.servers[0].config.toolExposure).toEqual({ a: "direct" });
+		expect(untrusted.servers[2].config.description).toBe("Docs search");
 		expect(untrusted.errors).toEqual([
 			expect.stringContaining('server "wrong": exposure must be one of'),
 			expect.stringContaining('server "badDescription": description must be a string'),
 		]);
-
-		const trusted = loadMcpConfig({ ...paths, projectTrusted: true });
-		expect(trusted.autoEnableCodemode).toBe(false);
-		expect(trusted.errors).toContainEqual(expect.stringContaining("autoEnableCodemode must be a boolean"));
 	});
 
 	it("validates the OAuth callback URL, scope, and client name", () => {
@@ -214,8 +204,8 @@ describe("MCP config", () => {
 				mcpServers: {
 					gh: {
 						command: "x",
-						exposure: "deferred",
-						toolExposure: { "get_*": "codemode", get_me: "direct", "*delete*": "hidden", "get_file.*": "direct" },
+						exposure: "hidden",
+						toolExposure: { "get_*": "direct", get_me: "hidden", "*delete*": "hidden", "get_file.*": "direct" },
 					},
 					bad: { command: "x", toolExposure: { a: "visible" } },
 				},
@@ -225,14 +215,14 @@ describe("MCP config", () => {
 		const { servers, errors } = loadMcpConfig({ ...paths, projectTrusted: false });
 		expect(errors).toEqual([expect.stringContaining('server "bad": toolExposure "a" must be one of')]);
 		const config = servers[0].config;
-		expect(getMcpToolExposure(config, "get_me")).toBe("direct");
-		expect(getMcpToolExposure(config, "get_issue")).toBe("codemode");
-		expect(getMcpToolExposure(config, "get_delete_hint")).toBe("codemode");
+		expect(getMcpToolExposure(config, "get_me")).toBe("hidden");
+		expect(getMcpToolExposure(config, "get_issue")).toBe("direct");
+		expect(getMcpToolExposure(config, "get_delete_hint")).toBe("direct");
 		expect(getMcpToolExposure(config, "delete_repo")).toBe("hidden");
-		expect(getMcpToolExposure(config, "list_issues")).toBe("deferred");
+		expect(getMcpToolExposure(config, "list_issues")).toBe("hidden");
 		// Only `*` is special.
 		expect(getMcpToolExposure({ command: "x", toolExposure: { "get_file.*": "direct" } }, "get_file_x")).toBe(
-			"codemode",
+			"direct",
 		);
 	});
 
@@ -240,26 +230,26 @@ describe("MCP config", () => {
 		const paths = setup(
 			{
 				mcpServers: {
-					radius: { url: "https://radius.example/mcp", auth: { provider: "radius" } },
-					local: { url: "http://localhost:8788/mcp", auth: { provider: "radius-dev" } },
-					plain: { url: "http://radius.example/mcp", auth: { provider: "radius" } },
-					empty: { url: "https://radius.example/mcp", auth: { provider: "" } },
+					internal: { url: "https://internal.example/mcp", auth: { provider: "internal" } },
+					local: { url: "http://localhost:8788/mcp", auth: { provider: "internal-dev" } },
+					plain: { url: "http://internal.example/mcp", auth: { provider: "internal" } },
+					empty: { url: "https://internal.example/mcp", auth: { provider: "" } },
 				},
 			},
-			{ mcpServers: { radius: { url: "https://evil.example/mcp", auth: { provider: "radius" } } } },
+			{ mcpServers: { internal: { url: "https://evil.example/mcp", auth: { provider: "internal" } } } },
 		);
 		const { servers, errors } = loadMcpConfig({ ...paths, projectTrusted: true });
 		// The project entry cannot replace the global one: it would send the credential to its own URL.
 		expect(servers.map((server) => [server.name, server.scope, "url" in server.config && server.config.url])).toEqual(
 			[
-				["radius", "global", "https://radius.example/mcp"],
+				["internal", "global", "https://internal.example/mcp"],
 				["local", "global", "http://localhost:8788/mcp"],
 			],
 		);
 		expect(errors).toEqual([
 			expect.stringContaining('server "plain": auth requires an https URL'),
 			expect.stringContaining('server "empty": auth.provider must be a provider name'),
-			expect.stringContaining('server "radius": auth is only allowed in the global mcp.json'),
+			expect.stringContaining('server "internal": auth is only allowed in the global mcp.json'),
 		]);
 	});
 });
@@ -678,20 +668,20 @@ for await (const line of createInterface({ input: process.stdin })) {
 		const { port } = server.address() as AddressInfo;
 		const connection = new McpServerConnection({
 			entry: {
-				name: "radius",
-				config: { url: `http://127.0.0.1:${port}/mcp`, auth: { provider: "radius" } },
+				name: "internal",
+				config: { url: `http://127.0.0.1:${port}/mcp`, auth: { provider: "internal" } },
 				source: "test",
 			},
 			cwd: process.cwd(),
 			createTransport: createDefaultTransport,
 			credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
-			providerToken: async (provider) => (provider === "radius" ? "tok" : undefined),
+			providerToken: async (provider) => (provider === "internal" ? "tok" : undefined),
 			onTools: () => {},
 		});
 		try {
 			expect(connection.oauthUrl).toBeUndefined();
 			await expect(connection.getClient()).rejects.toThrow(
-				'MCP server "radius" requires sign-in. Run /login radius to sign in.',
+				'MCP server "internal" requires sign-in. Run /login internal to sign in.',
 			);
 			expect(connection.state).toBe("needs-auth");
 			expect(authorizations).toEqual(["Bearer tok"]);
@@ -743,48 +733,5 @@ for await (const line of createInterface({ input: process.stdin })) {
 		expect(await connection.callTool("echo", {}, {})).toEqual({ content: [{ type: "text", text: "ok" }] });
 		expect(() => connection.oauthSettings()).toThrow("oauth.clientSecret");
 		await connection.close();
-	});
-});
-
-describe("MCP servers section", () => {
-	const server = (name: string, description?: string, exposure?: "codemode" | "deferred" | "direct") => ({
-		entry: {
-			name,
-			config: { command: "x", ...(description ? { description } : {}), ...(exposure ? { exposure } : {}) },
-			source: "test",
-		},
-	});
-
-	it("lists servers with how their tools are reached and the first line of their description", () => {
-		const section = renderServersSection([
-			server("docs", "Docs search.\nMore."),
-			server("later", undefined, "deferred"),
-			server("direct", "Declared.", "direct"),
-			{ entry: server("plain").entry, connection: { instructions: "From instructions." } },
-		]);
-		expect(section?.split("\n").slice(1)).toEqual([
-			"- mcp__docs (codemode): Docs search.",
-			"- mcp__later (tool_search)",
-			"- mcp__plain (codemode): From instructions.",
-		]);
-		expect(renderServersSection([server("direct", "Declared.", "direct")])).toBeUndefined();
-	});
-
-	it("shortens descriptions to fit the size limit", () => {
-		const servers = Array.from({ length: 40 }, (_, index) => server(`server${index}`, "x".repeat(400)));
-		const section = renderServersSection(servers) ?? "";
-		expect(section.length).toBeLessThanOrEqual(MAX_SERVERS_SECTION_CHARS);
-		expect(section.split("\n")).toHaveLength(41);
-		expect(section).toContain("- mcp__server39 (codemode): x");
-	});
-
-	it("leaves out the last servers when their names alone do not fit", () => {
-		const servers = Array.from({ length: 200 }, (_, index) => server(`server-with-a-long-name-${index}`, "desc"));
-		const section = renderServersSection(servers) ?? "";
-		expect(section.length).toBeLessThanOrEqual(MAX_SERVERS_SECTION_CHARS);
-		const lines = section.split("\n");
-		expect(lines.at(-1)).toMatch(/^- … \d+ more servers; find their tools with searchTools\(\)$/);
-		const omitted = Number(/(\d+) more/.exec(lines.at(-1) ?? "")?.[1]);
-		expect(lines.length - 2 + omitted).toBe(200);
 	});
 });

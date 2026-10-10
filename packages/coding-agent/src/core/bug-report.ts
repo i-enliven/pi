@@ -238,7 +238,7 @@ export interface BugReportSessionEntryData {
 	hint: string | null;
 	sessionIncluded: boolean;
 	summaryIncluded: boolean;
-	delivery: "zip" | "upload";
+	delivery: "zip";
 	path?: string;
 }
 

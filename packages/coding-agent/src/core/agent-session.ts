@@ -279,8 +279,7 @@ export interface AgentSessionConfig {
 	/**
 	 * Optional allowlist of tool names or patterns (`*` matches any characters). When provided, only
 	 * matching tools are exposed. A non-empty list without `mcp__` entries also keeps MCP tools
-	 * registered for codemode and tool_search; only tool_search can declare them. An empty list
-	 * exposes no tools.
+	 * registered, but not declared to the model. An empty list exposes no tools.
 	 */
 	allowedToolNames?: string[];
 	/** Optional denylist of tool names or patterns. When provided, matching tools are not exposed. */
@@ -451,7 +450,7 @@ export class AgentSession {
 	private _allowedTools?: (name: string) => boolean;
 	/**
 	 * Whether the allowlist filters MCP tools: it is empty (`--no-tools`) or names an MCP tool
-	 * (`mcp__*`). Otherwise it keeps MCP tools registered for codemode and tool_search.
+	 * (`mcp__*`). Otherwise it keeps MCP tools registered, but they are not declared to the model.
 	 */
 	private _allowlistFiltersMcp = false;
 	private _excludedTools?: (name: string) => boolean;
@@ -1478,7 +1477,7 @@ export class AgentSession {
 
 	/**
 	 * Get the names of currently active tools, which are the tools declared to the model.
-	 * Tools with `codemode` or `deferred` exposure are callable from other tools without being active.
+	 * The active `direct` tools are the ones callable from other tools through `ctx.executeTool()`.
 	 */
 	getActiveToolNames(): string[] {
 		return this.agent.state.tools.map((t) => t.name);
@@ -1519,7 +1518,7 @@ export class AgentSession {
 		const previous = this.getActiveToolNames();
 		this._setActiveTools(toolNames);
 		// A loadout that deactivates a tool replaces the restored one, whose pending tools are dropped.
-		// One that only adds tools, like activating tool_search, keeps them.
+		// One that only adds tools, like activating an extension tool, keeps them.
 		const active = new Set(this.getActiveToolNames());
 		if (previous.some((name) => !active.has(name))) this._pendingToolNames.clear();
 	}
@@ -1542,13 +1541,11 @@ export class AgentSession {
 
 	/**
 	 * Whether the tool may be active, which declares it to the model. MCP tools the allowlist keeps
-	 * without matching them are only for codemode and tool_search: they may be declared only when
-	 * tool_search can load them (non-`direct` exposure and tool_search registered). This also applies
-	 * to tools restored from the transcript or set by extensions.
+	 * without matching them are never declared. This also applies to tools restored from the
+	 * transcript or set by extensions.
 	 */
 	private _isActivatable(name: string): boolean {
-		if (!this._allowedTools || this._allowedTools(name) || !isMcpToolName(name)) return true;
-		return this._getToolExposure(name) !== "direct" && this._toolRegistry.has("tool_search");
+		return !this._allowedTools || this._allowedTools(name) || !isMcpToolName(name);
 	}
 
 	private _getToolExposure(name: string): ToolExposure {
@@ -1556,14 +1553,12 @@ export class AgentSession {
 	}
 
 	/**
-	 * Tools callable through `ctx.executeTool()`: the active `direct` tools and every registered
-	 * `codemode` or `deferred` tool.
+	 * Tools callable through `ctx.executeTool()`: the active `direct` tools.
 	 */
 	private _getCallableTools(active: ReadonlySet<string> = new Set(this.getActiveToolNames())): AgentTool[] {
-		return [...this._toolRegistry.values()].filter((tool) => {
-			const exposure = this._getToolExposure(tool.name);
-			return exposure === "codemode" || exposure === "deferred" || (exposure === "direct" && active.has(tool.name));
-		});
+		return [...this._toolRegistry.values()].filter(
+			(tool) => this._getToolExposure(tool.name) === "direct" && active.has(tool.name),
+		);
 	}
 
 	/**

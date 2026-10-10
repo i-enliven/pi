@@ -466,13 +466,13 @@ describe("parseArgs", () => {
 		});
 
 		test("parses +name and -name tool modifiers", () => {
-			const result = parseArgs(["-t", "+codemode,-write"]);
-			expect(result.tools).toEqual(["+codemode", "-write"]);
+			const result = parseArgs(["-t", "+grep,-write"]);
+			expect(result.tools).toEqual(["+grep", "-write"]);
 			expect(result.diagnostics).toEqual([]);
 		});
 
 		test("rejects tool names mixed with modifiers", () => {
-			const result = parseArgs(["--tools", "read,+codemode"]);
+			const result = parseArgs(["--tools", "read,+grep"]);
 			expect(result.tools).toBeUndefined();
 			expect(result.diagnostics).toEqual([
 				{ type: "error", message: "--tools: tool names cannot be mixed with +name or -name entries" },
@@ -480,12 +480,12 @@ describe("parseArgs", () => {
 		});
 
 		test("rejects patterns in tool modifiers", () => {
-			const result = parseArgs(["-t", "+mcp__radius__*"]);
+			const result = parseArgs(["-t", "+mcp__docs__*"]);
 			expect(result.tools).toBeUndefined();
 			expect(result.diagnostics).toEqual([
 				{
 					type: "error",
-					message: "-t: +name and -name entries take exact tool names, not patterns: +mcp__radius__*",
+					message: "-t: +name and -name entries take exact tool names, not patterns: +mcp__docs__*",
 				},
 			]);
 		});

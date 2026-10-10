@@ -500,20 +500,17 @@ export interface ToolRenderContext<TState = any, TArgs = any> {
 
 /**
  * How the model reaches a tool. "Callable" means callable from other tools through
- * `ctx.executeTool()`, as the `codemode` tool does.
+ * `ctx.executeTool()`.
  *
  * - `direct`: declared to the model while active, and callable while active.
  * - `model-only`: declared to the model while active, never callable. Use it for orchestrating or
  *   interactive tools.
- * - `codemode`: callable whenever registered. Not declared to the model unless explicitly
- *   activated. Codemode tools list it in their description.
- * - `deferred`: like `codemode`, but codemode tools do not list it; tool search can find it.
  * - `hidden`: registered but unreachable. Activating it has no effect.
  *
- * `direct` and `model-only` tools are activated when they are registered; the others are not.
+ * `direct` and `model-only` tools are activated when they are registered; `hidden` tools are not.
  * The active tool set (`getActiveTools`/`setActiveTools`) is the set declared to the model.
  */
-export type ToolExposure = "direct" | "model-only" | "codemode" | "deferred" | "hidden";
+export type ToolExposure = "direct" | "model-only" | "hidden";
 
 /**
  * Hints about what a tool does, with the meaning of MCP tool annotations. They come from the tool's
@@ -530,15 +527,14 @@ export interface ToolAnnotations {
 	openWorldHint?: boolean;
 }
 
-/** A group of related tools, such as the tools of one MCP server. Codemode tools list them together. */
+/** A group of related tools, such as the tools of one MCP server. */
 export interface ToolNamespace {
 	/** For example `mcp__docs`. */
 	name: string;
 	/** Short summary shown once with the group in model-facing tool listings. */
 	description?: string;
 	/**
-	 * Longer usage guidance, such as MCP server instructions. Not part of tool listings; tools that
-	 * describe the namespace on request (codemode's `describeNamespace()`) return it.
+	 * Longer usage guidance, such as MCP server instructions. Not part of tool listings.
 	 */
 	instructions?: string;
 }
@@ -594,7 +590,7 @@ export interface ToolDefinition<TParams extends TSchema = TSchema, TDetails = un
 
 	/**
 	 * JSON Schema of `structuredContent` in successful results. Tools that declare it should always
-	 * set `structuredContent`; codemode scripts then receive it instead of the text content.
+	 * set `structuredContent`; programmatic callers then receive it instead of the text content.
 	 */
 	outputSchema?: TSchema;
 
@@ -1068,7 +1064,7 @@ export interface ToolExecutionStartEvent {
 	toolCallId: string;
 	toolName: string;
 	args: any;
-	/** Set when another tool (for example a codemode script) made this call. */
+	/** Set when another tool made this call. */
 	parentToolCallId?: string;
 }
 
@@ -1079,7 +1075,7 @@ export interface ToolExecutionUpdateEvent {
 	toolName: string;
 	args: any;
 	partialResult: any;
-	/** Set when another tool (for example a codemode script) made this call. */
+	/** Set when another tool made this call. */
 	parentToolCallId?: string;
 }
 
@@ -1092,7 +1088,7 @@ export interface ToolExecutionEndEvent {
 	isError: boolean;
 	/** Milliseconds `execute()` took, measured with a monotonic clock; absent when the tool did not run. */
 	durationMs?: number;
-	/** Set when another tool (for example a codemode script) made this call. */
+	/** Set when another tool made this call. */
 	parentToolCallId?: string;
 }
 
@@ -1170,7 +1166,7 @@ interface ToolCallEventBase {
 	 * in the parent result's `nestedCalls` record.
 	 */
 	toolCallId: string;
-	/** Set when another tool (for example a codemode script) issued this call. */
+	/** Set when another tool issued this call. */
 	parentToolCallId?: string;
 }
 
@@ -1240,7 +1236,7 @@ interface ToolResultEventBase {
 	type: "tool_result";
 	/** The call's id; `<parent id>/<n>` for nested calls, see `ToolCallEvent`. */
 	toolCallId: string;
-	/** Set when another tool (for example a codemode script) issued this call. */
+	/** Set when another tool issued this call. */
 	parentToolCallId?: string;
 	input: Record<string, unknown>;
 	content: (TextContent | ImageContent)[];
@@ -1744,8 +1740,7 @@ export interface ExtensionAPI {
 	getSettings(): Settings;
 
 	/**
-	 * Set the active tools by name. Unknown and `hidden` tools are ignored. Tools with `codemode` or
-	 * `deferred` exposure stay callable from codemode scripts whether active or not.
+	 * Set the active tools by name. Unknown and `hidden` tools are ignored.
 	 */
 	setActiveTools(toolNames: string[]): void;
 
@@ -2029,8 +2024,8 @@ export type InlineExtension =
 			hidden?: boolean;
 			/**
 			 * Leave this extension out when another extension registers a tool, command, or flag with a
-			 * name it registers during loading, instead of reporting a conflict. The CLI's built-in MCP,
-			 * codemode, and tool search extensions use it, so for example an MCP extension that registers
+			 * name it registers during loading, instead of reporting a conflict. The CLI's built-in MCP
+			 * extension uses it, so for example an MCP extension that registers
 			 * `/mcp` replaces the built-in MCP support. The factory still runs, so it should only register
 			 * tools, commands, flags, and event handlers.
 			 */
