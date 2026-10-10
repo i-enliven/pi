@@ -22,10 +22,14 @@ Install Termux from [GitHub or F-Droid](https://github.com/termux/termux-app#ins
    pkg install nodejs git
    ```
 
-3. Install Pi:
+3. Install Pi from the fork repository:
 
    ```bash
-   npm install -g --ignore-scripts @earendil-works/pi-coding-agent
+   git clone https://github.com/i-enliven/pi
+   cd pi
+   npm install --ignore-scripts
+   npm run build
+   npm install -g --ignore-scripts ./packages/coding-agent
    ```
 
 4. Verify the installation:
