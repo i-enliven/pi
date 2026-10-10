@@ -3631,7 +3631,10 @@ async function generateModels() {
 		rmSync(generatorOptions.jsonOutputDir, { recursive: true, force: true });
 		mkdirSync(providerOutputDir, { recursive: true });
 		writeJson(join(generatorOptions.jsonOutputDir, "models.json"), jsonChatProviders);
-		writeJson(join(generatorOptions.jsonOutputDir, "models.all.json"), jsonAllProviders);
+		writeJson(join(generatorOptions.jsonOutputDir, "models.all.json"), {
+			"@generated": generatedAt,
+			...jsonAllProviders,
+		});
 		writeJson(join(generatorOptions.jsonOutputDir, "providers.json"), sortedProviderIds);
 		for (const providerId of sortedProviderIds) {
 			writeJson(join(providerOutputDir, `${providerId}.json`), jsonChatProviders[providerId]);

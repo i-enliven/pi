@@ -4,6 +4,7 @@ import { mkdirSync, mkdtempSync, readFileSync, renameSync, rmSync, writeFileSync
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 import {
+	CATALOG_GENERATED_META_KEY,
 	createModelDataManifest,
 	groupProviderModelData,
 	MODEL_DATA_MANIFEST_FILE,
@@ -41,6 +42,8 @@ export function hydrateModelCatalog(
 ): void {
 	const catalog: unknown = JSON.parse(readFileSync(catalogPath, "utf8"));
 	if (!isRecord(catalog)) throw new Error("Model catalog must be an object");
+	// The catalog carries its generation timestamp under a meta key, not a provider.
+	delete catalog[CATALOG_GENERATED_META_KEY];
 
 	const files: Record<string, string> = {};
 	const structure: ModelDataStructure = {};
