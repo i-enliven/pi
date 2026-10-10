@@ -12,7 +12,7 @@ For a built-in provider, start with `/login`, then choose a model with `/model`.
 | An OpenAI-, Anthropic-, or Google-compatible endpoint | Add it to `models.json` |
 | A provider with a custom protocol or authentication flow | Build or install a provider extension |
 
-This fork ships a single bundled model catalog, generated at build time from the checked-in model data. Provider, model IDs, capabilities, context limits, and pricing therefore track the commit you built from; refresh them with `git pull && npm run build`. There is no remote catalog overlay.
+This fork ships a bundled model catalog, generated at build time from the checked-in model data. On refresh (model search, `pi update --models`), Pi overlays newer data from the catalog file committed to the fork repository (`nix/model-catalog/models.all.json` on GitHub). The overlay is cached in `~/.pi/agent/models-store.json` and stays available offline. Set `PI_MODEL_CATALOG_URL` to serve the catalog from another location, or `PI_OFFLINE` to disable the overlay and use only the bundled catalog.
 
 ## Authenticate
 

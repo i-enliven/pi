@@ -4,6 +4,8 @@ import { join } from "node:path";
 
 export const MODEL_DATA_SCHEMA_VERSION = 6;
 export const MODEL_DATA_MANIFEST_FILE = ".manifest.json";
+/** Meta key carrying the catalog generation timestamp in `models.all.json`, not a provider ID. */
+export const CATALOG_GENERATED_META_KEY = "@generated";
 
 export type ModelDataStructure = Record<string, Record<string, string>>;
 
