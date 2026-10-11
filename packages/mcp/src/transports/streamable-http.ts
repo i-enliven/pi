@@ -1,4 +1,5 @@
 import type { AuthProvider, McpFetch } from "../auth-provider.ts";
+import { isTransientMcpError, McpAuthRequiredError, McpHttpError, McpSessionExpiredError } from "../errors.ts";
 import {
 	isJsonRpcRequest,
 	isJsonRpcResponse,
@@ -123,35 +124,6 @@ export interface StreamableHttpTransportOptions {
 	reconnect?: StreamableHttpReconnectOptions;
 }
 
-export class McpHttpError extends Error {
-	readonly status: number;
-	readonly body: string;
-
-	constructor(status: number, message: string, body = "") {
-		super(message);
-		this.name = "McpHttpError";
-		this.status = status;
-		this.body = body;
-	}
-}
-
-export class McpAuthRequiredError extends McpHttpError {
-	readonly wwwAuthenticate: string | null;
-
-	constructor(response: Response, body = "") {
-		super(401, "MCP server requires authentication", body);
-		this.name = "McpAuthRequiredError";
-		this.wwwAuthenticate = response.headers.get("www-authenticate");
-	}
-}
-
-export class McpSessionExpiredError extends McpHttpError {
-	constructor(body = "") {
-		super(404, "MCP session expired", body);
-		this.name = "McpSessionExpiredError";
-	}
-}
-
 function contentType(response: Response): string | undefined {
 	return response.headers.get("content-type")?.split(";", 1)[0]?.trim().toLowerCase();
 }
@@ -161,11 +133,6 @@ function needsAuthorization(response: Response): boolean {
 	if (response.status === 401) return true;
 	if (response.status !== 403) return false;
 	return /(?:^|[\s,])error="?insufficient_scope"?/i.test(response.headers.get("www-authenticate") ?? "");
-}
-
-/** Statuses worth retrying when a stream fails to (re)open. */
-function isTransientStatus(status: number): boolean {
-	return status === 408 || status === 429 || status >= 500;
 }
 
 function discard(response: Response): Promise<void> {
@@ -461,13 +428,10 @@ export class StreamableHttpTransport extends TransportEvents implements McpTrans
 
 	/**
 	 * Network failures and transient statuses are retried; auth, session, and protocol errors are not.
-	 * `fetch` reports network failures, including a connection dropped mid-body, as `TypeError`.
+	 * This stops retrying `501 Not Implemented`: it never becomes implemented.
 	 */
 	private isRetryable(error: unknown): boolean {
-		if (error instanceof McpHttpError) return isTransientStatus(error.status);
-		if (error instanceof TypeError) return true;
-		const code = (error as { code?: unknown } | undefined)?.code;
-		return typeof code === "string" && (code.startsWith("E") || code.startsWith("UND_ERR"));
+		return isTransientMcpError(error);
 	}
 
 	private reconnectDelay(attempt: number, serverDelayMs: number | undefined): number {

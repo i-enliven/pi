@@ -2,7 +2,12 @@ import { type ChildProcess, spawn } from "node:child_process";
 import process from "node:process";
 import crossSpawn from "cross-spawn";
 import { type JsonRpcMessage, McpConnectionClosedError, parseJsonRpcMessage } from "../protocol/jsonrpc.ts";
-import { DEFAULT_MAX_MESSAGE_BYTES, type McpTransport, TransportEvents } from "./transport.ts";
+import {
+	DEFAULT_MAX_MESSAGE_BYTES,
+	type McpTransport,
+	type McpTransportDiagnostics,
+	TransportEvents,
+} from "./transport.ts";
 
 const DEFAULT_MAX_STDERR_BYTES = 64 * 1024;
 const DEFAULT_CLOSE_TIMEOUT_MS = 2_000;
@@ -68,6 +73,8 @@ export interface StdioTransportOptions {
 
 export class StdioTransport extends TransportEvents implements McpTransport {
 	readonly options: Readonly<StdioTransportOptions>;
+	/** The server's buffered stderr, capped by `maxStderrBytes`. */
+	readonly diagnostics: McpTransportDiagnostics = { read: () => this.stderr };
 	private child: ChildProcess | undefined;
 	private stdoutBuffer = Buffer.alloc(0);
 	private stderrBuffer = Buffer.alloc(0);

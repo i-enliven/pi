@@ -1,5 +1,6 @@
 export type { AuthProvider, McpFetch, UnauthorizedContext } from "./auth-provider.ts";
 export { McpClient, type McpClientOptions, type McpRequestOptions } from "./client.ts";
+export { isTransientMcpError, McpAuthRequiredError, McpHttpError, McpSessionExpiredError } from "./errors.ts";
 export {
 	type AudioContent,
 	type BlobResourceContents,
@@ -55,17 +56,22 @@ export {
 	type ToolAnnotations,
 	type ToolExecution,
 } from "./protocol/types.ts";
+export {
+	McpConnectFailedError,
+	McpNeedsAuthError,
+	McpServerSession,
+	type McpServerSessionOptions,
+	type McpServerSessionState,
+} from "./server-session.ts";
 export { StdioTransport, type StdioTransportOptions } from "./transports/stdio.ts";
 export {
-	McpAuthRequiredError,
-	McpHttpError,
-	McpSessionExpiredError,
 	StreamableHttpTransport,
 	type StreamableHttpTransportOptions,
 } from "./transports/streamable-http.ts";
 export type {
 	McpTransport,
 	McpTransportCloseListener,
+	McpTransportDiagnostics,
 	McpTransportErrorListener,
 	McpTransportMessageListener,
 } from "./transports/transport.ts";

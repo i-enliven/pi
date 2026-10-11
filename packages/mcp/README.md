@@ -44,6 +44,42 @@ await client.close();
 
 For a remote server, use `new StreamableHttpTransport({ url, headers })`. Fetch can be injected for proxying or custom networking.
 
+### Server sessions
+
+`McpServerSession` owns one server's connection policy, so a host does not re-implement it: connect retries, the single retry of an idempotent request after a transient failure, reconnecting when a call finds the connection gone, needs-auth, and the server output added to a failure message.
+
+```typescript
+import { McpClient, McpServerSession, StreamableHttpTransport, type Tool } from "@i-enliven/pi-mcp";
+
+/** What the server offered at the last connect that reached `connected`. */
+let serverTools: Tool[] = [];
+
+const session = new McpServerSession({
+	name: "docs",
+	createClient: () => new McpClient({ name: "my-client", version: "1.0.0" }),
+	createTransport: () => new StreamableHttpTransport({ url: "https://mcp.example.com/mcp" }),
+	connectRetryDelaysMs: [250, 1000],
+	onConnected: async (client) => {
+		// Read what the server offers before the state becomes "connected".
+		serverTools = await client.listTools();
+	},
+	onStateChange: (state, error) => console.log(state, error),
+});
+
+// `call` is never retried, because the server may have performed it. `read` is.
+const result = await session.call((client) => client.callTool("search", { query: "MCP" }));
+await session.close();
+```
+
+`session.state` is `connecting`, `connected`, `disconnected`, `needs-auth`, `failed`, or `closed`, and `session.error` carries the failure text plus, when the transport offers `diagnostics`, the tail of what the server printed (stdio supplies its buffered stderr). A connect that ran out of retries rejects with `McpConnectFailedError` (`cause` is the last transport error); a server that keeps rejecting the credentials rejects with `McpNeedsAuthError`. Hosts that decide authorization differently pass `isAuthorizationError`.
+
+`isTransientMcpError(error)` is the one rule both the session and the HTTP transport's reconnect loops use: 408, 429, and 5xx except 501, `TypeError` from `fetch`, and node or undici error codes (`ECONNRESET`, `UND_ERR_SOCKET`, ...).
+
+Because the loops now share that rule instead of keeping their own, two behaviours changed on purpose:
+
+- `read()` is also retried once when the request failed with a `TypeError` or a socket error code, not only with an HTTP status. `call()` is still never retried.
+- the SSE reconnect loop no longer retries `501 Not Implemented`, so a server that does not support the GET stream fails fast instead of burning the reconnect budget.
+
 ### Tools for an LLM
 
 `toLlmContent(result)` converts a `CallToolResult` to text and image content for a model, in the shape of `@i-enliven/pi-ai`'s `TextContent` and `ImageContent`. Text and images pass through, embedded text and image resources are unwrapped, and audio, resource links, and binary resources become short text placeholders. A result without content blocks but with `structuredContent` becomes its JSON.
@@ -132,6 +168,7 @@ An MCP transport owns framing and I/O. It delivers individual JSON-RPC messages 
 
 - MCP protocol version `2025-11-25`, accepting servers that negotiate `2025-06-18`, `2025-03-26`, or `2024-11-05`
 - initialization and `notifications/initialized`
+- per-server session policy in `McpServerSession`: connect retries, idempotent-request retry, reconnect on a dropped connection, needs-auth, and a transport diagnostics tail on failures
 - ping
 - paginated `tools/list`
 - `tools/call`, including structured content

@@ -3,13 +3,7 @@ import { createServer } from "node:http";
 import type { AddressInfo } from "node:net";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import {
-	type JsonRpcMessage,
-	LATEST_PROTOCOL_VERSION,
-	McpAuthRequiredError,
-	McpHttpError,
-	McpSessionExpiredError,
-} from "@i-enliven/pi-mcp";
+import { type JsonRpcMessage, LATEST_PROTOCOL_VERSION, McpAuthRequiredError, McpHttpError } from "@i-enliven/pi-mcp";
 import { createInMemoryTransportPair, type InMemoryTransport } from "@i-enliven/pi-mcp/testing";
 import { afterEach, describe, expect, it } from "vitest";
 import { InMemoryAuthStorageBackend } from "../src/core/auth-storage.ts";
@@ -381,7 +375,7 @@ describe("MCP connections", () => {
 	const servers: InMemoryTransport[] = [];
 
 	/** In-memory server that answers initialize, tools/list, and tools/call with "ok". */
-	function createTransport(options: { expireFirstCall?: boolean; methods?: string[]; noTools?: boolean } = {}) {
+	function createTransport(options: { methods?: string[]; noTools?: boolean } = {}) {
 		const pair = createInMemoryTransportPair();
 		servers.push(pair.server);
 		pair.server.onMessage((message) => {
@@ -408,14 +402,6 @@ describe("MCP connections", () => {
 			queueMicrotask(() => void pair.server.send(response));
 		});
 		void pair.server.start();
-		if (options.expireFirstCall) {
-			const send = pair.client.send.bind(pair.client);
-			// Simulates the HTTP transport's 404 for a session the server no longer knows.
-			pair.client.send = async (message: JsonRpcMessage) => {
-				if ("method" in message && message.method === "tools/call") throw new McpSessionExpiredError("gone");
-				return send(message);
-			};
-		}
 		return pair.client;
 	}
 
@@ -423,6 +409,7 @@ describe("MCP connections", () => {
 		entry: McpServerEntry,
 		transports: (() => ReturnType<typeof createTransport>)[],
 		log?: McpServerLog,
+		onChange?: (connection: McpServerConnection) => void,
 	) {
 		let opened = 0;
 		const connection = new McpServerConnection({
@@ -432,23 +419,10 @@ describe("MCP connections", () => {
 			credentials: new McpOAuthCredentialStore(new InMemoryAuthStorageBackend()),
 			log,
 			onTools: () => {},
+			onChange,
 		});
 		return { connection, opened: () => opened };
 	}
-
-	it("starts a new session and retries once when the session expired", async () => {
-		const { connection, opened } = connect({ name: "fake", config: { command: "unused" }, source: "test" }, [
-			() => createTransport({ expireFirstCall: true }),
-			() => createTransport(),
-		]);
-		const results = await Promise.all([connection.callTool("echo", {}, {}), connection.callTool("echo", {}, {})]);
-		expect(results).toEqual([
-			{ content: [{ type: "text", text: "ok" }] },
-			{ content: [{ type: "text", text: "ok" }] },
-		]);
-		expect(opened()).toBe(2);
-		await connection.close();
-	});
 
 	it.skipIf(process.platform === "win32")(
 		"expands ~ in the command, arguments, and cwd of stdio servers",
@@ -522,7 +496,7 @@ for await (const line of createInterface({ input: process.stdin })) {
 		await connection.close();
 	});
 
-	it("retries HTTP connections that fail with a transient error", async () => {
+	it("retries an HTTP connection that failed with a transient error", async () => {
 		const { connection, opened } = connect(
 			{ name: "fake", config: { url: "http://unused.invalid", headers: { Authorization: "x" } }, source: "test" },
 			[
@@ -538,11 +512,32 @@ for await (const line of createInterface({ input: process.stdin })) {
 		);
 		await connection.getClient();
 		expect(connection.state).toBe("connected");
+		// The HTTP-only retry budget the host hands the session opened the second transport.
 		expect(opened()).toBe(2);
 		await connection.close();
+	});
 
-		const failing = connect(
-			{ name: "fake", config: { url: "http://unused.invalid", headers: { Authorization: "x" } }, source: "test" },
+	it("gives a stdio server no connect retry budget", async () => {
+		const { connection, opened } = connect({ name: "fake", config: { command: "unused" }, source: "test" }, [
+			() => {
+				const transport = createTransport();
+				transport.send = async () => {
+					throw new McpHttpError(503, "MCP HTTP request failed with status 503");
+				};
+				return transport;
+			},
+		]);
+		// The same transient failure is retried for a `url` server, but a command that will not start is not.
+		await expect(connection.getClient()).rejects.toThrow("status 503");
+		expect(connection.state).toBe("failed");
+		expect(opened()).toBe(1);
+		await connection.close();
+	});
+
+	it("quotes the connect failure, not a stale error, when a connect fails", async () => {
+		let stale = false;
+		const { connection } = connect(
+			{ name: "fake", config: { command: "unused" }, source: "test" },
 			[
 				() => {
 					const transport = createTransport();
@@ -552,84 +547,41 @@ for await (const line of createInterface({ input: process.stdin })) {
 					return transport;
 				},
 			],
+			undefined,
+			// `error` is the host's own field, which `refreshTools` writes outside the session. Writing it
+			// during the state change stands in for a refresh that lands in the same window as the failure.
+			(current) => {
+				if (current.state !== "failed" || stale) return;
+				stale = true;
+				current.error = "Failed to refresh tools: refresh exploded";
+			},
 		);
-		await expect(failing.connection.getClient()).rejects.toThrow("status 400: bad");
+		await expect(connection.getClient()).rejects.toThrow(
+			'MCP server "fake" failed to connect: MCP HTTP request failed with status 400: bad',
+		);
+		expect(connection.error).toBe("Failed to refresh tools: refresh exploded");
+		await connection.close();
+	});
+
+	it("reports a failed connect and a required sign-in in pi's words", async () => {
+		const failing = connect({ name: "fake", config: { url: "http://unused.invalid" }, source: "test" }, [
+			() => {
+				const transport = createTransport();
+				transport.send = async () => {
+					throw new McpHttpError(400, "MCP HTTP request failed with status 400: bad");
+				};
+				return transport;
+			},
+		]);
+		await expect(failing.connection.getClient()).rejects.toThrow(
+			'MCP server "fake" failed to connect: MCP HTTP request failed with status 400: bad',
+		);
 		expect(failing.connection.state).toBe("failed");
+		// A failure the session does not treat as transient is not retried.
 		expect(failing.opened()).toBe(1);
-	});
+		await failing.connection.close();
 
-	// #10249
-	it("closes a connection that is still initializing before close returns", async () => {
-		const pair = createInMemoryTransportPair();
-		// The server receives initialize but never answers it.
-		const initializing = new Promise<void>((resolve) => {
-			pair.server.onMessage(() => resolve());
-		});
-		void pair.server.start();
-		let transportClosed = false;
-		pair.client.onClose(() => {
-			transportClosed = true;
-		});
-		const { connection } = connect({ name: "fake", config: { command: "unused" }, source: "test" }, [
-			() => pair.client,
-		]);
-		let failure: unknown;
-		void connection.getClient().catch((error) => {
-			failure = error;
-		});
-		await initializing;
-		await connection.close();
-		expect(transportClosed).toBe(true);
-		expect(String(failure)).toContain("failed to connect");
-	});
-
-	// #10249
-	it("stops waiting to retry a connection when closed", async () => {
-		const { connection } = connect(
-			{ name: "fake", config: { url: "http://unused.invalid", headers: { Authorization: "x" } }, source: "test" },
-			[
-				() => {
-					const transport = createTransport();
-					transport.send = async () => {
-						throw new McpHttpError(503, "MCP HTTP request failed with status 503");
-					};
-					return transport;
-				},
-			],
-		);
-		let failure: unknown;
-		void connection.getClient().catch((error) => {
-			failure = error;
-		});
-		// The first attempt failed; the retry is 250ms away.
-		await new Promise((resolve) => setTimeout(resolve, 10));
-		await connection.close();
-		expect(String(failure)).toContain("status 503");
-	});
-
-	it("retries resource reads, but not tool calls, after a transient HTTP error", async () => {
-		const transport = createTransport();
-		const send = transport.send.bind(transport);
-		const failed = new Set<string>();
-		// The first read and the first call fail with 502.
-		transport.send = async (message) => {
-			const method = "method" in message ? message.method : "";
-			if ((method === "resources/read" || method === "tools/call") && !failed.has(method)) {
-				failed.add(method);
-				throw new McpHttpError(502, "MCP HTTP request failed with status 502");
-			}
-			return send(message);
-		};
-		const { connection } = connect({ name: "fake", config: { command: "unused" }, source: "test" }, [
-			() => transport,
-		]);
-		expect(await connection.readResource("docs://a", {})).toEqual({ contents: [{ uri: "docs://a", text: "ok" }] });
-		await expect(connection.callTool("echo", {}, {})).rejects.toThrow("status 502");
-		await connection.close();
-	});
-
-	it("asks OAuth servers that keep rejecting requests for a new sign-in", async () => {
-		const { connection } = connect({ name: "fake", config: { url: "http://unused.invalid" }, source: "test" }, [
+		const rejected = connect({ name: "fake", config: { url: "http://unused.invalid" }, source: "test" }, [
 			() => {
 				const transport = createTransport();
 				transport.send = async () => {
@@ -638,9 +590,11 @@ for await (const line of createInterface({ input: process.stdin })) {
 				return transport;
 			},
 		]);
-		await expect(connection.getClient()).rejects.toThrow('MCP server "fake" requires sign-in. Run /mcp to sign in.');
-		expect(connection.state).toBe("needs-auth");
-		await connection.close();
+		await expect(rejected.connection.getClient()).rejects.toThrow(
+			'MCP server "fake" requires sign-in. Run /mcp to sign in.',
+		);
+		expect(rejected.connection.state).toBe("needs-auth");
+		await rejected.connection.close();
 	});
 
 	it("sends the provider token and asks for the provider login when the server rejects it", async () => {

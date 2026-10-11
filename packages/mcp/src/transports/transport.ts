@@ -6,6 +6,12 @@ export type McpTransportMessageListener = (message: JsonRpcMessage) => void;
 export type McpTransportErrorListener = (error: Error) => void;
 export type McpTransportCloseListener = () => void;
 
+/** Failure context a transport can report about the server behind it, for example a stderr tail. */
+export interface McpTransportDiagnostics {
+	/** What the transport has seen so far, or undefined when it has nothing to report. */
+	read(): string | undefined;
+}
+
 export interface McpTransport {
 	start(): Promise<void>;
 	send(message: JsonRpcMessage): Promise<void>;
@@ -14,6 +20,8 @@ export interface McpTransport {
 	onError(listener: McpTransportErrorListener): () => void;
 	onClose(listener: McpTransportCloseListener): () => void;
 	setProtocolVersion?(version: string): void;
+	/** Extra context for failures, for hosts that show why a server did not come up. */
+	readonly diagnostics?: McpTransportDiagnostics;
 }
 
 /** Listener bookkeeping shared by transports. `emitClose` fires at most once per transport. */
