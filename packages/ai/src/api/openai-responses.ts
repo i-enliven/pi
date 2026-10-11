@@ -130,7 +130,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 	options?: OpenAIResponsesOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, getCompat(model).supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 
 	// Start async processing
 	(async () => {
@@ -155,22 +155,18 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 		try {
 			// Create OpenAI client
 			const apiKey = getClientApiKey(model.provider, options?.apiKey, options?.headers);
-			const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
-			const cacheSessionId = cacheRetention === "none" ? undefined : options?.sessionId;
-			const compat = getCompat(model);
-			const grammarToolInputProperties = createGrammarToolInputProperties(
-				getDeclaredTools(normalizedContext.messages),
-				compat.supportsOpenAIGrammarTools,
-			);
+			// Assembly runs first: the client needs cacheSessionId from it.
+			// createClient must not become a place where request validation happens.
+			const assembled = assembleRequest(model, normalizedContext, options);
 			const client = createClient(
 				model,
 				normalizedContext,
 				apiKey,
 				options?.headers,
 				options?.fetch,
-				cacheSessionId,
+				assembled.cacheSessionId,
 			);
-			let params = buildParams(model, normalizedContext, options, compat, grammarToolInputProperties);
+			let params = assembled.payload;
 			const nextParams = await options?.onPayload?.(params, model);
 			if (nextParams !== undefined) {
 				params = nextParams as ResponseCreateParamsStreaming;
@@ -194,7 +190,7 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 			await processResponsesStream(openaiStream, output, stream, model, {
 				onProviderStreamEvent: options?.onProviderStreamEvent,
 				serviceTier: options?.serviceTier,
-				grammarToolInputProperties,
+				grammarToolInputProperties: assembled.grammarToolInputProperties,
 				applyServiceTierPricing: (usage, serviceTier) => applyServiceTierPricing(usage, serviceTier, model),
 			});
 
@@ -297,6 +293,49 @@ function createClient(
 		fetch,
 		defaultHeaders: headers,
 	});
+}
+
+/** Everything the stream path needs before `onPayload`, except the client. */
+interface AssembledRequest {
+	payload: ResponseCreateParamsStreaming;
+	grammarToolInputProperties: ReadonlyMap<string, string>;
+	cacheSessionId: string | undefined;
+}
+
+function normalizeTranscript(model: Model<"openai-responses">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, getCompat(model).supportsMidConvoSystemMessages);
+}
+
+/** Assemble the request from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"openai-responses">,
+	context: TranscriptContext,
+	options: OpenAIResponsesOptions | undefined,
+): AssembledRequest {
+	const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
+	const compat = getCompat(model);
+	const grammarToolInputProperties = createGrammarToolInputProperties(
+		getDeclaredTools(context.messages),
+		compat.supportsOpenAIGrammarTools,
+	);
+	return {
+		payload: buildParams(model, context, options, compat, grammarToolInputProperties),
+		grammarToolInputProperties,
+		cacheSessionId: cacheRetention === "none" ? undefined : options?.sessionId,
+	};
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"openai-responses">,
+	context: TranscriptContext,
+	options?: OpenAIResponsesOptions,
+): ResponseCreateParamsStreaming {
+	return assembleRequest(model, normalizeTranscript(model, context), options).payload;
 }
 
 function buildParams(

@@ -574,7 +574,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
 	options?: AnthropicOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, getAnthropicCompat(model).supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 	const currentTools = getCurrentTools(normalizedContext.messages);
 
 	(async () => {
@@ -636,7 +636,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
 				client = created.client;
 				isOAuth = created.isOAuthToken;
 			}
-			let params = buildParams(model, normalizedContext, isOAuth, options);
+			let params = assembleRequest(model, normalizedContext, options);
 			const nextParams = await options?.onPayload?.(params, model);
 			if (nextParams !== undefined) {
 				params = { ...(nextParams as MessageCreateParamsStreaming), stream: true };
@@ -979,6 +979,17 @@ function isOAuthToken(apiKey: string): boolean {
 	return apiKey.includes("sk-ant-oat");
 }
 
+/**
+ * Whether a credential is an Anthropic OAuth token rather than an API key. Pure so the payload
+ * assembled by {@link prepareRequest} and the client built by {@link createClient} cannot
+ * disagree: both add Claude Code identity only for OAuth sessions.
+ */
+function usesOAuthCredential(model: Model<"anthropic-messages">, apiKey: string | undefined): boolean {
+	// Copilot authenticates with a GitHub token, not an Anthropic OAuth session.
+	if (model.provider === "github-copilot") return false;
+	return !!apiKey && isOAuthToken(apiKey);
+}
+
 function createClient(
 	model: Model<"anthropic-messages">,
 	apiKey: string | undefined,
@@ -1011,7 +1022,7 @@ function createClient(
 	}
 
 	// OAuth: Bearer auth, Claude Code identity headers
-	if (apiKey && isOAuthToken(apiKey)) {
+	if (usesOAuthCredential(model, apiKey)) {
 		const client = new PiAnthropic({
 			apiKey: null,
 			authToken: apiKey,
@@ -1075,6 +1086,35 @@ function createClient(
 	});
 
 	return { client, isOAuthToken: false };
+}
+
+/** Normalise the transcript for the model's mid-conversation system message support. */
+function normalizeTranscript(model: Model<"anthropic-messages">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, getAnthropicCompat(model).supportsMidConvoSystemMessages);
+}
+
+/** Assemble the request from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"anthropic-messages">,
+	context: TranscriptContext,
+	options: AnthropicOptions | undefined,
+): MessageCreateParamsStreaming {
+	// A pre-built client supplies its own auth, so the payload must not claim Claude Code identity.
+	const isOAuth = options?.client ? false : usesOAuthCredential(model, options?.apiKey);
+	return buildParams(model, context, isOAuth, options);
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"anthropic-messages">,
+	context: TranscriptContext,
+	options?: AnthropicOptions,
+): MessageCreateParamsStreaming {
+	return assembleRequest(model, normalizeTranscript(model, context), options);
 }
 
 function getBetaFeatures(

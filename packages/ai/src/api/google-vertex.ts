@@ -71,7 +71,7 @@ export const stream: StreamFunction<"google-vertex", GoogleVertexOptions> = (
 	options?: GoogleVertexOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = collapseSystemMessages(context);
+	const normalizedContext = normalizeTranscript(context);
 
 	(async () => {
 		const output: AssistantMessage = {
@@ -457,6 +457,24 @@ function resolveLocation(options?: GoogleVertexOptions): string {
 		throw new Error("Vertex AI requires a location. Set GOOGLE_CLOUD_LOCATION or pass location in options.");
 	}
 	return location;
+}
+
+/** Vertex has no mid-conversation system messages; fold them into the leading prompt. */
+function normalizeTranscript(context: TranscriptContext): TranscriptContext {
+	return collapseSystemMessages(context);
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"google-vertex">,
+	context: TranscriptContext,
+	options?: GoogleVertexOptions,
+): GenerateContentParameters {
+	return buildParams(model, normalizeTranscript(context), options);
 }
 
 function buildParams(

@@ -70,7 +70,7 @@ type MistralFunctionTool = {
 	};
 };
 
-type MistralChatPayload = {
+export type MistralChatPayload = {
 	[key: string]: unknown;
 	model: string;
 	stream: boolean;
@@ -127,7 +127,7 @@ export const stream: StreamFunction<"mistral-conversations", MistralOptions> = (
 	options?: MistralOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 
 	(async () => {
 		const output = createOutput(model);
@@ -138,12 +138,7 @@ export const stream: StreamFunction<"mistral-conversations", MistralOptions> = (
 				throw new Error(`No API key for provider: ${model.provider}`);
 			}
 
-			const normalizeMistralToolCallId = createMistralToolCallIdNormalizer();
-			const transformedMessages = transformMessages(normalizedContext.messages, model, (id) =>
-				normalizeMistralToolCallId(id),
-			);
-
-			let payload = buildChatPayload(model, normalizedContext, transformedMessages, options);
+			let payload = assembleRequest(model, normalizedContext, options);
 			const nextPayload = await options?.onPayload?.(payload, model);
 			if (nextPayload !== undefined) {
 				payload = nextPayload as MistralChatPayload;
@@ -508,6 +503,35 @@ function parseMistralEvent(raw: string): MistralCompletionEvent | typeof MISTRAL
 		throw new Error("Invalid Mistral streaming event");
 	}
 	return { data: parsed as MistralCompletionEvent["data"] };
+}
+
+/** Assemble the request payload from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"mistral-conversations">,
+	context: TranscriptContext,
+	options?: MistralOptions,
+): MistralChatPayload {
+	const normalizeMistralToolCallId = createMistralToolCallIdNormalizer();
+	const transformedMessages = transformMessages(context.messages, model, (id) => normalizeMistralToolCallId(id));
+	return buildChatPayload(model, context, transformedMessages, options);
+}
+
+/** Keep later system messages in place only when compat says the endpoint accepts them. */
+function normalizeTranscript(model: Model<"mistral-conversations">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"mistral-conversations">,
+	context: TranscriptContext,
+	options?: MistralOptions,
+): MistralChatPayload {
+	return assembleRequest(model, normalizeTranscript(model, context), options);
 }
 
 function buildChatPayload(

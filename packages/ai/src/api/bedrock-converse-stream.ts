@@ -13,6 +13,7 @@ import {
 	type ContentBlockStopEvent,
 	ConversationRole,
 	ConverseStreamCommand,
+	type ConverseStreamCommandInput,
 	type ConverseStreamMetadataEvent,
 	ImageFormat,
 	type Message,
@@ -130,8 +131,7 @@ export const stream: StreamFunction<"bedrock-converse-stream", BedrockOptions> =
 	options: BedrockOptions = {},
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	// Bedrock has no mid-conversation system messages; fold them into the leading prompt.
-	const normalizedContext = collapseSystemMessages(context);
+	const normalizedContext = normalizeTranscript(context);
 
 	(async () => {
 		const output: AssistantMessage = {
@@ -247,7 +247,6 @@ export const stream: StreamFunction<"bedrock-converse-stream", BedrockOptions> =
 		let responseRequestId: string | undefined;
 
 		try {
-			const supportsStrictMode = model.compat?.supportsStrictMode ?? false;
 			const client = new BedrockRuntimeClient(config);
 			let observedRawResponse = false;
 			if (options.onResponse) {
@@ -259,26 +258,7 @@ export const stream: StreamFunction<"bedrock-converse-stream", BedrockOptions> =
 			if (customHeaders) {
 				addCustomHeadersMiddleware(client, customHeaders);
 			}
-			const cacheRetention = resolveCacheRetention(options.cacheRetention, options.env);
-			const inferenceMaxTokens = options.maxTokens ?? (isAnthropicClaudeModel(model) ? model.maxTokens : undefined);
-			const initialSystemMessage = getInitialSystemMessage(normalizedContext.messages);
-			const initialSystemPrompt = initialSystemMessage ? getSystemMessageText(initialSystemMessage) : undefined;
-			let commandInput = {
-				modelId: model.id,
-				messages: convertMessages(normalizedContext, model, cacheRetention, options.env),
-				system: buildSystemPrompt(initialSystemPrompt, model, cacheRetention, options.env),
-				inferenceConfig: {
-					...(inferenceMaxTokens !== undefined && { maxTokens: inferenceMaxTokens }),
-					...(options.temperature !== undefined && { temperature: options.temperature }),
-				},
-				toolConfig: convertToolConfig(
-					getCurrentTools(normalizedContext.messages),
-					options.toolChoice,
-					supportsStrictMode,
-				),
-				additionalModelRequestFields: buildAdditionalModelRequestFields(model, options),
-				...(options.requestMetadata !== undefined && { requestMetadata: options.requestMetadata }),
-			};
+			let commandInput = buildCommandInput(model, normalizedContext, options);
 			const nextCommandInput = await options?.onPayload?.(commandInput, model);
 			if (nextCommandInput !== undefined) {
 				commandInput = nextCommandInput as typeof commandInput;
@@ -578,6 +558,53 @@ export const streamSimple: StreamFunction<"bedrock-converse-stream", SimpleStrea
 		thinkingBudgets: options.thinkingBudgets,
 	} satisfies BedrockOptions);
 };
+
+/** Bedrock has no mid-conversation system messages; fold them into the leading prompt. */
+function normalizeTranscript(context: TranscriptContext): TranscriptContext {
+	return collapseSystemMessages(context);
+}
+
+/**
+ * Build the ConverseStream command input for a model, transcript and options without
+ * sending it. Returns the object `options.onPayload` receives, after the same
+ * normalisation. Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"bedrock-converse-stream">,
+	context: TranscriptContext,
+	options?: BedrockOptions,
+): ConverseStreamCommandInput {
+	return buildCommandInput(model, normalizeTranscript(context), options);
+}
+
+/** Assemble the command input from an already normalised transcript. */
+function buildCommandInput(
+	model: Model<"bedrock-converse-stream">,
+	normalizedContext: TranscriptContext,
+	options: BedrockOptions = {},
+): ConverseStreamCommandInput {
+	const supportsStrictMode = model.compat?.supportsStrictMode ?? false;
+	const cacheRetention = resolveCacheRetention(options.cacheRetention, options.env);
+	const inferenceMaxTokens = options.maxTokens ?? (isAnthropicClaudeModel(model) ? model.maxTokens : undefined);
+	const initialSystemMessage = getInitialSystemMessage(normalizedContext.messages);
+	const initialSystemPrompt = initialSystemMessage ? getSystemMessageText(initialSystemMessage) : undefined;
+	return {
+		modelId: model.id,
+		messages: convertMessages(normalizedContext, model, cacheRetention, options.env),
+		system: buildSystemPrompt(initialSystemPrompt, model, cacheRetention, options.env),
+		inferenceConfig: {
+			...(inferenceMaxTokens !== undefined && { maxTokens: inferenceMaxTokens }),
+			...(options.temperature !== undefined && { temperature: options.temperature }),
+		},
+		toolConfig: convertToolConfig(
+			getCurrentTools(normalizedContext.messages),
+			options.toolChoice,
+			supportsStrictMode,
+		),
+		additionalModelRequestFields: buildAdditionalModelRequestFields(model, options),
+		...(options.requestMetadata !== undefined && { requestMetadata: options.requestMetadata }),
+	};
+}
 
 function handleContentBlockStart(
 	event: ContentBlockStartEvent,

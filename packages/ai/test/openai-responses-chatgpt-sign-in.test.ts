@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { stream as streamOpenAIResponses } from "../src/api/openai-responses.ts";
+import { prepareRequest } from "../src/api/openai-responses.ts";
 import type { Model } from "../src/types.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
@@ -22,39 +22,36 @@ const context = normalizeContext({
 	tools: [],
 });
 
-async function capturePayload(
-	apiKey: string,
-	requestModel: Model<"openai-responses"> = model,
-): Promise<Record<string, unknown>> {
-	let payload: Record<string, unknown> | undefined;
-	await streamOpenAIResponses(requestModel, context, {
+interface ResponsesPayload {
+	max_output_tokens?: number;
+	temperature?: number;
+	prompt_cache_retention?: string;
+	prompt_cache_options?: { mode?: string; ttl?: string };
+}
+
+function payloadFor(apiKey: string, requestModel: Model<"openai-responses"> = model): ResponsesPayload {
+	return prepareRequest(requestModel, context, {
 		apiKey,
 		maxTokens: 1000,
 		temperature: 0.5,
 		cacheRetention: "long",
-		onPayload: (params) => {
-			payload = params as Record<string, unknown>;
-		},
-		fetch: async () => new Response(null, { status: 500 }),
-	}).result();
-	if (!payload) throw new Error("Request payload was not captured");
-	return payload;
+	}) as ResponsesPayload;
 }
 
 describe("OpenAI Responses with Sign in with ChatGPT", () => {
-	it("omits request fields that token sharing rejects", async () => {
-		const payload = await capturePayload("chatgpt-access-token");
+	it("omits request fields that token sharing rejects", () => {
+		const payload = payloadFor("chatgpt-access-token");
 
 		expect(payload).not.toHaveProperty("max_output_tokens");
 		expect(payload).not.toHaveProperty("temperature");
 		expect(payload.prompt_cache_retention).toBeUndefined();
 	});
 
-	it("omits prompt_cache_options on models with explicit prompt cache mode", async () => {
+	it("omits prompt_cache_options on models with explicit prompt cache mode", () => {
 		const explicitCacheModel = { ...model, compat: { supportsExplicitPromptCacheMode: true } };
 
-		const signInPayload = await capturePayload("chatgpt-access-token", explicitCacheModel);
-		const apiKeyPayload = await capturePayload("sk-proj-test", explicitCacheModel);
+		const signInPayload = payloadFor("chatgpt-access-token", explicitCacheModel);
+		const apiKeyPayload = payloadFor("sk-proj-test", explicitCacheModel);
 
 		expect(signInPayload.prompt_cache_options).toBeUndefined();
 		expect(apiKeyPayload.prompt_cache_options).toEqual({ ttl: "30m" });
@@ -67,8 +64,8 @@ describe("OpenAI Responses with Sign in with ChatGPT", () => {
 			apiKey: "gateway-key",
 			requestModel: { ...model, baseUrl: "https://gateway.example.com/v1" },
 		},
-	])("keeps those fields for $name", async ({ apiKey, requestModel }) => {
-		const payload = await capturePayload(apiKey, requestModel);
+	])("keeps those fields for $name", ({ apiKey, requestModel }) => {
+		const payload = payloadFor(apiKey, requestModel);
 
 		expect(payload.max_output_tokens).toBe(1000);
 		expect(payload.temperature).toBe(0.5);

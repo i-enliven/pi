@@ -38,12 +38,10 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 	options?: AzureOpenAIResponsesOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 
 	// Start async processing
 	(async () => {
-		const deploymentName = resolveDeploymentName(model, options);
-
 		const output: AssistantMessage = {
 			role: "assistant",
 			content: [],
@@ -69,11 +67,8 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 				throw new Error(`No API key for provider: ${model.provider}`);
 			}
 			const client = createClient(model, apiKey, options);
-			const grammarToolInputProperties = createGrammarToolInputProperties(
-				getDeclaredTools(normalizedContext.messages),
-				model.compat?.supportsOpenAIGrammarTools ?? false,
-			);
-			let params = buildParams(model, normalizedContext, options, deploymentName, grammarToolInputProperties);
+			const assembled = assembleRequest(model, normalizedContext, options);
+			let params = assembled.payload;
 			const nextParams = await options?.onPayload?.(params, model);
 			if (nextParams !== undefined) {
 				params = nextParams as ResponseCreateParamsStreaming;
@@ -96,7 +91,7 @@ export const stream: StreamFunction<"azure-openai-responses", AzureOpenAIRespons
 
 			await processResponsesStream(openaiStream, output, stream, model, {
 				onProviderStreamEvent: options?.onProviderStreamEvent,
-				grammarToolInputProperties,
+				grammarToolInputProperties: assembled.grammarToolInputProperties,
 			});
 
 			if (options?.signal?.aborted) {
@@ -169,6 +164,45 @@ function createClient(model: Model<"azure-openai-responses">, apiKey: string, op
 		defaultHeaders: headers,
 		baseURL: baseUrl,
 	});
+}
+
+/** Everything the stream path needs before `onPayload`, except the client. */
+interface AssembledRequest {
+	payload: ResponseCreateParamsStreaming;
+	grammarToolInputProperties: ReadonlyMap<string, string>;
+}
+
+function normalizeTranscript(model: Model<"azure-openai-responses">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+}
+
+/** Assemble the request from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"azure-openai-responses">,
+	context: TranscriptContext,
+	options: AzureOpenAIResponsesOptions | undefined,
+): AssembledRequest {
+	const grammarToolInputProperties = createGrammarToolInputProperties(
+		getDeclaredTools(context.messages),
+		model.compat?.supportsOpenAIGrammarTools ?? false,
+	);
+	return {
+		payload: buildParams(model, context, options, resolveDeploymentName(model, options), grammarToolInputProperties),
+		grammarToolInputProperties,
+	};
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"azure-openai-responses">,
+	context: TranscriptContext,
+	options?: AzureOpenAIResponsesOptions,
+): ResponseCreateParamsStreaming {
+	return assembleRequest(model, normalizeTranscript(model, context), options).payload;
 }
 
 function buildParams(

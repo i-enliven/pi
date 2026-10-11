@@ -307,7 +307,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 	options?: OpenAICompletionsOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, getCompat(model).supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 
 	(async () => {
 		const output: AssistantMessage = {
@@ -339,30 +339,20 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 
 		try {
 			const apiKey = getClientApiKey(model.provider, options?.apiKey, options?.headers);
-			const compat = getCompat(model);
-			const grammarToolInputProperties = createGrammarToolInputProperties(
-				getDeclaredTools(normalizedContext.messages),
-				compat.supportsOpenAIGrammarTools,
-			);
-			const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
-			const cacheSessionId = cacheRetention === "none" ? undefined : options?.sessionId;
+			// Assembly runs first: the client needs cacheSessionId and compat from it.
+			// createClient must not become a place where request validation happens.
+			const assembled = assembleRequest(model, normalizedContext, options);
+			const { compat, grammarToolInputProperties } = assembled;
 			const client = createClient(
 				model,
 				normalizedContext,
 				apiKey,
 				options?.headers,
 				options?.fetch,
-				cacheSessionId,
+				assembled.cacheSessionId,
 				compat,
 			);
-			let params = buildParams(
-				model,
-				normalizedContext,
-				options,
-				compat,
-				cacheRetention,
-				grammarToolInputProperties,
-			);
+			let params = assembled.payload;
 			const nextParams = await options?.onPayload?.(params, model);
 			if (nextParams !== undefined) {
 				params = nextParams as OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming;
@@ -797,6 +787,51 @@ function createClient(
 		fetch,
 		defaultHeaders: headers,
 	});
+}
+
+/** Everything the stream path needs before `onPayload`, except the client. */
+interface AssembledRequest {
+	payload: OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming;
+	compat: ResolvedOpenAICompletionsCompat;
+	grammarToolInputProperties: ReadonlyMap<string, string>;
+	cacheSessionId: string | undefined;
+}
+
+function normalizeTranscript(model: Model<"openai-completions">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, getCompat(model).supportsMidConvoSystemMessages);
+}
+
+/** Assemble the request from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"openai-completions">,
+	context: TranscriptContext,
+	options: OpenAICompletionsOptions | undefined,
+): AssembledRequest {
+	const compat = getCompat(model);
+	const grammarToolInputProperties = createGrammarToolInputProperties(
+		getDeclaredTools(context.messages),
+		compat.supportsOpenAIGrammarTools,
+	);
+	const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
+	return {
+		payload: buildParams(model, context, options, compat, cacheRetention, grammarToolInputProperties),
+		compat,
+		grammarToolInputProperties,
+		cacheSessionId: cacheRetention === "none" ? undefined : options?.sessionId,
+	};
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"openai-completions">,
+	context: TranscriptContext,
+	options?: OpenAICompletionsOptions,
+): OpenAI.Chat.Completions.ChatCompletionCreateParamsStreaming {
+	return assembleRequest(model, normalizeTranscript(model, context), options).payload;
 }
 
 function buildParams(

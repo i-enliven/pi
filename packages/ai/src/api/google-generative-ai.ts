@@ -62,7 +62,7 @@ export const stream: StreamFunction<"google-generative-ai", GoogleOptions> = (
 	options?: GoogleOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = collapseSystemMessages(context);
+	const normalizedContext = normalizeTranscript(context);
 
 	(async () => {
 		const output: AssistantMessage = {
@@ -364,6 +364,24 @@ function createClient(
 		apiKey,
 		httpOptions: Object.keys(httpOptions).length > 0 ? httpOptions : undefined,
 	});
+}
+
+/** Gemini has no mid-conversation system messages; fold them into the leading prompt. */
+function normalizeTranscript(context: TranscriptContext): TranscriptContext {
+	return collapseSystemMessages(context);
+}
+
+/**
+ * Build the request payload for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"google-generative-ai">,
+	context: TranscriptContext,
+	options?: GoogleOptions,
+): GenerateContentParameters {
+	return buildParams(model, normalizeTranscript(context), options);
 }
 
 function buildParams(

@@ -86,7 +86,7 @@ export interface OpenAICodexResponsesOptions extends StreamOptions {
 
 type CodexResponseStatus = "completed" | "incomplete" | "failed" | "cancelled" | "queued" | "in_progress";
 
-interface RequestBody {
+export interface RequestBody {
 	model: string;
 	store?: boolean;
 	stream?: boolean;
@@ -240,7 +240,7 @@ export const stream: StreamFunction<"openai-codex-responses", OpenAICodexRespons
 	options?: OpenAICodexResponsesOptions,
 ): AssistantMessageEventStream => {
 	const stream = new AssistantMessageEventStream();
-	const normalizedContext = resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+	const normalizedContext = normalizeTranscript(model, context);
 
 	(async () => {
 		const output: AssistantMessage = {
@@ -268,13 +268,9 @@ export const stream: StreamFunction<"openai-codex-responses", OpenAICodexRespons
 			}
 
 			const accountId = extractAccountId(apiKey);
-			const grammarToolInputProperties = createGrammarToolInputProperties(
-				getDeclaredTools(normalizedContext.messages),
-				model.compat?.supportsOpenAIGrammarTools ?? false,
-			);
-			const cacheSessionId = options?.cacheRetention === "none" ? undefined : options?.sessionId;
-			const codexSessionId = clampOpenAIPromptCacheKey(cacheSessionId);
-			let body = buildRequestBody(model, normalizedContext, options, codexSessionId, grammarToolInputProperties);
+			const assembled = assembleRequest(model, normalizedContext, options);
+			const { grammarToolInputProperties, cacheSessionId, codexSessionId } = assembled;
+			let body = assembled.payload;
 			const nextBody = await options?.onPayload?.(body, model);
 			if (nextBody !== undefined) {
 				body = nextBody as RequestBody;
@@ -523,6 +519,51 @@ export const streamSimple: StreamFunction<"openai-codex-responses", SimpleStream
 // ============================================================================
 // Request Building
 // ============================================================================
+
+/** Everything the stream path needs before `onPayload`, except the auth headers. */
+interface AssembledRequest {
+	payload: RequestBody;
+	grammarToolInputProperties: ReadonlyMap<string, string>;
+	cacheSessionId: string | undefined;
+	codexSessionId: string | undefined;
+}
+
+function normalizeTranscript(model: Model<"openai-codex-responses">, context: TranscriptContext): TranscriptContext {
+	return resolveTranscript(context, model.compat?.supportsMidConvoSystemMessages);
+}
+
+/** Assemble the request from an already normalised transcript. */
+function assembleRequest(
+	model: Model<"openai-codex-responses">,
+	context: TranscriptContext,
+	options: OpenAICodexResponsesOptions | undefined,
+): AssembledRequest {
+	const grammarToolInputProperties = createGrammarToolInputProperties(
+		getDeclaredTools(context.messages),
+		model.compat?.supportsOpenAIGrammarTools ?? false,
+	);
+	const cacheSessionId = options?.cacheRetention === "none" ? undefined : options?.sessionId;
+	const codexSessionId = clampOpenAIPromptCacheKey(cacheSessionId);
+	return {
+		payload: buildRequestBody(model, context, options, codexSessionId, grammarToolInputProperties),
+		grammarToolInputProperties,
+		cacheSessionId,
+		codexSessionId,
+	};
+}
+
+/**
+ * Build the request body for a model, transcript and options without sending it.
+ * Returns the object `options.onPayload` receives, after the same normalisation.
+ * Does not check credentials or endpoint configuration.
+ */
+export function prepareRequest(
+	model: Model<"openai-codex-responses">,
+	context: TranscriptContext,
+	options?: OpenAICodexResponsesOptions,
+): RequestBody {
+	return assembleRequest(model, normalizeTranscript(model, context), options).payload;
+}
 
 function buildRequestBody(
 	model: Model<"openai-codex-responses">,
