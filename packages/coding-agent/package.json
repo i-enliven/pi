@@ -1,6 +1,6 @@
 {
 	"name": "@i-enliven/pi-coding-agent",
-	"version": "1.1.1",
+	"version": "1.1.2",
 	"description": "Coding agent CLI with read, bash, edit, write tools and session management",
 	"type": "module",
 	"piConfig": {
@@ -36,10 +36,10 @@
 		"test": "vitest --run"
 	},
 	"dependencies": {
-		"@i-enliven/pi-agent-core": "^1.1.1",
-		"@i-enliven/pi-ai": "^1.1.1",
-		"@i-enliven/pi-mcp": "^1.1.1",
-		"@i-enliven/pi-tui": "^1.1.1",
+		"@i-enliven/pi-agent-core": "^1.1.2",
+		"@i-enliven/pi-ai": "^1.1.2",
+		"@i-enliven/pi-mcp": "^1.1.2",
+		"@i-enliven/pi-tui": "^1.1.2",
 		"@silvia-odwyer/photon-node": "0.3.4",
 		"brace-expansion": "5.0.12",
 		"chalk": "6.0.0",
