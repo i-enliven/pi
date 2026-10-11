@@ -18,6 +18,14 @@ const banner = {
 const allowedExternalPackages = new Set([
 	"@silvia-odwyer/photon-node",
 	"jiti",
+	// Resolved from node_modules instead of inlined. The bundle evaluates every module
+	// at load, and undici's cache interceptor constructs a CacheStorage whose
+	// constructor calls webidl.util.markAsUncloneable, which the Bun runtime does not
+	// provide, so an inlined undici throws at startup for `bun`-run installs.
+	// core/http-dispatcher.ts keeps setGlobalDispatcher() and install() on this one
+	// instance, so keeping fetch and the dispatcher together does not depend on
+	// bundling it.
+	"undici",
 	// Optional native accelerators. Their callers fall back to JavaScript when absent.
 	"bufferutil",
 	"utf-8-validate",
@@ -81,7 +89,7 @@ function commonBuildOptions() {
 		banner,
 		bundle: true,
 		define: { PI_BUNDLED_NODE: "true" },
-		external: ["@silvia-odwyer/photon-node"],
+		external: ["@silvia-odwyer/photon-node", "undici"],
 		format: "esm",
 		legalComments: "none",
 		logLevel: "warning",
