@@ -1,0 +1,46 @@
+{
+	"name": "pi-tasklists",
+	"version": "0.1.0",
+	"description": "Multi-list task management extension for the Pi coding agent",
+	"type": "module",
+	"keywords": [
+		"pi-package",
+		"pi-extension",
+		"tasklist",
+		"todo"
+	],
+	"license": "MIT",
+	"author": "strugglingcomic",
+	"repository": {
+		"type": "git",
+		"url": "git+https://github.com/strugglingcomic/pi-tasklists.git"
+	},
+	"homepage": "https://github.com/strugglingcomic/pi-tasklists#readme",
+	"bugs": {
+		"url": "https://github.com/strugglingcomic/pi-tasklists/issues"
+	},
+	"files": [
+		"src/",
+		"README.md",
+		"LICENSE",
+		"spec.md"
+	],
+	"pi": {
+		"extensions": [
+			"./src/index.ts"
+		]
+	},
+	"scripts": {
+		"typecheck": "tsc --noEmit"
+	},
+	"peerDependencies": {
+		"@i-enliven/pi-ai": "*",
+		"@i-enliven/pi-coding-agent": "*",
+		"@i-enliven/pi-tui": "*",
+		"typebox": "*"
+	},
+	"devDependencies": {
+		"@types/node": "^20.0.0",
+		"typescript": "^5.0.0"
+	}
+}
