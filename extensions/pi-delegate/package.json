@@ -1,0 +1,52 @@
+{
+  "name": "@bermudi/pi-delegate",
+  "version": "0.5.0",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/bermudi/pi-delegate.git"
+  },
+  "devDependencies": {
+    "@i-enliven/pi-agent-core": "0.87.0",
+    "@i-enliven/pi-ai": "0.87.0",
+    "@i-enliven/pi-coding-agent": "0.87.0",
+    "@i-enliven/pi-tui": "0.87.0",
+    "@marcfargas/pi-test-harness": "0.6.1",
+    "@types/bun": "1.4.0",
+    "esbuild": "^0.28.2",
+    "typebox": "1.3.27",
+    "typescript": "5.9.3"
+  },
+  "peerDependencies": {
+    "@i-enliven/pi-coding-agent": ">=0.87.0 <2.0.0",
+    "typebox": "*"
+  },
+  "description": "Pi extension: subagent dispatch with admission, durable tickets, workspaces, and steering",
+  "files": [
+    "delegate.ts",
+    "src",
+    "README.md",
+    "COMPATIBILITY.md"
+  ],
+  "keywords": [
+    "pi-package"
+  ],
+  "overrides": {
+    "brace-expansion": "5.0.9"
+  },
+  "patchedDependencies": {
+    "@marcfargas/pi-test-harness@0.6.1": "patches/@marcfargas%2Fpi-test-harness@0.6.1.patch"
+  },
+  "pi": {
+    "extensions": [
+      "./delegate.ts"
+    ]
+  },
+  "private": false,
+  "scripts": {
+    "test": "bun test",
+    "typecheck": "tsc --noEmit",
+    "verify:dogfood": "bun scripts/dogfood.ts",
+    "build": "esbuild delegate.ts --bundle --platform=neutral --packages=external --format=esm --banner:js=\"// @ts-nocheck\" --outfile=.build/delegate.bundle.ts"
+  },
+  "type": "module"
+}

@@ -1,0 +1,2830 @@
+import { DiagnosticSink } from "./src/diagnostics.ts";
+import {
+  Type,
+  type Static,
+  type TSchemaOptions,
+  type TSchema,
+  type TUnsafe,
+} from "typebox";
+import * as Value from "typebox/value";
+import {
+  defineTool,
+  type AgentToolResult,
+  type ExtensionAPI,
+  type ToolDefinition,
+  type ExtensionContext,
+  type NormalizedBuildSystemPromptOptions,
+} from "@i-enliven/pi-coding-agent";
+import type { Usage } from "@i-enliven/pi-ai";
+import {
+  AdmissionController,
+  type AdmissionGrant,
+} from "./src/admission.ts";
+import {
+  configuredModelFor,
+  loadDelegateConfig,
+  resolveAgentDir,
+  telemetryConfigHint,
+  type DelegateConfig,
+  type TelemetryConfig,
+} from "./src/config.ts";
+import type {
+  AsyncDispatchDetails,
+  DeliveredDetails,
+  HelpDetails,
+  LiveDispatchDetails,
+  QuestionNoticeDetails,
+  SessionDetails,
+  SyncDispatchDetails,
+  TicketDetails,
+} from "./src/details.ts";
+import {
+  DispatchCoordinator,
+  type DispatchOutcome,
+} from "./src/coordinator.ts";
+import { AttributionWindows } from "./src/git-attribution.ts";
+import {
+  briefNote,
+  formatDispatchResult,
+  serializedNotices,
+} from "./src/format.ts";
+import {
+  hostEnvironment,
+  parentModelRuntime,
+  resolveTasks,
+  type HostEnvironment,
+  type ParentPromptInputs,
+  type ParentPromptService,
+} from "./src/host.ts";
+import { createActivityStore } from "./src/activity.ts";
+import { registerSubagentBrowser } from "./src/browser.ts";
+import { currentBootId } from "./src/owner.ts";
+import { discoverProfiles } from "./src/profiles.ts";
+import {
+  createMessageRenderer,
+  createResultRenderer,
+  renderDelegateCall,
+  renderSessionCall,
+  renderTicketCall,
+} from "./src/render.ts";
+import { VisibilitySignals } from "./src/visibility.ts";
+import { handleSessionRpc, SessionPool } from "./src/sessions.ts";
+import { TelemetryStore } from "./src/telemetry.ts";
+import { handleTicketRpc, TicketStore } from "./src/tickets.ts";
+import {
+  Deferred,
+  type OutputBounds,
+  type ResolvedTask,
+  type TaskOutcome,
+  type Ticket,
+} from "./src/types.ts";
+import {
+  MODEL_FIELD_REJECTION,
+  PROMPT_CHAR_LIMIT,
+  REASONING_EFFORT_FIELD_REJECTION,
+  THINKING_FIELD_REJECTION,
+  validateDispatchCall,
+  validateSessionCall,
+  validateTicketCall,
+  type DispatchCall,
+  type TaskInput,
+} from "./src/validation.ts";
+import {
+  prepareWorkspaces,
+  workspaceNeedsSettlementHold,
+  type WorkspacePlan,
+} from "./src/workspaces.ts";
+
+function stringEnum<const Values extends readonly string[]>(
+  values: Values,
+  options: TSchemaOptions,
+): TUnsafe<Values[number]> {
+  return Type.Unsafe<Values[number]>({
+    ...options,
+    type: "string",
+    enum: [...values],
+  });
+}
+
+const taskSchema = Type.Object(
+  {
+    id: Type.Optional(
+      Type.String({
+        pattern: "^[A-Za-z0-9._-]{1,64}$",
+        description: "Optional correlation key; unique within the batch.",
+      }),
+    ),
+    prompt: Type.Optional(
+      Type.String({
+        description:
+          `Self-contained task brief; optional only when resumeFrom continues a transcript. Subagents never see this conversation. ` +
+          `At most ${PROMPT_CHAR_LIMIT} characters — reference files by path instead of inlining contents; longer prompts reject.`,
+      }),
+    ),
+    agent: Type.Optional(
+      Type.String({
+        description:
+          "Named profile: 'default' (mirrors the parent), 'explore' (read-only investigation), 'coder' (implementation), 'reviewer' (review with read + bash — runs focused checks; serializes with writers), 'verifier' (claim-check with read + bash; reports a parsed verdict beside file evidence — reporting only, never gating), or a user-defined Markdown profile (.pi/agents). Omit for an inline task.",
+      }),
+    ),
+    cwd: Type.Optional(
+      Type.String({
+        description:
+          "Working directory; relative paths resolve from the parent cwd.",
+      }),
+    ),
+
+    sessionId: Type.Optional(
+      Type.String({
+        description:
+          "Key for a live reusable session; later tasks with the same id continue it. Its configuration is frozen at first use. List or close pooled sessions with delegate_session.",
+      }),
+    ),
+    resumeFrom: Type.Optional(
+      Type.String({
+        description: "Absolute path to a .jsonl session transcript.",
+      }),
+    ),
+    workspace: Type.Optional(
+      stringEnum(["shared", "scratch", "isolated"], {
+        description:
+          "shared/scratch/isolated. 'shared' edits the tree; same-root writers in one call should be ordered with dependsOn — same-phase unordered overlap rejects; ordered writers run one at a time in order. 'isolated' runs each task in a private Git worktree — same-repo edits run in parallel and merge in order, with ignored files (e.g. node_modules) copied into each worktree (reflink/Copy-on-Write when the filesystem supports it). 'scratch' runs once in a disposable copy and discards every change — for write-capable tasks whose value is the answer, not the edits; read-only tasks cannot use it. Copying rejects overlap with active or quarantined source writers; worker execution may overlap after copying.",
+      }),
+    ),
+    dependsOn: Type.Optional(
+      Type.Array(Type.String(), {
+        description:
+          "Ids of tasks in this batch that must succeed before this one starts; their outputs are handed off.",
+      }),
+    ),
+  },
+
+  { additionalProperties: false },
+);
+
+const delegateSchema = Type.Object(
+  {
+    tasks: Type.Array(taskSchema, {
+      minItems: 0,
+      description:
+        "Subagent tasks to run; pass [] for the manual. Batch every task in one call — separate concurrent dispatches from one session share admission, and overlapping writers reject.",
+    }),
+    async: Type.Optional(
+      Type.Boolean({
+        description:
+          "Every nonempty call returns a background ticket; results arrive at your next step on their own. Pass async: false to wait for inline results, regardless of task count. Inspect or control tickets with delegate_ticket.",
+      }),
+    ),
+    workspace: Type.Optional(
+      stringEnum(["shared", "scratch", "isolated"], {
+        description:
+          "Default workspace for every task lacking its own. 'isolated' = parallel same-repo edits. 'scratch' = disposable copy, changes discarded; copying rejects active source writers, execution may overlap afterward.",
+      }),
+    ),
+    brief: Type.Optional(
+      Type.String({
+        description:
+          "Shared batch brief — context every task needs (spec, conventions, goal). Prepended to each task's prompt as a delimited preamble; the result header notes it once. Each task's 'prompt' stays required.",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const ticketSchema = Type.Object(
+  {
+    action: stringEnum(["poll", "wait", "cancel", "answer", "steer", "interrupt"], {
+      description:
+        "Ticket operation. poll: one ticket's view, or the roster when ticket is omitted. wait: block until settlement. cancel: preview, or cooperative cancellation with force: true. answer: reply to a worker's pending question. steer: send a message into a running task — the receipt reports steered (merged at its next turn boundary), activated (queued; opens the next turn), duplicate (a replayed call), or not-applied. interrupt: abort one task's in-flight turn — the task settles interrupted and stays resumable, unlike cancel's whole-ticket teardown.",
+    }),
+    ticket: Type.Optional(
+      Type.String({
+        description:
+          "Ticket id; required for every action except a roster poll — and optional on 'answer'/'steer'/'interrupt' when taskId is a '<ticket>#<task>' compound, which carries its own ticket.",
+      }),
+    ),
+    force: Type.Optional(
+      Type.Boolean({
+        description:
+          "Only with action 'cancel': true performs the cancellation; omitted or false previews.",
+      }),
+    ),
+    taskId: Type.Optional(
+      Type.String({
+        description:
+          "Only with actions 'answer', 'steer', and 'interrupt': the task to target. With 'steer'/'interrupt' it defaults to the ticket's only still-running task. Accepts the canonical '<ticket>#<task>' address — the ticket field is then optional.",
+      }),
+    ),
+    questionId: Type.Optional(
+      Type.String({
+        description:
+          "Only with action 'answer': the question id shown in the ticket's poll view.",
+      }),
+    ),
+    answer: Type.Optional(
+      Type.String({
+        description:
+          "Only with action 'answer': the nonempty reply sent to the waiting worker.",
+      }),
+    ),
+    message: Type.Optional(
+      Type.String({
+        description:
+          "Only with action 'steer': the nonempty instruction merged into the task's run.",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+const sessionSchema = Type.Object(
+  {
+    action: stringEnum(["list", "close"], {
+      description:
+        "'list' reports live pooled sessions; 'close' aborts, disposes, and removes one.",
+    }),
+    sessionId: Type.Optional(
+      Type.String({
+        description:
+          "Session id; required with action 'close', rejected with 'list'.",
+      }),
+    ),
+  },
+  { additionalProperties: false },
+);
+
+// One tool surface (ADR 0002): these declarations are the only schema
+// vocabulary, and advertised = accepted without qualification.
+
+/**
+ * Validate before Pi's fallback error can append the entire request body.
+ * Use the same conversion/checker library as Pi, after our recovery guards;
+ * diagnostics contain schema paths/messages only, never argument dumps.
+ */
+function validatePreparedArguments<T extends TSchema>(
+  name: string,
+  schema: T,
+  value: unknown,
+): Static<T> {
+  const prepared: unknown = structuredClone(value);
+  Value.Convert(schema, prepared);
+  if (Value.Check(schema, prepared)) return prepared;
+  const errors = Value.Errors(schema, prepared);
+  throw new Error(`Validation failed for tool "${name}":\n${errors
+    .map((error) => `- ${error.instancePath || "/"}: ${error.message}`)
+    .join("\n")}`);
+}
+
+type DelegateArguments = Static<typeof delegateSchema>;
+type TicketToolArguments = Static<typeof ticketSchema>;
+type SessionToolArguments = Static<typeof sessionSchema>;
+type DelegateDetails = Record<string, unknown>;
+type DelegateResult = AgentToolResult<DelegateDetails>;
+
+/** customType of the custom message that delivers a settled async batch. */
+const DELIVERED_MESSAGE_TYPE = "delegate-result";
+/**
+ * SPEC v3 "Interaction grammar — Wake delivery": "simultaneous
+ * settlements batch into one wake." Settled tickets enqueue here and the
+ * first enqueue arms one flush — this window trades a small delivery
+ * delay for one wake per settlement cluster instead of one turn per
+ * ticket. Deliberately not configurable: SPEC "Surface rules" keeps
+ * internal timing out of caller reach.
+ */
+const DELIVERY_FLUSH_MS = 100;
+
+/**
+ * Issue #60: namespaced usage signal on `pi.events` — settled subagent
+ * work emits `delegate:usage` so listeners (provider-balance) can refresh
+ * usage displays while a batch burns tokens. Throttled to one emission
+ * per interval per extension instance — matching the consumer's own
+ * refresh throttle; the event is a wake, not an accounting channel.
+ */
+const USAGE_EVENT_NAME = "delegate:usage";
+const USAGE_EVENT_MIN_INTERVAL_MS = 30_000;
+
+/**
+ * Upper bound on the shutdown quiescence hold (INVARIANTS "Ticket
+ * state"). Long enough for abort-honoring workers to wind down and
+ * confirm; past it a permanently wedged worker must not wedge host exit
+ * — a session boundary that never completes is a worse failure than a
+ * loudly-named unconfirmed stop. Matches v1's cancelled-unwind budget
+ * (30s). `DELEGATE_SHUTDOWN_QUIESCENCE_MS` overrides it — the test seam
+ * for the expiry path.
+ */
+const SHUTDOWN_QUIESCENCE_BUDGET_MS = 30_000;
+function shutdownQuiescenceBudgetMs(): number {
+  const raw = process.env.DELEGATE_SHUTDOWN_QUIESCENCE_MS;
+  const parsed = raw === undefined ? NaN : Number.parseInt(raw, 10);
+  return Number.isFinite(parsed) && parsed > 0
+    ? parsed
+    : SHUTDOWN_QUIESCENCE_BUDGET_MS;
+}
+
+type TaskSchemaArguments = Static<typeof taskSchema>;
+
+/**
+ * Flat-field fold list, derived from the task schema's own keys so a field
+ * added to taskSchema participates in boundary recovery without a second
+ * hand-maintained list. `model` and `thinking` are deliberately absent:
+ * they are not task fields and are rejected outright wherever they appear —
+ * folding or echoing them would only disguise the rejection.
+ */
+const taskFieldNames = Object.keys(
+  taskSchema.properties,
+) as readonly (keyof TaskSchemaArguments)[];
+
+/**
+ * Dispatch-owned fields for sibling-tool guidance checks on
+ * delegate_ticket/delegate_session — a stray one means the caller pasted a
+ * dispatch call at the wrong tool. `sessionId` is absent: on delegate_ticket
+ * it routes to delegate_session guidance, on delegate_session it is native.
+ */
+const dispatchFieldNames = [
+  "tasks",
+  "async",
+  "workspace",
+  ...taskFieldNames.filter(
+    (field) => field !== "sessionId",
+  ),
+  "brief",
+] as const;
+
+/** Ticket-owned fields for delegate_session's foreign-field guidance. */
+const ticketFieldNames = [
+  "ticketAction",
+  "ticket",
+  "force",
+  "taskId",
+  "questionId",
+  "answer",
+  "message",
+] as const;
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return value !== null && typeof value === "object" && !Array.isArray(value);
+}
+
+/** Empty or whitespace-only string. */
+function isBlank(value: unknown): boolean {
+  return typeof value === "string" && value.trim() === "";
+}
+
+/** Accepted fields may use null for "not given"; removed/hidden fields reject first. */
+function stripNulls(record: Record<string, unknown>): void {
+  for (const key of Object.keys(record)) {
+    if (record[key] === null) delete record[key];
+  }
+}
+
+/** A blank value counts as "not given" for the listed optional identifiers. */
+function stripBlank(record: Record<string, unknown>, keys: readonly string[]): void {
+  for (const key of keys) {
+    if (isBlank(record[key])) delete record[key];
+  }
+}
+
+/** Defined and not blank — a value the caller actually gave. */
+function isGiven(value: unknown): boolean {
+  return value !== undefined && !isBlank(value);
+}
+
+function parseArray(value: string): unknown[] | undefined {
+  try {
+    const parsed: unknown = JSON.parse(value);
+    return Array.isArray(parsed) ? parsed : undefined;
+  } catch {
+    return undefined;
+  }
+}
+
+const TICKET_ACTIONS = ["poll", "wait", "cancel", "answer", "steer", "interrupt"];
+const SESSION_ACTIONS = ["list", "close"];
+
+/**
+ * The parent-side tools that can mutate the tree a task's Git evidence
+ * window watches. Content-free concurrency input — only the tool event
+ * is recorded, never the call's arguments (user decision 2026-10-02).
+ */
+const PARENT_MUTATING_TOOLS = new Set(["write", "edit", "bash", "exec"]);
+
+/** A `delegate_ticket` example call built from the fields the caller sent. */
+function delegateTicketExample(args: Record<string, unknown>): string {
+  // Selector values are clamped to the real enum: an example that repeats
+  // an invalid action back fails again if the caller follows it.
+  const action =
+    typeof args.ticketAction === "string" &&
+    TICKET_ACTIONS.includes(args.ticketAction)
+      ? args.ticketAction
+      : typeof args.action === "string" && TICKET_ACTIONS.includes(args.action)
+        ? args.action
+        : isGiven(args.message)
+          ? "steer"
+          : isGiven(args.taskId) ||
+                isGiven(args.questionId) ||
+                isGiven(args.answer)
+              ? "answer"
+              : args.force === true
+                ? "cancel"
+                : "poll";
+  const fields = [`action: ${JSON.stringify(action)}`];
+  if (typeof args.ticket === "string" && !isBlank(args.ticket)) {
+    fields.push(`ticket: ${JSON.stringify(args.ticket)}`);
+  }
+  if (action === "cancel" && args.force === true) fields.push("force: true");
+  if (action === "answer") {
+    for (const key of ["taskId", "questionId", "answer"] as const) {
+      if (typeof args[key] === "string" && !isBlank(args[key])) {
+        fields.push(`${key}: ${key === "answer" ? '"..."' : JSON.stringify(args[key])}`);
+      }
+    }
+  }
+  if (action === "steer") {
+    for (const key of ["taskId", "message"] as const) {
+      if (typeof args[key] === "string" && !isBlank(args[key])) {
+        fields.push(`${key}: ${key === "message" ? '"..."' : JSON.stringify(args[key])}`);
+      }
+    }
+  }
+  if (action === "interrupt" && typeof args.taskId === "string" && !isBlank(args.taskId)) {
+    fields.push(`taskId: ${JSON.stringify(args.taskId)}`);
+  }
+  return `delegate_ticket({ ${fields.join(", ")} })`;
+}
+
+/** A `delegate_session` example call built from the fields the caller sent. */
+function delegateSessionExample(args: Record<string, unknown>): string {
+  const action =
+    typeof args.sessionAction === "string" &&
+    SESSION_ACTIONS.includes(args.sessionAction)
+      ? args.sessionAction
+      : typeof args.action === "string" && SESSION_ACTIONS.includes(args.action)
+        ? args.action
+        : args.sessionId !== undefined
+          ? "close"
+          : "list";
+  const fields = [`action: ${JSON.stringify(action)}`];
+  if (typeof args.sessionId === "string" && !isBlank(args.sessionId)) {
+    fields.push(`sessionId: ${JSON.stringify(args.sessionId)}`);
+  }
+  return `delegate_session({ ${fields.join(", ")} })`;
+}
+
+/** Corrective examples never copy task bodies into failure diagnostics. */
+function delegateDispatchExample(_args: Record<string, unknown>): string {
+  return 'delegate({ tasks: [{ prompt: "..." }] })';
+}
+
+/**
+ * The rest of a mixed call, named so the corrected example does not silently
+ * drop it: foreign-field guidance shows one half, but the call fails as a
+ * whole — nothing in it ran.
+ */
+function unrunFieldsNote(
+  args: Record<string, unknown>,
+  routed: readonly string[],
+): string {
+  const rest = Object.keys(args).filter((key) => !routed.includes(key));
+  return rest.length === 0
+    ? ""
+    : ` The rest of this call did not run — resend ${rest
+        .map((key) => `'${key}'`)
+        .join(", ")} separately.`;
+}
+
+/** Context is removed at both levels; parent history never enters a child. */
+function rejectObsoleteContext(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "context")) {
+    throw new Error(
+      'The context field has been removed. Omit context and provide a self-contained prompt; use the top-level "brief" for shared batch context. ' +
+        'parent conversation history is never shared. Child-owned session history remains supported (sessionId/resumeFrom).',
+    );
+  }
+}
+
+/** Removed compatibility fields reject on presence, before null/blank recovery. */
+function rejectFieldAliases(record: Record<string, unknown>, task: boolean): void {
+  const replacements: Readonly<Record<string, string>> = {
+    subagent_type: "agent", agent_type: "agent", task_name: "id",
+    run_in_background: "async", timeout_ms: "timeoutMs",
+    ...(task ? { message: "prompt" } : {}),
+  };
+  for (const [field, replacement] of Object.entries(replacements)) {
+    if (Object.hasOwn(record, field)) {
+      throw new Error(`The ${field} field has been removed; use "${replacement}" instead.`);
+    }
+  }
+}
+
+/**
+ * Context-sharing spellings trained callers reach for (#56: codex's
+ * `fork_turns`/`fork_context`, plus the `history`/`parent_context`
+ * cousins). None is an accepted field — each rejects with the same
+ * teaching shape as the removed `context`: name the field, restate the
+ * invariant (subagents never inherit this conversation), and point at
+ * the batch `brief` as the shared-context mechanism. Presence rejects
+ * even when the value is null — before null stripping, like `context`.
+ */
+const FOREIGN_CONTEXT_FIELDS = [
+  "fork_turns",
+  "fork_context",
+  "history",
+  "parent_context",
+] as const;
+
+function rejectForeignContextFields(record: Record<string, unknown>): void {
+  for (const field of FOREIGN_CONTEXT_FIELDS) {
+    if (Object.hasOwn(record, field)) {
+      throw new Error(
+        `The ${field} field is not accepted — subagents never inherit this conversation. ` +
+          `For shared context, put it in the batch brief (the top-level "brief" field) so every task starts with it.`,
+      );
+    }
+  }
+}
+
+/** Removed task deadlines reject by presence, before null stripping or flat recovery. */
+/** #130: task-level toolsets are gone; presence rejects with teaching. */
+function rejectTaskTools(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "tools")) {
+    throw new Error(
+      "The task tools field has been removed — toolsets belong to agents. " +
+        "Pick the agent whose tools fit (explore is read-only; reviewer/verifier add bash), or author a Markdown profile with a tools line; remove the field.",
+    );
+  }
+}
+
+/** #130: task-level base prompts are gone; presence rejects with teaching. */
+function rejectTaskSystemPrompt(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "systemPrompt") || Object.hasOwn(record, "system_prompt")) {
+    throw new Error(
+      "The task systemPrompt field has been removed — base prompts belong to profiles. " +
+        "Author a Markdown agent (its body is the system prompt) or dispatch bare; remove the field.",
+    );
+  }
+}
+
+/** #130: the display label is gone; presence rejects with teaching. */
+function rejectTaskDescription(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "description")) {
+    throw new Error(
+      "The task description field has been removed — labels are derived. " +
+        "Call rows and result headers show the task id (or agent when no id is set); remove the field and rely on id.",
+    );
+  }
+}
+
+function rejectTaskDeadline(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "deadlineMs")) {
+    throw new Error(
+      "The deadlineMs field has been removed — tasks have no wall-clock deadline. " +
+        "Remove it; use delegate_ticket cancel or interrupt to stop work. Wait timeouts detach only the waiter.",
+    );
+  }
+}
+
+/** #129: the caller-controlled budget is gone; presence rejects with teaching. */
+function rejectTokenBudget(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "tokenBudget")) {
+    throw new Error(
+      "The tokenBudget field has been removed — batch budgets are not caller-set. " +
+        "Remove it; per-batch spend is bounded by task count and the concurrency config.",
+    );
+  }
+}
+
+/** #130: the caller steer key is gone; presence rejects with teaching. */
+function rejectSteerId(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "steerId") || Object.hasOwn(record, "steer_id")) {
+    throw new Error(
+      "The steerId field has been removed — steers dedupe automatically. " +
+        "Every steer receipts under a key derived from its own call, so a replayed call replays its receipt instead of injecting twice; remove the field.",
+    );
+  }
+}
+
+/** #130: dispatch dedup keys are gone; presence rejects with teaching. */
+function rejectOperationId(record: Record<string, unknown>): void {
+  if (Object.hasOwn(record, "operationId")) {
+    throw new Error(
+      "The operationId field has been removed — dispatches are not caller-deduplicated. " +
+        "Remove it; identical requests execute independently by design, and steers dedupe automatically from their derived id.",
+    );
+  }
+}
+
+function normalizeTask(value: unknown, index: number): unknown {
+  if (!isRecord(value)) return value;
+  const task = { ...value };
+  // Removed fields reject even when null — before null stripping.
+  rejectTaskDeadline(task);
+  rejectTaskDescription(task);
+  rejectTaskTools(task);
+  rejectTaskSystemPrompt(task);
+  rejectObsoleteContext(task);
+  rejectFieldAliases(task, true);
+  // Same for the foreign context-sharing spellings (#56).
+  rejectForeignContextFields(task);
+  stripNulls(task);
+  if (task.model !== undefined) {
+    throw new Error(`tasks[${index}]: ${MODEL_FIELD_REJECTION}`);
+  }
+  if (task.thinking !== undefined) {
+    throw new Error(`tasks[${index}]: ${THINKING_FIELD_REJECTION}`);
+  }
+  if (task.reasoning_effort !== undefined) {
+    throw new Error(`tasks[${index}]: ${REASONING_EFFORT_FIELD_REJECTION}`);
+  }
+  stripBlank(task, ["sessionId", "cwd", "resumeFrom", "agent"]);
+  return task;
+}
+
+/**
+ * Reject ambiguous shapes the host would silently coerce.
+ *
+ * pi-ai validates tool arguments with typebox 1.x `Value.Convert`, which
+ * unconditionally coerces strings on schemas it recognizes — "true"→true,
+ * "123"→123, "read, write"→["read, write"]. This schema is built with the
+ * same `typebox` package, so it is always recognized: without this pass the
+ * host would silently repair shapes SPEC.md does not authorize (its repair
+ * list is exactly: stringified task arrays, flat task fields, JSON-array or
+ * bare-token `tools` strings, and empty agent names). `prepareArguments` is
+ * the only hook that runs before that coercion, so the boundary lives here;
+ * a throw surfaces to the caller as a normal whole-call tool error.
+ */
+function rejectAmbiguousShapes(args: Record<string, unknown>): void {
+  if (typeof args.async === "string") {
+    throw new Error(
+      "'async' must be a boolean, not a string.",
+    );
+  }
+  if (!Array.isArray(args.tasks)) return;
+}
+
+/**
+ * `delegate` argument normalization, before schema validation: nulls mean
+ * "not given", blanks mean "not given" for optional identifiers, fields
+ * owned by the sibling tools reject with migration guidance (selector
+ * fields first), then the authorized repairs — stringified tasks, flat
+ * task fields, string tools, blank agent — run. An absent `tasks` becomes
+ * `[]`, so `{}` still returns the manual.
+ */
+function prepareDispatchArguments(value: unknown): DelegateArguments {
+  if (!isRecord(value)) return value as DelegateArguments;
+
+  const args = { ...value };
+  rejectTaskDeadline(args);
+  rejectTokenBudget(args);
+  rejectOperationId(args);
+  rejectSteerId(args);
+  rejectObsoleteContext(args);
+  rejectFieldAliases(args, false);
+  if (Object.hasOwn(args, "message")) {
+    throw new Error('The message field is not a dispatch field; use "prompt" for a task, or delegate_ticket({ action: "steer", ticket: "...", message: "..." }) to steer existing work.');
+  }
+  // Foreign context-sharing spellings reject at the top level too (#56)
+  // — before null stripping, so a `null` presence still teaches.
+  rejectForeignContextFields(args);
+  stripNulls(args);
+  stripBlank(args, ["sessionId", "cwd", "resumeFrom", "agent"]);
+
+  // Fields the pre-split tool owned: guidance with an example to the right
+  // tool beats a bare additionalProperties failure.
+  if (
+    args.ticketAction !== undefined ||
+    args.ticket !== undefined ||
+    args.tickets !== undefined ||
+    args.force !== undefined ||
+    args.taskId !== undefined ||
+    args.questionId !== undefined ||
+    args.answer !== undefined ||
+    args.message !== undefined
+  ) {
+    throw new Error(
+      `Ticket operations moved to delegate_ticket: ${delegateTicketExample(args)}.` +
+        unrunFieldsNote(args, [
+          "ticketAction",
+          "ticket",
+                  "force",
+          "taskId",
+          "questionId",
+          "answer",
+          "message",
+        ]),
+    );
+  }
+  if (args.sessionAction !== undefined) {
+    throw new Error(
+      `Session operations moved to delegate_session: ${delegateSessionExample(args)}.` +
+        unrunFieldsNote(args, ["sessionAction"]),
+    );
+  }
+  if (args.timeoutMs !== undefined) {
+    throw new Error(
+      `A delegate run waits for every task and cannot be bounded with timeoutMs. ` +
+        `Dispatch with async: true and wait on its ticket — delegate_ticket({ action: "wait", ticket: "<ticket>" }) ` +
+        `parks until settlement or a new question/interruption.`,
+    );
+  }
+  if (args.action !== undefined) {
+    throw new Error(
+      `delegate takes no "action" field. Ticket operations use delegate_ticket({ action: "poll", ... }); ` +
+        `session operations use delegate_session({ action: "list" }).` +
+        unrunFieldsNote(args, ["action"]),
+    );
+  }
+  // `model` and `thinking` are invalid wherever a caller puts them — inside
+  // a task, folded into one, or stranded at the top level beside an explicit
+  // tasks array. Reject them like `context`, before the fold can absorb
+  // them.
+  if (args.model !== undefined) {
+    throw new Error(MODEL_FIELD_REJECTION);
+  }
+  if (args.thinking !== undefined) {
+    throw new Error(THINKING_FIELD_REJECTION);
+  }
+  if (args.reasoning_effort !== undefined) {
+    throw new Error(REASONING_EFFORT_FIELD_REJECTION);
+  }
+  if (typeof args.tasks === "string") {
+    const parsed = parseArray(args.tasks);
+    if (parsed) args.tasks = parsed;
+  }
+  if (args.tasks !== undefined && !Array.isArray(args.tasks)) {
+    if (isRecord(args.tasks)) {
+      rejectTaskDeadline(args.tasks);
+      rejectObsoleteContext(args.tasks);
+      rejectFieldAliases(args.tasks, true);
+      rejectForeignContextFields(args.tasks);
+    }
+    throw new Error("Validation failed: 'tasks' must be an array of task objects (or a JSON-encoded array); malformed tasks cannot be discarded by flat-field recovery.");
+  }
+
+  const hasTasks = Array.isArray(args.tasks) && args.tasks.length > 0;
+  if (!hasTasks) {
+    const task: Record<string, unknown> = {};
+    for (const field of taskFieldNames) {
+      if (args[field] !== undefined) {
+        task[field] = args[field];
+        delete args[field];
+      }
+    }
+    if (Object.keys(task).length > 0) args.tasks = [task];
+  } else {
+    // Flat fields cannot merge into an explicit batch (SPEC: folding only
+    // applies without a task array) — a stray task field beside one is a
+    // caller mistake, so name it rather than surfacing a bare
+    // additionalProperties error. workspace is also a legal batch field.
+    const stray = taskFieldNames.filter(
+      (field) =>
+        field !== "workspace" &&
+        args[field] !== undefined,
+    );
+    if (stray.length > 0) {
+      throw new Error(
+        `cannot mix top-level task field(s) ${stray
+          .map((field) => `'${field}'`)
+          .join(", ")} with an explicit tasks array; move them into a task entry or remove tasks.`,
+      );
+    }
+  }
+  if (args.tasks === undefined) args.tasks = [];
+
+  if (Array.isArray(args.tasks)) {
+    args.tasks = args.tasks.map(normalizeTask);
+  }
+
+  rejectAmbiguousShapes(args);
+
+  return args as DelegateArguments;
+}
+
+/**
+ * `delegate_ticket` normalization: nulls and blanks as above, then
+ * pre-split field names and dispatch/session fields get guidance to the
+ * right tool, then the string-coercion guards.
+ */
+function prepareTicketArguments(value: unknown): TicketToolArguments {
+  if (!isRecord(value)) return value as TicketToolArguments;
+
+  const args = { ...value };
+  rejectTaskDeadline(args);
+  rejectObsoleteContext(args);
+  rejectFieldAliases(args, false);
+  // #130 verdict: pause/resume are dashboard-only now — the model-facing
+  // actions reject with teaching toward wait/cancel.
+  if (args.action === "pause" || args.action === "resume") {
+    throw new Error(
+      'The "' + String(args.action) + '" action has been removed from delegate_ticket — it is operator-dashboard-only (/subagents). ' +
+        'Blocked on this work? action "wait" parks until settlement; action "cancel" stops it.',
+    );
+  }
+  // #130 verdict 7: the wait bound and the watch list are gone — waits
+  // park until the ticket settles, a new worker question, or an
+  // interruption; delivery wakes the parent on settlement anyway.
+  if (Object.hasOwn(args, "timeoutMs")) {
+    throw new Error(
+      'The timeoutMs field has been removed — waits are unbounded. ' +
+        'action "wait" parks until the ticket settles; delivered results arrive on their own, so polling is enough if you would rather move on.',
+    );
+  }
+  if (Object.hasOwn(args, "tickets")) {
+    throw new Error(
+      'The tickets field has been removed — wait takes a single ticket id. ' +
+        'Watching several? Wait on each in turn, or poll for the roster: delegate_ticket({ action: "poll" }).',
+    );
+  }
+  rejectSteerId(args);
+  // Enumerate-or-inherit: an unknown action names the resolvable set
+  // (#130 removed tail; the schema enum alone says only "not allowed").
+  // Session actions are exempt — the routing branch below points them at
+  // delegate_session instead of rejecting them as unknown.
+  if (
+    typeof args.action === "string" &&
+    args.action !== "" &&
+    !TICKET_ACTIONS.includes(args.action) &&
+    !SESSION_ACTIONS.includes(args.action)
+  ) {
+    throw new Error(
+      `Unknown delegate_ticket action "${args.action}". Available actions: ${TICKET_ACTIONS.join(", ")}.`,
+    );
+  }
+  stripNulls(args);
+  // Blank `answer`/`message` survive: only validation may tell a
+  // present-but-empty reply or steer from a missing one — a non-owning
+  // action must still reject them.
+  stripBlank(args, ["ticket", "taskId", "questionId"]);
+
+  if (args.ticketAction !== undefined) {
+    throw new Error(
+      `The ticket action field is "action", not "ticketAction": ${delegateTicketExample(args)}.` +
+        unrunFieldsNote(args, ["ticketAction"]),
+    );
+  }
+  if (args.sessionAction !== undefined || args.sessionId !== undefined) {
+    throw new Error(
+      `Session operations live on delegate_session, not delegate_ticket: ${delegateSessionExample(args)}.` +
+        unrunFieldsNote(args, ["sessionAction", "sessionId"]),
+    );
+  }
+  for (const key of dispatchFieldNames) {
+    if (args[key] !== undefined) {
+      throw new Error(
+        `'${key}' is a delegate dispatch field; task dispatch lives on delegate, not delegate_ticket: ${delegateDispatchExample(args)}.` +
+          unrunFieldsNote(args, dispatchFieldNames),
+      );
+    }
+  }
+  // A correct-shaped call aimed at the wrong tool routes there instead of
+  // hitting a bare enum error on `action`.
+  if (
+    typeof args.action === "string" &&
+    SESSION_ACTIONS.includes(args.action)
+  ) {
+    throw new Error(
+      `"${args.action}" is a delegate_session action, not a delegate_ticket one: ${delegateSessionExample(args)}.` +
+        unrunFieldsNote(args, ["action"]),
+    );
+  }
+  if (args.model !== undefined) {
+    throw new Error(MODEL_FIELD_REJECTION);
+  }
+  if (args.thinking !== undefined) {
+    throw new Error(THINKING_FIELD_REJECTION);
+  }
+  if (args.reasoning_effort !== undefined) {
+    throw new Error(REASONING_EFFORT_FIELD_REJECTION);
+  }
+  if (typeof args.force === "string") {
+    throw new Error(
+      "'force' must be a boolean, not a string.",
+    );
+  }
+  if (typeof args.timeoutMs === "string") {
+    throw new Error(
+      "'timeoutMs' must be a number, not a string.",
+    );
+  }
+
+  return args as TicketToolArguments;
+}
+
+/**
+ * `delegate_session` normalization: nulls and blanks as above, then
+ * pre-split field names and dispatch/ticket fields get guidance to the
+ * right tool.
+ */
+function prepareSessionArguments(value: unknown): SessionToolArguments {
+  if (!isRecord(value)) return value as SessionToolArguments;
+
+  const args = { ...value };
+  rejectTaskDeadline(args);
+  rejectObsoleteContext(args);
+  rejectFieldAliases(args, false);
+  stripNulls(args);
+  stripBlank(args, ["sessionId"]);
+
+  if (args.sessionAction !== undefined) {
+    throw new Error(
+      `The session action field is "action", not "sessionAction": ${delegateSessionExample(args)}.` +
+        unrunFieldsNote(args, ["sessionAction"]),
+    );
+  }
+  for (const key of ticketFieldNames) {
+    if (args[key] !== undefined) {
+      throw new Error(
+        `Ticket operations live on delegate_ticket, not delegate_session: ${delegateTicketExample(args)}.` +
+          unrunFieldsNote(args, ticketFieldNames),
+      );
+    }
+  }
+  for (const key of dispatchFieldNames) {
+    if (args[key] !== undefined) {
+      throw new Error(
+        `'${key}' is a delegate dispatch field; task dispatch lives on delegate, not delegate_session: ${delegateDispatchExample(args)}.` +
+          unrunFieldsNote(args, dispatchFieldNames),
+      );
+    }
+  }
+  // A correct-shaped call aimed at the wrong tool routes there instead of
+  // hitting a bare enum error on `action`.
+  if (
+    typeof args.action === "string" &&
+    TICKET_ACTIONS.includes(args.action)
+  ) {
+    throw new Error(
+      `"${args.action}" is a delegate_ticket action, not a delegate_session one: ${delegateTicketExample(args)}.` +
+        unrunFieldsNote(args, ["action"]),
+    );
+  }
+  if (args.model !== undefined) {
+    throw new Error(MODEL_FIELD_REJECTION);
+  }
+  if (args.thinking !== undefined) {
+    throw new Error(THINKING_FIELD_REJECTION);
+  }
+  if (args.reasoning_effort !== undefined) {
+    throw new Error(REASONING_EFFORT_FIELD_REJECTION);
+  }
+
+  return args as SessionToolArguments;
+}
+
+// The manual is single-edition (ADR 0002): one surface, one schema —
+// the manual documents exactly the controls the schema accepts.
+
+const HELP_INTERFACES = `## Interfaces
+- One tool surface: every field this manual names is always advertised
+  and always accepted. The former compact/full split and its
+  delegate.json "surface" key are removed — a supplied key rejects
+  with that teaching.
+- Named Markdown profiles provide reusable tools and base instructions.
+  Use the profile instead of repeating those settings in ordinary calls.
+- Removed cross-harness aliases are not accepted. Use canonical fields and
+  exact built-in or authored profile names.`;
+
+const HELP_DISPATCH = `## delegate — ordinary dispatch
+- \`tasks\` is required: [] shows this manual; a nonempty array runs work.
+  Every task count defaults to background execution, returning a ticket;
+  results arrive on their own at your next step — wait only when blocked
+  on one. Pass \`async: false\` to return results inline in input order.
+- Ordinary task fields: \`prompt\`, \`agent\` (default/explore/coder/reviewer/verifier
+  or an exact custom profile name; omit for inline), \`cwd\`, \`workspace\`.
+- Top-level \`workspace\` is the batch default. \`brief\` prepends shared context
+  to each prompt inside a delimited batch preamble; results note it once.
+- Every \`prompt\` and the \`brief\` accept at most 32,768 characters (#121):
+  reference files by path instead of inlining contents — subagents read the
+  working tree themselves — or the call rejects before any task starts.
+- When to delegate: side work that would flood your context. Do one-file
+  checks and small edits yourself. Only each task's final message returns,
+  so ask for the answer shape you need. Run reads in parallel; put
+  dependent edits in one shared-workspace call ordered with dependsOn
+  (same-phase same-root writers reject) and use \`isolated\` for
+  independent edits.`;
+
+const HELP_FULL_CONTROLS = `## delegate — task and batch controls
+- Task \`id\` correlates results and labels call rows and headers.
+- \`sessionId\` reuses a child session; \`resumeFrom\` resumes an absolute .jsonl
+  transcript. Only resumed tasks may omit prompt.
+- \`dependsOn\` names same-batch task ids. All prerequisites must succeed
+  and stop safely before a dependent starts. Their bounded outputs are handed
+  off and their applied changes are visible. Failure blocks dependents,
+  not unrelated tasks.`;
+
+// The manual documents exactly the controls the single schema accepts
+// (ADR 0002); the session-field exclusions are engine facts, not
+// surface-conditional text.
+function helpSharedRules(): string {
+  return `## Models, profiles, and context
+- Models and effort: you never pick either — task \`model\`, \`thinking\`,
+  and \`reasoning_effort\` fields are rejected. Tasks run on the parent's
+  model at the parent's effort; a named agent may instead run on the model
+  (and optional \`:effort\`) the user configured for it under "models"/"modelsByParent" in
+  the user-global delegate.json, or the \`model\`/\`thinking\` frontmatter
+  of its Markdown profile.
+- Profiles: the five built-ins plus user-defined Markdown agents —
+  \`.pi/agents/*.md\` in the nearest project ancestor, then \`agents/*.md\`
+  under the user-global agent directory. A profile needs \`name\` and
+  \`description\`; \`tools\`, \`thinking\`, and \`model\` are optional
+  frontmatter, the body is its system prompt. A discovered profile
+  resolves by its exact name; authored names receive no automatic translations.
+- Subagents never nest: \`delegate\`, \`delegate_ticket\`, and
+  \`delegate_session\` are removed from every child toolset — profile
+  frontmatter \`tools\` and the mirrored parent set alike.
+- Children never inherit parent conversation history. Supply a self-contained
+  brief; project instructions still apply, as does the child's own pooled/resumed session history.`;
+}
+
+function helpWorkspaces(): string {
+  return `## Workspaces
+- \`shared\` (default): the task edits the caller's tree directly. Writers
+  whose scope overlaps in one call must be ordered with \`dependsOn\` —
+  same-phase unordered overlap rejects before execution listing the remedies
+  (order with \`dependsOn\`, use \`isolated\`, or split into separate
+  calls). Ordered writers run one at a time, in task order — each
+  sees its predecessor's changes. Use it for dependent edits.
+- \`isolated\`: each task works in a detached Git worktree; successful
+  changes merge into the source in task order. Independent edits to the
+  same repository run in parallel — much faster than shared for
+  independent work. Ignored files (e.g. \`node_modules\`) are copied
+  into each worktree, reflink/Copy-on-Write when the filesystem
+  supports it. Cannot use \`sessionId\` or \`resumeFrom\`.
+- \`scratch\`: one task, one disposable copy of the tree (reflinked when
+  the filesystem supports it); every change is discarded. Use it for
+  tasks that may write or run commands but whose output is the answer,
+  not the edits. A read-only task cannot use it — it needs no copy.
+  Cannot use \`sessionId\` or \`resumeFrom\`.
+  During copying, the actual source root rejects overlapping active or
+  quarantined shared/isolated writers, and new writers reject until copying
+  settles. Scratch readers may copy concurrently; worker execution may overlap
+  writers after the copy. Same-call phase copies finish before phase workers start.
+- In \`isolated\` and \`scratch\`, write/edit calls into the original tree
+  are refused — edit the same path inside the worker's copy — but shell
+  commands are not confined; drift a worker's shell caused in the original
+  is reported on its outcome.`;
+}
+
+const HELP_TICKET_SHARED = `- Canonical task addresses: anywhere \`taskId\` is taken it accepts the
+  compound \`"<ticket>#<task>"\` — e.g. \`"t-1a2b#task-1"\` — and the
+  separate \`ticket\` field is then optional (the address carries it).
+  Wakes, receipts, and task sections render tasks this way so the parent
+  can copy the address verbatim.
+- Restart recovery: saved tickets stay pollable across host restarts, and
+  a \`running\` record is interrupted at startup only when its owning
+  process is provably gone (different boot, or a dead pid) — \`owning
+  session ended before settlement\`. A sibling session's live ticket is
+  left alone, and recovery never restarts work.
+- The bare poll roster and unknown-ticket hints list only this session's
+  tickets; a settled ticket from another session stays readable by id.`;
+
+const HELP_TICKETS = `## delegate_ticket — tickets
+
+- \`{ action: "poll" }\` — this session's ticket roster, or one ticket's
+  status with \`ticket\`. Never blocks.
+- \`{ action: "wait", ticket }\` — block until the ticket settles; a new
+  worker question or a task interruption also ends the wait.
+- \`{ action: "cancel", ticket }\` — previews without \`force\`; with
+  \`force: true\` the ticket is cancelled now and in-flight tasks are asked
+  to stop (cooperative; no rollback).
+- \`{ action: "answer", ticket, taskId, questionId, answer }\` — answer a
+  worker's pending \`ask_parent\` question (all four fields required).
+  Poll to see outstanding questions. Only async workers can ask.
+- \`{ action: "steer", ticket, taskId, message }\` — send a
+  message into a running task: \`taskId\` defaults to the only still-
+  running task. Retries are safe by construction — the key is derived
+  from this call's id, so a replayed call replays its receipt instead
+  of injecting twice. The receipt says what happened: \`steered\` (merged at
+  the child's next turn boundary), \`activated\` (queued, opens the next
+  turn), \`duplicate\`, or \`not-applied\` (settled/unknown target).
+- \`{ action: "interrupt", ticket, taskId? }\` — abort one task's
+  in-flight turn, cooperatively. The task settles \`interrupted\` —
+  partial output kept, the worker resumable (a pooled session returns
+  reusable; a fresh task keeps its transcript + resume hint). Distinct
+  from \`cancel\`, which tears the whole ticket down. \`taskId\`
+  defaults to the only still-running task; interrupting a settled,
+  already-interrupted, or not-yet-running task receipts \`not-applied\`.
+- A recovered \`interrupted\` task (restart recovery) names its durable
+  transcript in the settled view — \`session:\` line plus a retry recipe.
+  Re-dispatch with \`resumeFrom\` when a continuation is deliberately
+  wanted; recovery itself never resumes work.
+${HELP_TICKET_SHARED}`;
+
+const HELP_SESSIONS = `## delegate_session — sessions
+- A task with \`sessionId\` keeps its session live after it finishes; a later
+  task with the same id continues that conversation. The session's cwd,
+  tools, thinking, model, and base prompt are frozen at first use —
+  incompatible reuse is rejected.
+- \`{ action: "list" }\` lists live sessions; \`{ action: "close", sessionId }\`
+  closes one.`;
+
+
+const HELP_TELEMETRY = `## Telemetry
+- Disabled by default; enable only via "telemetry" in delegate.json.
+- Local content-free metadata only: batch and task outcome records in a
+  SQLite database at telemetry.dbPath, DELEGATE_TELEMETRY_DB, or
+  <agentDir>/delegate-usage.db. Failures never block work.`;
+
+function helpIntro(ticketActions: string): string {
+  return `# Delegate Manual
+
+Three sibling tools share Delegate's machinery:
+- \`delegate\` dispatches subagent tasks, synchronously or on an async ticket.
+- \`delegate_ticket\` operates on async tickets: ${ticketActions}.
+- \`delegate_session\` lists and closes pooled subagent sessions.`;
+}
+
+const help = `${helpIntro("poll, wait, cancel, answer, steer, interrupt")}
+
+${HELP_INTERFACES}
+
+${HELP_DISPATCH}
+
+${HELP_FULL_CONTROLS}
+
+${helpSharedRules()}
+
+${helpWorkspaces()}
+
+${HELP_TICKETS}
+
+${HELP_SESSIONS}
+
+${HELP_TELEMETRY}
+`;
+
+
+/**
+ * A manual trailer listing the user's discovered Markdown profiles, or ""
+ * when there are none. Re-discovered per help call so edits show up without
+ * a reload — silently: a broken profile file must not scold someone who
+ * only asked for help, and this discovery never consumes the session's
+ * warn-once budget (the first dispatch still reports the file).
+ */
+function customProfileSection(ctx: ExtensionContext): string {
+  let agentDir: string;
+  try {
+    agentDir = resolveAgentDir(ctx).dir;
+  } catch {
+    return "";
+  }
+  const catalog = discoverProfiles(ctx.cwd, agentDir, {
+    warn: () => {},
+  });
+  const custom = [...catalog.profiles.values()].filter(
+    (profile) => profile.source !== undefined,
+  );
+  if (custom.length === 0) return "";
+  // delegate.json pins (issue #51): a discovered profile the config pins
+  // names the resolved model/:effort here, so the manual shows the pin
+  // before dispatch resolves — or rejects — it. A broken delegate.json
+  // fails loudly at dispatch; the manual just loses the pin suffix.
+  let config: DelegateConfig | undefined;
+  try {
+    config = loadDelegateConfig(agentDir, catalog.globalNames);
+  } catch {
+    config = undefined;
+  }
+  const parentKey =
+    ctx.model === undefined
+      ? undefined
+      : `${ctx.model.provider}/${ctx.model.id}`.toLowerCase();
+  const lines = custom.map((profile) => {
+    const pin =
+      config === undefined
+        ? undefined
+        : configuredModelFor(profile.name, parentKey, config);
+    const suffix =
+      pin === undefined
+        ? ""
+        : ` · model \`${pin.ref}${pin.thinking !== undefined ? `:${pin.thinking}` : ""}\` (\`${pin.origin}\`)`;
+    return `- \`${profile.name}\` — ${profile.description ?? ""}${suffix}`;
+  });
+  return `\n## Your agent profiles\n${lines.join("\n")}\n`;
+}
+
+export default function delegateExtension(api: ExtensionAPI): void {
+  const diagnostics = new DiagnosticSink();
+  const diagnostic = diagnostics.log;
+  const captureDiagnosticContext = (ctx: ExtensionContext): void => {
+    diagnostics.setNotice(ctx.hasUI ? (text) => ctx.ui.notify(text, "warning") : undefined);
+  };
+  // A failed notice is retained by the sink, not sent back to the dead logger.
+  const managedTool = <Schema extends TSchema, Details, State>(
+    tool: ToolDefinition<Schema, Details, State>,
+  ): ToolDefinition<Schema, Details, State> => {
+    const execute = tool.execute;
+    return {
+      ...tool,
+      execute: async (...args: Parameters<typeof execute>) => {
+        captureDiagnosticContext(args[4]);
+        const result = await execute(...args);
+        const warning = diagnostics.takeWarning();
+        // A per-return annotation, never a mutation of cached operations or
+        // ticket outcomes. Recorded metadata is what human/replay views render.
+        return warning ? {
+          ...result,
+          content: [...result.content, { type: "text" as const, text: warning }],
+          details: { ...result.details, diagnosticWarning: warning },
+        } : result;
+      },
+    };
+  };
+
+  // Host-compat probes (issue #9): exercise the reaches into Pi internals
+  // that dispatch depends on — the private model-runtime handle and the
+  // agent-directory resolution — on the first event that carries a ctx, so
+  // a Pi upgrade that breaks either is visible in the log at session start
+  // instead of first failing inside a dispatch. Health probe only: a throw
+  // here would route through the host's extension-error channel for every
+  // session — including chatters who never dispatch — and the model wiring
+  // may not even be final this early, so a hard failure could cry wolf. The
+  // definitive check stays at dispatch, which fails with the same cause and
+  // the same actionable message as before the probe existed.
+  api.on("session_start", (_event, ctx) => {
+    captureDiagnosticContext(ctx);
+    const probe = (reach: string, run: () => void): void => {
+      try {
+        run();
+      } catch (error) {
+        diagnostic("error", "session-start probe failed", { reach }, error);
+      }
+    };
+    probe("parent model runtime", () => parentModelRuntime(ctx));
+    probe("agent directory resolution", () => resolveAgentDir(ctx));
+    // One surface (ADR 0002): there is no per-session surface selection —
+    // a stale "surface" key in delegate.json rejects at dispatch config
+    // load. Registration still logs a session marker: it correlates log
+    // files to sessions/reloads and gives routing tests a deterministic
+    // startup event (the former "surface selected" record's role).
+    registerTools();
+    diagnostic("info", "delegate tools registered", { count: 3 });
+  });
+
+  // TicketStore mutates first, visibility reads lazily — the observer arrow
+  // only runs on the first mutation, long after both exist. The activity
+  // store is created before tickets so running polls can read live
+  // per-task rows from the same sink the coordinator feeds.
+  const questionContexts = new Map<string, ExtensionContext>();
+  const activity = createActivityStore();
+  const tickets = new TicketStore(diagnostics, () => {
+    visibility.sync();
+    for (const id of questionContexts.keys()) {
+      if (tickets.get(id)?.status !== "running") questionContexts.delete(id);
+    }
+  }, (ticket, question) => {
+    const ctx = questionContexts.get(ticket.id);
+    if (ctx === undefined || shuttingDown) return;
+    const message = {
+      customType: "delegate-question",
+      content: `Worker "${ticket.id}#${question.taskId}" asks: ${question.question}\nAnswer with delegate_ticket({ action: "answer", taskId: "${ticket.id}#${question.taskId}", questionId: "${question.id}", answer: "..." }). Do not wait on this ticket while it needs your answer.`,
+      display: true,
+      details: ({
+        ticket: ticket.id,
+        taskId: question.taskId,
+        questionId: question.id,
+      } satisfies QuestionNoticeDetails),
+    };
+    try {
+      const sameLeaf =
+        navigationEpoch === ticket.originEpoch &&
+        (ticket.originLeafId === null ||
+          ctx.sessionManager.getBranch().some((entry) => entry.id === ticket.originLeafId));
+      // Same leaf: steer — on a busy parent the notice merges at the
+      // next turn boundary (after the in-flight tool calls, before the
+      // next model call); on an idle one it starts a turn.
+      if (sameLeaf) api.sendMessage(message, { deliverAs: "steer", triggerTurn: true });
+      else {
+        api.sendMessage(message, { triggerTurn: false });
+        ctx.ui.notify(`Worker "${ticket.id}#${question.taskId}" asks a question; poll and answer it with delegate_ticket on this branch.`, "info");
+      }
+    } catch (error) {
+      diagnostic("error", "notifying question failed (poll it with delegate_ticket)", { ticketId: ticket.id, questionId: question.id }, error);
+    }
+  }, activity,
+  // #57: pooled sessions are declared below; the lookup defers until a
+  // steer/interrupt receipt is built, so the binding is safe.
+  (sessionId) => sessions.transcriptFileOf(sessionId));
+  const visibility = new VisibilitySignals(diagnostics, () => tickets.list());
+  const admission = new AdmissionController(diagnostics);
+  const sessions = new SessionPool(diagnostics);
+  const coordinator = new DispatchCoordinator(diagnostics, tickets, activity);
+  const telemetry = new TelemetryStore(diagnostics);
+  let callSeq = 0;
+  // Owned by this closure: one fallback warning per extension instance, not
+  // per call (see resolveAgentDir for why the fallback exists at all).
+  let warnedAgentDirFallback = false;
+  // Owned by this closure: profile file paths already warned about this
+  // session — discovery re-reads the disk per dispatch, but a broken file
+  // warns once per chat, not once per run (see discoverProfiles).
+  const warnedProfilePaths = new Set<string>();
+  // Shutdown latch: once the host begins teardown, new dispatches reject and
+  // pending results are never delivered.
+  let shuttingDown = false;
+  // Bumped on every observed tree transition — including a vetoed or
+  // cancelled navigation attempt, which conservatively downgrades delivery.
+  let navigationEpoch = 0;
+
+  // Owned by this closure: the `delegate:usage` throttle stamp (#60).
+  // One emission per interval across task and batch settlement alike —
+  // inside a settlement cluster only the first event goes out, which is
+  // exactly what a refresh wake wants.
+  let lastUsageEventAt = Number.NEGATIVE_INFINITY;
+  const emitUsage = (payload: {
+    ticketId?: string;
+    taskId?: string;
+    provider: string;
+    model: string;
+    totalTokens: number;
+    inputTokens: number;
+    outputTokens: number;
+    costUsd?: number;
+  }): void => {
+    const now = Date.now();
+    if (now - lastUsageEventAt < USAGE_EVENT_MIN_INTERVAL_MS) return;
+    lastUsageEventAt = now;
+    try {
+      api.events.emit(USAGE_EVENT_NAME, payload);
+    } catch (error) {
+      // The event is a best-effort wake (#60): a stale ctx after session
+      // replacement or a bus-level fault must never unsettle a task.
+      diagnostic("error", "usage emit failed", {}, error);
+    }
+  };
+  /** One settled task's usage payload: the provider/model that burned it. */
+  const taskUsagePayload = (
+    task: ResolvedTask,
+    usage: Usage,
+    ids: { ticketId?: string; taskId?: string },
+  ): Parameters<typeof emitUsage>[0] => ({
+    ...ids,
+    provider: task.model.provider,
+    model: task.model.id,
+    totalTokens: usage.totalTokens,
+    inputTokens: usage.input,
+    outputTokens: usage.output,
+    costUsd: usage.cost.total,
+  });
+
+  /**
+   * SPEC v3 "Interaction grammar — Wake delivery": settled results
+   * inject as steering wakes, leaf-aware, and simultaneous settlements
+   * batch into one wake. `deliver` used to send one message per ticket
+   * the moment it settled — a fan-out produced one parent turn per
+   * ticket. Now settlement enqueues here; the first enqueue arms one
+   * flush timer (DELIVERY_FLUSH_MS), and the flush groups the queued
+   * tickets by routing decision and emits one DELIVERED_MESSAGE_TYPE
+   * message per group.
+   *
+   * Once-ness: `enqueuedDeliveries` makes enqueue idempotent for the
+   * extension's lifetime — settlement, not delivery, is the source of
+   * truth, and a settled ticket stays pollable regardless of what
+   * delivery did with it. Entries are never removed: a ticket must
+   * never enqueue twice, even across a flush boundary.
+   *
+   * Consumption: `consumedDeliveries` records the exact terminal view a
+   * wait/poll already returned to the model. The flush suppresses the
+   * wake per ticket only when the view it would send now is identical —
+   * a render taken while the ticket was still finalizing (the settled
+   * wait races the batch's own `finishBatch` by a few microtasks) still
+   * suppresses, while a record that gained content since the render
+   * (late outcomes, budget account, notices) still delivers. An
+   * unconsumed sibling in the same window delivers normally.
+   */
+  interface QueuedDelivery {
+    readonly ticket: Ticket;
+    /** The dispatch's own ctx — owner of the leaf check and UI notify. */
+    readonly ctx: ExtensionContext;
+  }
+  const deliveryQueue: QueuedDelivery[] = [];
+  const enqueuedDeliveries = new Set<string>();
+  const consumedDeliveries = new Map<
+    string,
+    { readonly by: "wait" | "poll"; readonly view: string }
+  >();
+  let deliveryFlushTimer: ReturnType<typeof setTimeout> | undefined;
+  /**
+   * The session's Git evidence-window registry (SPEC v3 "Observability —
+   * Completion evidence"; user decision 2026-10-02): every dispatch hands
+   * it to the coordinator, which opens one window per task before its
+   * first attempt. Shared across calls so concurrent windows on one
+   * repository root still see each other; parent mutations flag every
+   * open window via the tool-event hooks below.
+   */
+  const attributionWindows = new AttributionWindows(diagnostics);
+
+  /**
+   * "Same leaf" means same branch: the parent's own turn appends entries
+   * after dispatch, so the current leaf is a descendant of the origin
+   * leaf — the origin must still lie on the current branch (a null origin
+   * is the root, which every branch descends from). The epoch separately
+   * rules out any observed transition, cancelled or not. Both are read
+   * from the ticket, which latched them at dispatch (see execute's
+   * synchronous prefix). Computed per ticket at flush time, exactly as
+   * the old per-ticket deliver did at settle time.
+   */
+  const sameLeaf = ({ ticket, ctx }: QueuedDelivery): boolean =>
+    navigationEpoch === ticket.originEpoch &&
+    (ticket.originLeafId === null ||
+      ctx.sessionManager
+        .getBranch()
+        .some((entry) => entry.id === ticket.originLeafId));
+
+  /**
+   * The delivered message for one settlement group: content is the
+   * concatenation of the group's ticket views (each names its ticket and
+   * carries its own spill-bounded sections), details merge the per-ticket
+   * ids, the complete outcomes, and the notices. A single-ticket group
+   * keeps the historical `ticket`/`originLeafId` shape so the expanded
+   * renderer can serve the live `fullView`.
+   */
+  const deliveredMessage = (group: readonly QueuedDelivery[]) => {
+    const anyCancelled = group.some(
+      ({ ticket }) => ticket.status === "cancelled",
+    );
+    const details: DeliveredDetails =
+      group.length === 1
+        ? {
+            ticket: group[0]!.ticket.id,
+            originLeafId: group[0]!.ticket.originLeafId,
+            results: group[0]!.ticket.outcomes,
+          }
+        : {
+            tickets: group.map(({ ticket }) => ticket.id),
+            originLeafIds: group.map(({ ticket }) => ticket.originLeafId),
+            results: group.flatMap(({ ticket }) => ticket.outcomes),
+          };
+    const notices = group.flatMap(({ ticket }) => ticket.notices);
+    if (notices.length > 0) details.notices = notices;
+    // Verifier verdicts (#49) — {verdict, taskId} per outcome that parsed
+    // one, flattened across the delivered group.
+    const verdict = group.flatMap(({ ticket }) =>
+      ticket.outcomes.flatMap((outcome) =>
+        outcome?.verdict !== undefined
+          ? [{ verdict: outcome.verdict, taskId: outcome.id }]
+          : [],
+      ),
+    );
+    if (verdict.length > 0) details.verdict = verdict;
+    return {
+      customType: DELIVERED_MESSAGE_TYPE,
+      content:
+        group.map(({ ticket }) => tickets.view(ticket)).join("\n\n") +
+        (anyCancelled
+          ? "\nCancellation is cooperative; worker cleanup may still be pending."
+          : ""),
+      display: true,
+      details,
+    };
+  };
+
+  /**
+   * api.sendMessage is fire-and-forget on the stock ExtensionAPI (returns
+   * void): async send rejections surface through the host's
+   * extension-error channel, never here. Only synchronous throws — e.g.
+   * a torn-down runtime failing assertActive — reach the catch below.
+   * Either way, settlement stands and the results stay pollable.
+   */
+  const flushDeliveries = (): void => {
+    deliveryFlushTimer = undefined;
+    const batch = deliveryQueue.splice(0);
+    if (batch.length === 0) return;
+    if (shuttingDown) {
+      for (const { ticket } of batch) {
+        diagnostic("error", "delivery suppressed during shutdown (result remains pollable)", { ticketId: ticket.id });
+      }
+      return;
+    }
+    // A wait/poll that already showed this exact view makes the wake
+    // redundant — drop it per ticket and say so. A ticket whose record
+    // changed since that render still delivers: the wake carries
+    // content the caller never saw.
+    const pending = batch.filter(({ ticket }) => {
+      const consumed = consumedDeliveries.get(ticket.id);
+      if (consumed === undefined || tickets.view(ticket) !== consumed.view) {
+        return true;
+      }
+      diagnostic("info", "delivery skipped: result already returned", { ticketId: ticket.id, by: consumed.by });
+      return false;
+    });
+    const wake: QueuedDelivery[] = [];
+    const moved: QueuedDelivery[] = [];
+    for (const queued of pending) {
+      try {
+        (sameLeaf(queued) ? wake : moved).push(queued);
+      } catch {
+        // The leaf check reads guarded ctx accessors; a stale ctx means
+        // the owning session was replaced or disposed between settlement
+        // and flush — every replacement path that keeps the extension
+        // alive fires session_shutdown first, which drains this queue, so
+        // reaching here means the session is gone outright. Delivering a
+        // computed-wrong or dead message is worse than none: the settled
+        // result stays pollable (and journal-recoverable) either way.
+        diagnostic("error", "delivery skipped: dispatch context no longer active (result remains pollable)", { ticketId: queued.ticket.id });
+      }
+    }
+    if (wake.length === 0 && moved.length === 0) return;
+    const ids = (group: readonly QueuedDelivery[]) =>
+      group.map(({ ticket }) => `"${ticket.id}"`).join(", ");
+    // Delivery failure never undoes settlement: the tickets stay
+    // terminal and pollable. Each group's send is isolated so one
+    // failure neither skips nor misreports the other — and only the
+    // failed group's tickets are named (the stale-ctx branch's skips
+    // already logged their own line and own no working ctx).
+    const reportFailure = (
+      group: readonly QueuedDelivery[],
+      error: unknown,
+    ): void => {
+      diagnostic("error", "delivering tickets failed (results remain pollable)", {
+        ticketId: group.map(({ ticket }) => ticket.id).join(", "), count: group.length,
+      }, error);
+      try {
+        group[0]!.ctx.ui.notify(
+          `Delegate ticket(s) ${ids(group)} settled but their results could not be delivered; poll them for the results.`,
+          "error",
+        );
+      } catch {
+        // A stale ctx cannot show the notice; the log line stands.
+      }
+    };
+    if (wake.length > 0) {
+      try {
+        // Same leaf, no transition observed: a steering message merges
+        // at the busy parent's next turn boundary — after the in-flight
+        // assistant turn's tool calls, before the next model call — and
+        // starts a turn on an idle one. One wake per settlement group,
+        // not per ticket (SPEC "Wake delivery").
+        api.sendMessage(deliveredMessage(wake), {
+          deliverAs: "steer",
+          triggerTurn: true,
+        });
+      } catch (error) {
+        reportFailure(wake, error);
+      }
+    }
+    if (moved.length > 0) {
+      try {
+        // Leaf moved or a transition is in flight: append durably at the
+        // current leaf without triggering a turn — it enters model
+        // context on the next user turn.
+        api.sendMessage(deliveredMessage(moved), { triggerTurn: false });
+        try {
+          moved[0]!.ctx.ui.notify(
+            moved.length === 1
+              ? `Delegate ticket ${ids(moved)} settled on a different branch; its result was appended to the current branch for the next turn.`
+              : `Delegate tickets ${ids(moved)} settled on a different branch; their results were appended to the current branch for the next turn.`,
+            "info",
+          );
+        } catch {
+          // The UI may already be gone; the append itself landed.
+        }
+      } catch (error) {
+        reportFailure(moved, error);
+      }
+    }
+  };
+
+  /**
+   * Settlement → delivery edge: enqueue and arm the one flush timer.
+   * A shutdown already latched suppresses at enqueue (the queued-at-
+   * shutdown case is handled by the shutdown path draining the queue
+   * and by the flush's own re-check).
+   */
+  const enqueueDelivery = (ticket: Ticket, ctx: ExtensionContext): void => {
+    if (shuttingDown) {
+      diagnostic("error", "delivery suppressed during shutdown (result remains pollable)", { ticketId: ticket.id });
+      return;
+    }
+    if (enqueuedDeliveries.has(ticket.id)) return;
+    enqueuedDeliveries.add(ticket.id);
+    deliveryQueue.push({ ticket, ctx });
+    if (deliveryFlushTimer === undefined) {
+      deliveryFlushTimer = setTimeout(flushDeliveries, DELIVERY_FLUSH_MS);
+      // The flush must never hold a dying process open.
+      deliveryFlushTimer.unref?.();
+    }
+  };
+
+  // Owned by this closure: the parent's latest base system-prompt inputs,
+  // captured at each turn start. `before_agent_start` carries the normalized
+  // structured options, which separate the user-authored fields (custom
+  // prompt, appended text) from extension-contributed sections and tool
+  // docs — children inherit only the former (SPEC "Child base prompt").
+  let parentPromptOptions: NormalizedBuildSystemPromptOptions | undefined;
+  let warnedForcedPrompt = false;
+  const parentPrompt: ParentPromptService = {
+    inputs(): ParentPromptInputs | undefined {
+      if (parentPromptOptions === undefined) return undefined;
+      return {
+        customPrompt: parentPromptOptions.customPrompt,
+        appendSystemPrompt: parentPromptOptions.appendSystemPrompt,
+        forced: parentPromptOptions.forceSystemPrompt !== undefined,
+      };
+    },
+    warnForcedInheritanceSkip(): void {
+      if (warnedForcedPrompt) return;
+      warnedForcedPrompt = true;
+      diagnostic("warn", "The parent system prompt was force-replaced; subagents cannot inherit it safely and run on the stock base prompt instead");
+    },
+  };
+
+  // Owned by this closure: one "fully quiesced" barrier per live dispatch;
+  // shutdown holds until every one resolves (INVARIANTS "Ticket state").
+  // every one resolves (INVARIANTS "Ticket state"). The value is the
+  // human-facing name for the shutdown waiting status (COMPATIBILITY
+  // "Blocking shutdown" names the tickets): the ticket id for a background
+  // batch, the call number for a synchronous dispatch, and a "(preparing)"
+  // label in the window before either exists.
+  const liveQuiescence = new Map<Promise<void>, string>();
+
+  const trackQuiescence = (
+    label: string,
+  ): { barrier: Deferred; relabel: (label: string) => void } => {
+    const barrier = new Deferred();
+    liveQuiescence.set(barrier.promise, label);
+    void barrier.promise.then(() => {
+      liveQuiescence.delete(barrier.promise);
+    });
+    return {
+      barrier,
+      relabel: (next: string) => {
+        // A resolved barrier is already untracked; relabeling must not
+        // resurrect its entry.
+        if (liveQuiescence.has(barrier.promise)) {
+          liveQuiescence.set(barrier.promise, next);
+        }
+      },
+    };
+  };
+
+  /**
+   * Misfire telemetry (SPEC v3 "Observability"): one row per dispatch
+   * that ends before execution — validation rejections (including
+   * unknown exact agent names and pre-schema errors), config-load failures,
+   * and admission rejections. The row carries the verbatim
+   * caller-visible message and the requested batch shape (exact
+   * canonical agent names, effective workspaces, the resolved
+   * sync/async mode). Telemetry failures must never mask the rejection
+   * being recorded — a throw here would rewrite the caller-visible
+   * error, so this helper swallows nothing silently but reports and
+   * returns.
+   */
+  const noteMisfire = (
+    ctx: ExtensionContext,
+    agentDir: string,
+    config: TelemetryConfig,
+    phase: "config" | "validation" | "admission",
+    error: unknown,
+    tasks: readonly TaskInput[] | undefined,
+    batchWorkspace: "shared" | "scratch" | "isolated" | undefined,
+    async: boolean,
+  ): void => {
+    try {
+      telemetry.recordMisfire(config, agentDir, {
+        phase,
+        message: error instanceof Error ? error.message : String(error),
+        taskCount: tasks?.length ?? 0,
+        agents: (tasks ?? []).map((task) => task.agent ?? "inline"),
+        workspaces: (tasks ?? []).map(
+          (task) => task.workspace ?? batchWorkspace ?? "shared",
+        ),
+        async,
+        parentCwd: ctx.cwd,
+      });
+    } catch (recordError) {
+      diagnostic("error", "misfire telemetry failed (dispatch rejection stands)", {}, recordError);
+    }
+  };
+
+  // Pi skips tool_result for schema/preparation errors. Start/end events
+  // cover them; retain only sanitized batch metadata, never request bodies.
+  const preflightDispatches = new Map<string, {
+    tasks: readonly TaskInput[];
+    workspace: "shared" | "scratch" | "isolated" | undefined;
+    async: boolean;
+  }>();
+  api.on("tool_execution_start", (event, ctx) => {
+    captureDiagnosticContext(ctx);
+    // Parent mutating-tool events flag every open evidence window —
+    // content-free: the fact alone is recorded, never the arguments.
+    if (PARENT_MUTATING_TOOLS.has(event.toolName)) {
+      attributionWindows.noteParentMutation();
+    }
+    if (event.toolName !== "delegate") return;
+    const raw: unknown = event.args;
+    if (!isRecord(raw)) {
+      preflightDispatches.set(event.toolCallId, { tasks: [], workspace: undefined, async: true });
+      return;
+    }
+    const rawTasks = typeof raw.tasks === "string" ? parseArray(raw.tasks) : raw.tasks;
+    const entries: unknown[] = Array.isArray(rawTasks) ? rawTasks
+      : taskFieldNames.some((field) => Object.hasOwn(raw, field)) ? [raw] : [];
+    const tasks: TaskInput[] = entries.map((entry) => {
+      if (!isRecord(entry)) return {};
+      return {
+        ...(typeof entry.agent === "string" ? { agent: entry.agent } : {}),
+        ...(entry.workspace === "shared" || entry.workspace === "scratch" || entry.workspace === "isolated"
+          ? { workspace: entry.workspace } : {}),
+      };
+    });
+    const workspace = raw.workspace;
+    preflightDispatches.set(event.toolCallId, {
+      tasks,
+      workspace: workspace === "shared" || workspace === "scratch" || workspace === "isolated" ? workspace : undefined,
+      async: raw.async !== false,
+    });
+  });
+  api.on("tool_execution_end", (event, ctx) => {
+    // A parent mutation that started before a window opened still lands
+    // inside it — flag at completion too.
+    if (PARENT_MUTATING_TOOLS.has(event.toolName)) {
+      attributionWindows.noteParentMutation();
+    }
+    if (event.toolName !== "delegate") return;
+    const metadata = preflightDispatches.get(event.toolCallId);
+    preflightDispatches.delete(event.toolCallId);
+    if (!metadata || !event.isError) return;
+    try {
+      const agentDir = resolveAgentDir(ctx).dir;
+      const result: unknown = event.result;
+      const content = isRecord(result) && Array.isArray(result.content) ? result.content : [];
+      const message = content.flatMap((part: unknown) =>
+        isRecord(part) && part.type === "text" && typeof part.text === "string" ? [part.text] : [],
+      ).join("\n");
+      noteMisfire(ctx, agentDir, telemetryConfigHint(agentDir), "validation",
+        new Error(message), metadata.tasks, metadata.workspace, metadata.async);
+    } catch (error) {
+      diagnostic("error", "preflight misfire telemetry failed", {}, error);
+    }
+  });
+
+  /**
+   * The one dispatch pipeline, from barrier tracking to the coordinator
+   * handoff, for sync and async batches alike — the optional ticket is the
+   * only mode input, and the batch runs on `signal ?? the ticket's
+   * cancellation signal` (reached through the store). Mode-specific edges
+   * stay with the caller: ticket creation (via `createTicket`, invoked at
+   * the one seam between task validation and admission), origin capture,
+   * delivery arming, and response formatting all live outside.
+   *
+   * Barrier ownership (INVARIANTS "Ticket state"): the pipeline owns the
+   * barrier's resolve until the coordinator accepts the batch; the
+   * coordinator afterwards. The transfer is exhaustive by construction —
+   * there is no flag and no second resolution site. The `try` block below
+   * ends at the `coordinator.run(...)` invocation: `run` accepts the
+   * barrier synchronously before its first await (see DispatchCoordinator),
+   * and its rejections are composed into the returned completion instead
+   * of re-entering this function's catch. So the catch is provably
+   * pre-handoff: `barrier.resolve()` there is only ever reachable while
+   * the pipeline still owns the barrier, and after the handoff the
+   * coordinator resolves on every path it owns.
+   */
+  const runDispatchPipeline = async (options: {
+    readonly requestedTasks: readonly TaskInput[];
+    readonly ctx: ExtensionContext;
+    /** The sync caller's host signal; async batches run on the ticket's. */
+    readonly signal?: AbortSignal;
+    /** The shared batch brief (SPEC v3 "Batch brief"), if the call set one. */
+    readonly brief?: string;
+    readonly onNotices?: (notices: readonly string[]) => void;
+    /**
+     * Inline batches (#119): the dispatch key live activity rows track
+     * under, and a settle callback that fires the board refresh as each
+     * task's outcome lands.
+     */
+    readonly syncRunId?: string;
+    readonly onTaskSettled?: (task: ResolvedTask, outcome: TaskOutcome) => void;
+    /**
+     * Async mode's edge: creates the ticket once tasks are resolved, so
+     * the pipeline spends the rest of the batch under its cancellation
+     * signal; the pipeline relabels nothing for it.
+     */
+    readonly createTicket?: (
+      tasks: readonly ResolvedTask[],
+      relabel: (label: string) => void,
+      config: DelegateConfig,
+    ) => Ticket;
+  }): Promise<{
+    completion: Promise<DispatchOutcome>;
+    notices: readonly string[];
+    ticket: Ticket | undefined;
+    /** Resolved tasks, for settled-render spill labels on the sync path. */
+    tasks: readonly ResolvedTask[];
+    /** The loaded config's output bounds, for the sync result render. */
+    outputBounds: OutputBounds;
+  }> => {
+    const { requestedTasks, ctx, signal, onNotices, createTicket } = options;
+    // The barrier is tracked before anything between here and the handoff
+    // can throw or yield: task resolution probes Git for each writer or
+    // isolated task's write scope, admission grants reservations, and
+    // workspace preparation awaits subprocesses. A shutdown that starts
+    // while this dispatch sits anywhere in that range must already count
+    // it in the liveQuiescence snapshot, or the session boundary could
+    // complete before the dispatch starts workers or releases its
+    // reservations. (Only async preparation is abortable: sync batches run
+    // on the caller's host signal, which shutdown does not abort, so a
+    // parked sync dispatch rides out the hold and runs to completion under
+    // the barrier. Async batches run on the ticket's cancellation signal,
+    // which shutdown force-cancels — their preparation aborts on its own
+    // and the catch below settles the ticket as cancelled.)
+    const { barrier, relabel } = trackQuiescence(
+      createTicket !== undefined
+        ? "async dispatch (preparing)"
+        : "dispatch (preparing)",
+    );
+    let ticket: Ticket | undefined;
+    let plan: WorkspacePlan | undefined;
+    // Everything the failure routine below may still need once admission
+    // has run. Admission is synchronous and immediately follows ticket
+    // creation, so a ticket that exists at all always has its batch here:
+    // a ticket can only be cancelled while this pipeline is parked in an
+    // await, and there is none between creation and admission.
+    let batch:
+      | {
+          readonly tasks: readonly ResolvedTask[];
+          readonly env: HostEnvironment;
+          readonly config: DelegateConfig;
+          readonly grant: AdmissionGrant;
+          readonly dispatchSignal: AbortSignal | undefined;
+          readonly notices: readonly string[];
+        }
+      | undefined;
+    try {
+      // Async journal connect: async dispatch needs the saved journal and
+      // ticket creation must be durable before workers spawn, but the
+      // connect itself is synchronous filesystem setup — it runs here, in
+      // the pipeline, rather than in execute's synchronous prefix. A
+      // corrupt or inaccessible journal fails async dispatch visibly
+      // without blocking synchronous work (which never touches it).
+      if (createTicket !== undefined) {
+        tickets.connect(resolveAgentDir(ctx).dir);
+      }
+      const agentDirResolution = resolveAgentDir(ctx);
+      if (agentDirResolution.source === "cwd" && !warnedAgentDirFallback) {
+        warnedAgentDirFallback = true;
+        diagnostic("warn", "Falling back to agent directory; config and workspace trees use this path. Set DELEGATE_AGENT_DIR explicitly. Diagnostics destination is independent", { path: agentDirResolution.dir });
+      }
+      const env = hostEnvironment(
+        diagnostics,
+        ctx,
+        agentDirResolution.dir,
+        () => api.getActiveTools(),
+        parentPrompt,
+      );
+      const catalog = discoverProfiles(ctx.cwd, agentDirResolution.dir, {
+        warnedPaths: warnedProfilePaths,
+        diagnostics,
+      });
+      // Misfire phases (SPEC v3 "Observability"): config-load failures
+      // record under "config" (telemetry status salvaged from the raw
+      // file — the load itself just failed); task-resolution and
+      // pooled-session reuse rejections record under "validation";
+      // admission rejections record under "admission".
+      let config: DelegateConfig;
+      try {
+        config = loadDelegateConfig(
+          agentDirResolution.dir,
+          catalog.globalNames,
+        );
+      } catch (error) {
+        noteMisfire(
+          ctx, agentDirResolution.dir,
+          telemetryConfigHint(agentDirResolution.dir),
+          "config", error, requestedTasks, undefined,
+          createTicket !== undefined,
+        );
+        throw error;
+      }
+      let tasks: readonly ResolvedTask[];
+      try {
+        tasks = await resolveTasks(requestedTasks, env, config, catalog);
+      } catch (error) {
+        noteMisfire(
+          ctx, agentDirResolution.dir, config.telemetry,
+          "validation", error, requestedTasks, undefined,
+          createTicket !== undefined,
+        );
+        throw error;
+      }
+      // Shutdown may have begun while resolveTasks awaited a Git scope probe.
+      // Neither a pre-ticket async call nor a pre-admission sync call may
+      // start a worker after shutdown's snapshot of live work.
+      if (shuttingDown) {
+        throw new Error(
+          "Delegate shut down while this dispatch was preparing; no worker was started.",
+        );
+      }
+      try {
+        sessions.validateReuse(tasks);
+      } catch (error) {
+        noteMisfire(
+          ctx, agentDirResolution.dir, config.telemetry,
+          "validation", error, requestedTasks, undefined,
+          createTicket !== undefined,
+        );
+        throw error;
+      }
+      ticket = createTicket?.(tasks, relabel, config);
+      let owner = ticket?.id;
+      if (owner === undefined) {
+        callSeq += 1;
+        owner = `call-${callSeq}`;
+        relabel(owner);
+      }
+      const dispatchSignal = signal ??
+        (ticket ? tickets.cancellationSignal(ticket) : undefined);
+      let grant: AdmissionGrant;
+      try {
+        grant = admission.admit(tasks, owner, {
+          sessionFileOf: (sessionId) => sessions.transcriptFileOf(sessionId),
+          // Issue #51: a cross-call rejection names live capacity — the
+          // coordinator's in-flight count against this call's configured
+          // ceiling — beside the held claims it lists.
+          capacity: {
+            running: coordinator.runningCount(),
+            maxConcurrent: config.maxConcurrent,
+          },
+        });
+      } catch (error) {
+        noteMisfire(
+          ctx, agentDirResolution.dir, config.telemetry,
+          "admission", error, requestedTasks, undefined,
+          createTicket !== undefined,
+        );
+        throw error;
+      }
+      const notices = serializedNotices(tasks, grant.serialized);
+      if (ticket) tickets.setNotices(ticket, notices);
+      batch = { tasks, env, config, grant, dispatchSignal, notices };
+      onNotices?.(notices);
+      const telemetrySpan = telemetry.beginDispatch(
+        config.telemetry,
+        env.agentDir,
+        { async: ticket !== undefined, startedAt: Date.now(), tasks },
+      );
+      plan = await prepareWorkspaces(
+        diagnostics,
+        tasks,
+        grant,
+        env.agentDir,
+        dispatchSignal,
+        telemetrySpan.ownedPaths,
+      );
+      // The handoff. This invocation is the try block's last statement and
+      // the completion it yields is composed and returned, never awaited
+      // here — the ownership comment above spells out why that makes the
+      // catch below provably pre-handoff.
+      const completion = coordinator
+        .run(tasks, {
+          env,
+          config,
+          grant,
+          sessions,
+          signal: dispatchSignal,
+          ticket,
+          quiescence: barrier,
+          syncRunId: options.syncRunId,
+          attribution: attributionWindows,
+          attributionQuiescenceBoundMs: shutdownQuiescenceBudgetMs(),
+          preparePhase: (phase) => plan!.preparePhase(phase),
+          reconcilePhase: (phase, outcomes) =>
+            // The dispatch facts the batch actually holds: plans consume
+            // what applies to them (only isolated reconciliation reads
+            // this context).
+            plan!.reconcilePhase(phase, outcomes, {
+              signal: dispatchSignal,
+              shouldApplySource: () => !dispatchSignal?.aborted,
+              retainedReason: ticket
+                ? "The ticket was cancelled before source application."
+                : "The call was aborted before source application.",
+            }),
+          onWorkerQuiesced: (taskIndex) => plan!.cleanupWorker(taskIndex),
+          // #60: task settlement is the usage event's firing point — the
+          // settled outcome's recorded usage, tagged with its ticket and
+          // task. No usage (never ran, cancelled pre-prompt) → no event.
+          onTaskSettled: (task, outcome) => {
+            if (outcome.usage !== undefined) {
+              emitUsage(
+                taskUsagePayload(task, outcome.usage, {
+                  ticketId: ticket?.id,
+                  taskId: task.id,
+                }),
+              );
+            }
+            // #119: an inline batch's board refreshes as each outcome
+            // lands — display-only, so a throwing emitter is swallowed.
+            if (options.onTaskSettled !== undefined) {
+              try {
+                options.onTaskSettled(task, outcome);
+              } catch (error) {
+                diagnostic("error", "settle observer failed", { taskId: task.id }, error);
+              }
+            }
+          },
+          brief: options.brief,
+        })
+        .then((outcome) => {
+          telemetrySpan.finish(outcome, ticket?.status);
+          // #60: batch settlement also reports — one event per distinct
+          // provider/model pair with its summed settled usage (the
+          // per-instance throttle decides what actually goes out).
+          const byModel = new Map<
+            string,
+            {
+              provider: string;
+              model: string;
+              totalTokens: number;
+              inputTokens: number;
+              outputTokens: number;
+              costUsd: number;
+            }
+          >();
+          for (const settled of outcome.outcomes) {
+            if (settled?.usage === undefined) continue;
+            const task = tasks[settled.index];
+            if (task === undefined) continue;
+            const key = `${task.model.provider}/${task.model.id}`;
+            const aggregate = byModel.get(key) ?? {
+              provider: task.model.provider,
+              model: task.model.id,
+              totalTokens: 0,
+              inputTokens: 0,
+              outputTokens: 0,
+              costUsd: 0,
+            };
+            aggregate.totalTokens += settled.usage.totalTokens;
+            aggregate.inputTokens += settled.usage.input;
+            aggregate.outputTokens += settled.usage.output;
+            aggregate.costUsd += settled.usage.cost.total;
+            byModel.set(key, aggregate);
+          }
+          for (const aggregate of byModel.values()) {
+            emitUsage({ ticketId: ticket?.id, ...aggregate });
+          }
+          return outcome;
+        })
+        .finally(() => {
+          if (ticket) tickets.releaseSettlement(ticket);
+        });
+      return {
+        completion,
+        notices,
+        ticket,
+        tasks,
+        outputBounds: config.output,
+      };
+    } catch (error) {
+      // The one pre-handoff failure routine — the pipeline still owns the
+      // barrier here. A disposal failure must never erase the root cause:
+      // log it and keep the original as the thrown error.
+      try {
+        await plan?.dispose();
+      } catch (cleanupError) {
+        diagnostic("error", "workspace disposal after preparation failure failed (root cause preserved)", {}, cleanupError);
+      }
+      if (
+        ticket !== undefined &&
+        ticket.status !== "running" &&
+        batch !== undefined
+      ) {
+        const cancelledTicket = ticket;
+        // Preparation raced a cancellation (shutdown or a force-cancel
+        // aborting the workspace copy/worktree): the ticket is already
+        // terminal cancelled and the caller still gets its id. End the
+        // batch through the coordinator's own settle path — the one
+        // batch-end implementation, not a hand-rolled copy: under the
+        // already-aborted signal `run` records a cancelled outcome for
+        // every task, and its finally releases the grant, finishes the
+        // gates, and resolves the barrier through the same full-quiescence
+        // wiring as any batch. Telemetry records nothing — the span above
+        // is never finished for a failed preparation (SPEC.md
+        // "Telemetry": failed preparation records nothing).
+        diagnostic("info", "async dispatch preparation aborted after cancellation; settling as cancelled", { ticketId: cancelledTicket.id }, error);
+        return {
+          notices: batch.notices,
+          ticket: cancelledTicket,
+          tasks: batch.tasks,
+          outputBounds: batch.config.output,
+          completion: coordinator
+            .run(batch.tasks, {
+              env: batch.env,
+              config: batch.config,
+              grant: batch.grant,
+              sessions,
+              signal: batch.dispatchSignal,
+              ticket: cancelledTicket,
+              quiescence: barrier,
+              attribution: attributionWindows,
+              attributionQuiescenceBoundMs: shutdownQuiescenceBudgetMs(),
+              onTaskSettled: (task, outcome) => {
+                if (outcome.usage === undefined) return;
+                emitUsage(
+                  taskUsagePayload(task, outcome.usage, {
+                    ticketId: cancelledTicket.id,
+                    taskId: task.id,
+                  }),
+                );
+              },
+            })
+            .finally(() => tickets.releaseSettlement(cancelledTicket)),
+        };
+      }
+      if (ticket !== undefined && tickets.get(ticket.id) !== undefined) {
+        // A ticket whose batch never started is removed rather than
+        // exposed: the whole call fails with the cause instead. The get
+        // guard matters because create() itself removes its registration
+        // when its own creation write throws — removing again would
+        // delete another ticket's record if the id were ever reused, and
+        // journal.remove() on an unsaved id can only throw noise.
+        tickets.remove(ticket.id);
+      }
+      batch?.grant.release();
+      barrier.resolve();
+      throw error;
+    }
+  };
+
+  // Tree navigation is user-driven and not a session replacement: the
+  // runtime and the tickets survive it. The epoch bumps unconditionally —
+  // delivery holds results non-waking after any observed transition,
+  // "cancelled or not" (see the sameLeaf check at delivery) — and only
+  // then does the consent guard ask (issue #24): cancel force-cancels
+  // every live ticket and proceeds (the store's onChange observer
+  // re-syncs the footer), or stay blocks the transition. Headless hosts
+  // and throwing dialogs fail open.
+  // Capture the parent's structured prompt inputs at every turn start.
+  // Shallow copy: later handlers mutate the event's object in place, and
+  // the strings we read must be the values observed at this turn's start.
+  api.on("before_agent_start", (event) => {
+    parentPromptOptions = { ...event.systemPromptOptions };
+  });
+  api.on("session_before_tree", (_event, ctx) => {
+    navigationEpoch += 1;
+    return visibility.guardTreeNavigation(ctx, () => {
+      for (const ticket of tickets.list()) {
+        // A recovered `running` record belongs to a live sibling — this
+        // host holds nothing to cancel and must not write its journal.
+        if (ticket.status === "running" && ticket.recovered !== true) {
+          tickets.cancel(ticket, true);
+        }
+      }
+    });
+  });
+  api.on("session_tree", () => {
+    navigationEpoch += 1;
+  });
+
+  // ── Operator-visibility signals (issue #24) ─────────────────────────────
+  // The turn settling with live tickets is the "looks idle but isn't"
+  // moment: warn once per ticket; the footer carries it from there.
+  api.on("agent_settled", (_event, ctx) => {
+    visibility.onSettled(ctx);
+  });
+  // Session replacements are cancellable — consent before killing live work.
+  api.on("session_before_switch", (event, ctx) =>
+    visibility.guardReplacement(
+      ctx,
+      event.reason === "new" ? "Switching sessions" : "Resuming another session",
+    ),
+  );
+  api.on("session_before_fork", (_event, ctx) =>
+    visibility.guardReplacement(ctx, "Forking this session"),
+  );
+
+  // Delivered results follow the same expanded-view contract as tool
+  // results (SPEC "Recovery"): collapsed keeps the host's default
+  // custom-message chrome; expanded renders the complete recorded outcomes.
+  api.registerMessageRenderer(
+    DELIVERED_MESSAGE_TYPE,
+    createMessageRenderer(tickets),
+  );
+
+  // The live subagent browser: /subagents or Ctrl+Shift+B (TUI only).
+  registerSubagentBrowser(api, {
+    diagnostics,
+    store: activity,
+    controls: {
+      pauseTicket: (id) => {
+        const ticket = tickets.get(id);
+        if (ticket !== undefined) tickets.pause(ticket);
+      },
+      resumeTicket: (id) => {
+        const ticket = tickets.get(id);
+        if (ticket !== undefined) tickets.resume(ticket);
+      },
+      ticketPaused: (id) => {
+        const ticket = tickets.get(id);
+        return ticket !== undefined && ticket.status === "running" && ticket.paused;
+      },
+    },
+  });
+
+  api.on("session_shutdown", async (event, ctx) => {
+    captureDiagnosticContext(ctx);
+    shuttingDown = true;
+    // A delivery flush armed before the latch must not fire after
+    // teardown: cancel the timer and drain the queue with the same
+    // suppression log the flush itself would have emitted — settlement
+    // is the source of truth, and those results stay pollable.
+    if (deliveryFlushTimer !== undefined) {
+      clearTimeout(deliveryFlushTimer);
+      deliveryFlushTimer = undefined;
+    }
+    for (const { ticket } of deliveryQueue.splice(0)) {
+      diagnostic("error", "delivery suppressed during shutdown (result remains pollable)", { ticketId: ticket.id });
+    }
+    // v1's quit/reload traces: name the live work being killed before the
+    // force-cancel makes it invisible (quit → stderr; reload → notify).
+    visibility.shutdownTrace(
+      event.reason,
+      ctx,
+      tickets
+        .list()
+        .filter(
+          (ticket) => ticket.status === "running" && ticket.recovered !== true,
+        ),
+    );
+    // Forced cancellation settles every ticket immediately and resolves its
+    // waiters; delivery is suppressed by the latch above. Checked-out pooled
+    // sessions must get their abort requests before the quiescence wait —
+    // their runs own disposal through settle, and the barrier below is what
+    // confirms they actually stopped (a worker that ignores the abort holds
+    // shutdown for as long as it runs, per COMPATIBILITY.md).
+    for (const ticket of tickets.list()) {
+      // Recovered records project a sibling session's journal — nothing
+      // here can cancel them, and a settle would overwrite that entry.
+      if (ticket.recovered === true) continue;
+      tickets.cancel(ticket, true);
+    }
+    sessions.shutdown();
+    const pending = [...liveQuiescence];
+    if (pending.length > 0) {
+      // The visible status names what is being waited on, so a worker that
+      // ignores its abort is identifiable (its ticket id, or the sync call
+      // label) without guessing from a bare count.
+      const names = pending.map(([, label]) => label).join(", ");
+      try {
+        ctx.ui.notify(
+          `Delegate: waiting for ${pending.length} dispatch(es) to stop before shutdown (${names})…`,
+          "info",
+        );
+      } catch {
+        // The UI may already be gone; the log line below still reports it.
+      }
+      diagnostic("info", "shutdown waiting for dispatches to reach quiescence", { count: pending.length });
+      const budgetMs = shutdownQuiescenceBudgetMs();
+      const quiesced = await Promise.race([
+        Promise.all(pending.map(([promise]) => promise)).then(() => true),
+        new Promise<false>((resolve) =>
+          setTimeout(() => resolve(false), budgetMs),
+        ),
+      ]);
+      if (!quiesced) {
+        // The invariant holds in the only direction it can: reservations
+        // are never released without confirmed quiescence, so nothing is
+        // unblocked by proceeding — the host simply stops waiting on work
+        // that may never stop.
+        diagnostic("error", "shutdown quiescence budget expired; workers may still be mutating", { budgetMs, count: pending.length });
+        try {
+          ctx.ui.notify(
+            `Delegate: exiting with ${pending.length} dispatch(es) still stopping (${names}); they may still be mutating.`,
+            "warning",
+          );
+        } catch {
+          // The UI may already be gone; the diagnostic above carries it.
+        }
+      }
+    }
+    telemetry.close();
+  });
+
+  function registerTools(): void {
+    api.registerTool(
+      managedTool(defineTool<TUnsafe<DelegateArguments>, DelegateDetails>({
+        name: "delegate",
+        label: "Delegate to Subagents",
+        description:
+          "Run self-contained subagent tasks. Every nonempty call returns a background ticket; results arrive at your next step on their own — async: false returns inline results for any task count. Batch related work in one call: same-root shared writers need dependsOn ordering (same-phase unordered overlap rejects listing remedies); overlapping writers in separate calls reject. The explore role is read-only and admits concurrently; reviewer uses bash and counts as a writer. Use isolated for parallel edits — ignored files (e.g. node_modules) are copied into each worktree, reflink/Copy-on-Write when the filesystem supports it — or scratch to discard changes. Named Markdown profiles supply tools and base instructions. tasks: [] shows the manual.",
+        parameters: Type.Unsafe<DelegateArguments>(delegateSchema),
+        promptSnippet:
+          "Run self-contained tasks in background; async:false waits for inline results",
+        promptGuidelines: [
+          "Delegate side work that would flood your context — broad searches, long logs, independent parallel jobs. Do one-file checks and small edits yourself; writing the brief costs more than the work.",
+          "Subagents never see this conversation — give each delegate task a self-contained brief (use brief for context the whole batch shares).",
+          "Subagents cannot delegate further — plan the full fan-out yourself; ask_parent is a worker's only escalation.",
+          "Only a subagent's final message comes back: name the answer shape you need (file list, yes/no, short verdict) so reports stay short.",
+          "Async results arrive on their own at your next step — do not poll in a loop; wait only when blocked on a ticket's result.",
+          'Parallelize reads freely — read-only tasks (explore) admit concurrently beside anything. Before dispatching 2+ write-capable tasks to one repo in a call, pick the shape: independent edits → workspace "isolated" (private worktrees, parallel, merged in task order); dependent edits → dependsOn chain on shared. Same-phase unordered writers reject; overlapping writers in separate calls reject.',
+          "Split very large task batches across delegate calls. Keep every prompt and the brief under " + PROMPT_CHAR_LIMIT + " characters — reference files by path instead of inlining contents; oversized values reject.",
+        ],
+        prepareArguments: (args) => {
+          return validatePreparedArguments("delegate",
+            delegateSchema,
+            prepareDispatchArguments(args));
+        },
+        // The call row is static by contract: `delegate N tasks` plus up
+        // to four prompt previews — no spinner or live state.
+        renderCall: renderDelegateCall,
+        // The stock renderer only displays `content` — which is the
+        // spill-bounded projection — so expansion never showed the whole
+        // output. This renderer keeps the collapsed preview but renders the
+        // complete recorded outcomes from details when expanded.
+        renderResult: createResultRenderer(tickets),
+
+        async execute(toolCallId, params, signal, onUpdate, ctx) {
+          // Later tool_call handlers may block after our preflight. Only actual
+          // execute entry transfers error-record ownership to the engine.
+          preflightDispatches.delete(toolCallId);
+          // Synchronous prefix: everything before the first await runs in
+          // the same microtask as the host's tool dispatch, so a shutdown
+          // handler cannot interleave here. A dispatch that arrives after
+          // shutdown begins must fail on the latched value — not on a
+          // re-read after task-resolution or workspace-preparation awaits,
+          // by which time the shutdown handler would already have
+          // snapshotted the live set and missed it. The leaf/epoch stamp is
+          // likewise read here: stamping at ticket creation would name the
+          // branch navigated to mid-preparation and wake the wrong
+          // conversation on settlement.
+          const shutdownRejected = shuttingDown;
+          const dispatchLeafId = ctx.sessionManager.getLeafId();
+          const dispatchEpoch = navigationEpoch;
+          // Call-shape validation is the earliest rejection phase; its
+          // misfire row uses the salvaged telemetry hint because no config
+          // has been loaded yet (SPEC v3 "Observability"). The recording
+          // path is itself wrapped so a telemetry problem can never mask
+          // the caller-visible rejection.
+          let call: DispatchCall;
+          try {
+            call = validateDispatchCall(params);
+          } catch (error) {
+            try {
+              const agentDir = resolveAgentDir(ctx).dir;
+              noteMisfire(
+                ctx, agentDir, telemetryConfigHint(agentDir),
+                "validation", error, params.tasks, params.workspace,
+                params.async ?? true,
+              );
+            } catch {
+              // The original rejection stands; nothing here may throw.
+            }
+            throw error;
+          }
+          // Every tool call re-arms the footer context (v1 semantics: the
+          // execute context carries the full UI surface for our lifetime).
+          visibility.captureFooterCtx(ctx);
+          if (call.mode === "help") {
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text:
+                    // One surface, one manual (ADR 0002): the manual
+                    // documents exactly the controls the schema accepts.
+                    help +
+                    customProfileSection(ctx),
+                },
+              ],
+              details: ({ mode: "help" as const } satisfies HelpDetails),
+            };
+          }
+          const executeDispatch = async () => {
+            // Decided in execute's synchronous prefix (same microtask as
+            // the host's tool dispatch): a dispatch still preparing when
+            // shutdown begins must not start workers after the shutdown
+            // handler snapshotted the live set.
+            if (shutdownRejected) {
+              throw new Error(
+                "Delegate is shutting down with this session; new dispatches are not accepted. " +
+                  "Existing tickets remain pollable for the rest of the session's lifetime.",
+              );
+            }
+
+            // Async edge — background delivery. Armed once the pipeline has
+            // handed the batch to the coordinator; it waits for caller
+            // settlement AND the finished gate, so the delivered view always
+            // carries the safe-to-expose outcome: finalized isolated
+            // integrations, retained errors, and (on cancellation) partial
+            // results rather than a bare status. Delivery itself is the
+            // closure-level coalescing queue (SPEC v3 "Wake delivery"):
+            // the ticket joins the current flush window rather than
+            // sending alone.
+            const armDelivery = (ticket: Ticket): void => {
+              void Promise.all([
+                tickets.settledPromise(ticket),
+                tickets.finishedPromise(ticket),
+              ])
+                .then(() => enqueueDelivery(ticket, ctx))
+                .catch((error: unknown) => {
+                  diagnostic("error", "delivering ticket crashed (result remains pollable)", { ticketId: ticket.id }, error);
+                });
+            };
+
+            // #119: an inline batch publishes a live board while it runs —
+            // the pending tool row's heartbeat, ~1s plus each task settle.
+            // Rows live in the activity store under this call's run id;
+            // the partials are display-only (never the session file or the
+            // model's context). `boardNotices` fills when the pipeline
+            // returns; settle-driven emits cannot precede that point.
+            const syncRunId =
+              call.async === false ? `inline-${toolCallId}` : undefined;
+            let boardNotices: readonly string[] = [];
+            const emitBoard = (): void => {
+              if (onUpdate === undefined || syncRunId === undefined) return;
+              try {
+                const rows = activity.syncRunRows(syncRunId);
+                if (rows.length === 0) return;
+                onUpdate({
+                  content:
+                    boardNotices.length > 0
+                      ? [
+                          {
+                            type: "text" as const,
+                            text: boardNotices.join("\n"),
+                          },
+                        ]
+                      : [],
+                  details: ({
+                    mode: "dispatch" as const,
+                    async: false as const,
+                    live: {
+                      startedAt: rows[0]!.startedAt,
+                      tasks: rows.map((row) => {
+                        const inFlight = row.toolCalls.find(
+                          (callRow) => callRow.inFlight,
+                        );
+                        const last =
+                          inFlight ?? row.toolCalls[row.toolCalls.length - 1];
+                        return {
+                          id: row.taskId,
+                          label: row.label,
+                          status: row.status,
+                          startedAt: row.startedAt,
+                          lastEventAt: row.lastEventAt,
+                          ...(last !== undefined
+                            ? {
+                                tool: last.tool,
+                                preview:
+                                  inFlight !== undefined
+                                    ? last.argPreview
+                                    : last.preview,
+                              }
+                            : {}),
+                        };
+                      }),
+                    },
+                    ...(boardNotices.length > 0
+                      ? { notices: [...boardNotices] }
+                      : {}),
+                  } satisfies LiveDispatchDetails),
+                });
+              } catch {
+                // The board is display-only; a failed emit never
+                // reaches the batch.
+              }
+            };
+            const { completion, ticket, notices, tasks, outputBounds } =
+              await runDispatchPipeline({
+              requestedTasks: call.tasks,
+              ctx,
+              brief: call.brief,
+              syncRunId,
+              onTaskSettled:
+                syncRunId === undefined ? undefined : () => emitBoard(),
+              // One signal source in the pipeline: the caller's host signal
+              // for a sync batch, the ticket's cancellation for an async one.
+              signal: call.async ? undefined : signal,
+              // Surface same-call serialization immediately — a serialized
+              // batch of independent writers is the expensive way to learn
+              // about "isolated". Async batches carry the notices on the
+              // ticket (and its created text) instead.
+              onNotices:
+                call.async === false
+                  ? (current) => {
+                      if (current.length > 0) {
+                        onUpdate?.({
+                          content: [
+                            { type: "text" as const, text: current.join("\n") },
+                          ],
+                          details: {},
+                        });
+                      }
+                    }
+                  : undefined,
+              createTicket:
+                call.async === false
+                  ? undefined
+                  : (tasks, relabel, config) => {
+                      const created = tickets.create(tasks, {
+                        // Hold settlement through the coordinator's
+                        // finally when the batch has workspace
+                        // reconciliation or a token budget — the final
+                        // account must land on the record before any
+                        // racing `wait` renders the settled view.
+                        holdSettlement: workspaceNeedsSettlementHold(tasks),
+                        outputBounds: config.output,
+                        // The shared batch brief — persisted on the ticket so
+                        // views and post-restart recovery render the header
+                        // note (SPEC v3 "Batch brief").
+                        brief: call.brief,
+                        // #54 owner liveness: the dispatching host's identity
+                        // rides the journal record so a later startup
+                        // interrupts this ticket only when the owner is
+                        // provably dead — a live sibling pane's ticket is
+                        // left untouched.
+                        owner: {
+                          pid: process.pid,
+                          bootId: currentBootId(),
+                          sessionId: ctx.sessionManager.getSessionId(),
+                        },
+                      });
+                      questionContexts.set(created.id, ctx);
+                      // The barrier now has its durable name for the
+                      // shutdown status.
+                      relabel(`ticket "${created.id}"`);
+                      // The session-tree position at dispatch: delivery may
+                      // wake the parent only while it is still on this
+                      // branch with no tree transition or shutdown observed
+                      // since. Recorded on the ticket so delivery
+                      // diagnostics can be reconstructed from the ticket
+                      // alone (stamped in execute's synchronous prefix).
+                      tickets.recordOrigin(created, {
+                        leafId: dispatchLeafId,
+                        epoch: dispatchEpoch,
+                      });
+                      return created;
+                    },
+            });
+
+            if (ticket !== undefined) {
+              // The settled ticket's views (and its journal record) carry
+              // the final token-budget account — the coordinator persists
+              // it inside its own finally, before the settlement hold
+              // lifts, so a racing `wait` never misses it.
+              void completion.catch((error: unknown) => {
+                // The coordinator's task-quiescence chain owns the barrier
+                // and resolves it on this same rejection path; here the
+                // ticket just settles failed and the crash is reported.
+                tickets.settle(ticket, "failed");
+                diagnostic("error", "background ticket crashed", { ticketId: ticket.id }, error);
+              });
+              armDelivery(ticket);
+              return {
+                content: [
+                  {
+                    type: "text" as const,
+                    text:
+                      `Ticket "${ticket.id}" created: ${ticket.totalTasks} task(s) running in the background.\n` +
+                      (briefNote(call.brief) !== undefined
+                        ? `${briefNote(call.brief)}\n`
+                        : "") +
+                      `Results arrive on their own at your next step; wait only when blocked on them. ` +
+                      `delegate_ticket can wait on or cancel it if needed (action "wait" / "cancel").` +
+                      (ticket.notices.length > 0
+                        ? `\n${ticket.notices.join("\n")}`
+                        : ""),
+                  },
+                ],
+                details: ({
+                  mode: "dispatch" as const,
+                  async: true,
+                  ticket: ticket.id,
+                  tasks: ticket.tasks.map((task) => task.id),
+                  ...(call.brief !== undefined ? { brief: call.brief } : {}),
+                } satisfies AsyncDispatchDetails),
+              };
+            }
+
+            boardNotices = notices;
+            // The board's first frame paints every task row as tracked —
+            // by now coordinator.run's synchronous prefix registered them.
+            emitBoard();
+            // The heartbeat runs for the batch's life; `finally` clears it
+            // on settle, throw, or abort so no timer outlives the call.
+            const heartbeat =
+              onUpdate === undefined || syncRunId === undefined
+                ? undefined
+                : setInterval(emitBoard, 1000);
+            heartbeat?.unref?.();
+            let result: DispatchOutcome;
+            try {
+              result = await completion;
+            } finally {
+              if (heartbeat !== undefined) clearInterval(heartbeat);
+            }
+            // SPEC: error-valued only when every task failed or was blocked —
+            // cancelled and partially failed batches are normal results
+            // carrying each task's own status, mirroring a ticket's `partial`
+            // settlement.
+            const allFailed = result.outcomes.every(
+              (outcome) =>
+                outcome.status === "failed" || outcome.status === "blocked",
+            );
+            const textNotices = notices;
+            return {
+              content: [
+                {
+                  type: "text" as const,
+                  text:
+                    (textNotices.length > 0 ? `${textNotices.join("\n")}\n\n` : "") +
+                    formatDispatchResult(diagnostics, result.outcomes, tasks, outputBounds, call.brief),
+                },
+              ],
+              details: ({
+                mode: "dispatch" as const,
+                async: false,
+                tasks: result.outcomes.map((outcome) => ({
+                  id: outcome.id,
+                  status: outcome.status,
+                  // #63: the collapsed human view labels tasks by
+                  // description, then agent, then id.
+                  ...(tasks[outcome.index]?.agent !== undefined
+                    ? { agent: tasks[outcome.index]!.agent }
+                    : {}),
+                  ...(tasks[outcome.index]?.description !== undefined
+                    ? { description: tasks[outcome.index]!.description }
+                    : {}),
+                })),
+                // The batch brief as sent — the replayed/expanded render
+                // re-heads the result with it (SPEC v3 "Batch brief").
+                ...(call.brief !== undefined ? { brief: call.brief } : {}),
+                // The rendered content is spill-bounded; details keep the
+                // complete outcomes for the expanded view and recovery.
+                results: result.outcomes,
+                // SPEC v3 "Observability — Completion evidence": the
+                // machine-readable half of the per-task `files:` lines —
+                // absolute paths, the unknown-shell flag, and the names
+                // of writers that overlapped a task's evidence window.
+                attributedFiles: result.outcomes.map((outcome) => ({
+                  taskId: outcome.id,
+                  files: [...(outcome.attributedFiles ?? [])],
+                  uncertain: outcome.uncertainFiles === true,
+                  ...(outcome.concurrentWriters !== undefined
+                    ? { concurrentWriters: [...outcome.concurrentWriters] }
+                    : {}),
+                })),
+                // SPEC v3 "Observability — Completion evidence — verifier
+                // verdict" (#49): the machine half of the `verdict:` lines —
+                // {verdict, taskId} per verifier task that produced one.
+                // Absent when no task carried a verdict.
+                ...(() => {
+                  const verdict = result.outcomes.flatMap((outcome) =>
+                    outcome.verdict !== undefined
+                      ? [{ verdict: outcome.verdict, taskId: outcome.id }]
+                      : [],
+                  );
+                  return verdict.length > 0 ? { verdict } : {};
+                })(),
+                // When any worker's accounting is incomplete the usage total
+                // below is a lower bound — the flag lets a machine caller see
+                // what the result text's note says in prose.
+                ...(result.outcomes.some((outcome) => outcome.quarantined)
+                  ? { usageLowerBound: true }
+                  : {}),
+                ...(textNotices.length > 0 ? { notices: textNotices } : {}),
+              } satisfies SyncDispatchDetails),
+              usage: result.usage,
+              isError: allFailed,
+            };
+          };
+
+          return executeDispatch();
+        },
+      })),
+    );
+
+    api.registerTool(
+      managedTool(defineTool<TUnsafe<TicketToolArguments>, DelegateDetails>({
+        name: "delegate_ticket",
+        label: "Delegate Tickets",
+        description:
+          "Inspect or control background delegate work. poll returns status immediately; wait returns on settlement or a new worker question/interruption. cancel previews unless force:true. answer replies to a worker question; steer sends instructions at turn boundaries; interrupt stops a turn while retaining its transcript. Results arrive at your next step on their own — wait only when blocked on one.",
+        parameters: Type.Unsafe<TicketToolArguments>(ticketSchema),
+        promptSnippet:
+          "Inspect, wait, cancel, answer, steer or interrupt background delegate work",
+        prepareArguments: (args) => {
+          return validatePreparedArguments("delegate_ticket",
+            ticketSchema,
+            prepareTicketArguments(args));
+        },
+        renderCall: renderTicketCall,
+        renderResult: createResultRenderer(tickets),
+
+        async execute(toolCallId, params, signal, _onUpdate, ctx) {
+          const call = validateTicketCall(params);
+          visibility.captureFooterCtx(ctx);
+          // Ticket RPCs need the saved journal; a corrupt or inaccessible one
+          // fails this call visibly but does not affect dispatch or sessions.
+          tickets.connect(resolveAgentDir(ctx).dir);
+          // `toolCallId` seeds the steer key (#44): every steer receipts
+          // under `steer:<toolCallId>`, so a transport-level retry of the
+          // same tool call replays rather than re-injecting.
+          const result = await handleTicketRpc(
+            call,
+            tickets,
+            signal,
+            toolCallId,
+            // #64: the roster and known-ticket lists show only this
+            // session's tickets; explicit ids still reach others.
+            ctx.sessionManager.getSessionId(),
+          );
+          // SPEC v3 "Wake delivery": a wait/poll that returned the
+          // ticket's terminal view has already shown the model its
+          // content — record the fingerprint so the flush drops a wake
+          // that would only repeat it.
+          if (
+            (call.action === "poll" || call.action === "wait") &&
+            result.consumedView !== undefined &&
+            result.ticket !== undefined
+          ) {
+            consumedDeliveries.set(result.ticket.id, {
+              by: call.action === "poll" ? "poll" : "wait",
+              view: result.consumedView,
+            });
+          }
+          return {
+            content: [{ type: "text" as const, text: result.text }],
+            details: ({
+              mode: "ticket" as const,
+              action: call.action,
+              ticket: result.ticket?.id,
+              // The rendered text may be spill-bounded; the record is not —
+              // details keep the complete outcomes for the expanded view.
+              // Only poll/wait carry them: cancel/pause/resume expand to
+              // their action response text, not the ticket document.
+              results:
+                call.action === "poll" || call.action === "wait"
+                  ? result.ticket?.outcomes
+                  : undefined,
+              // SPEC v3 "Observability — Completion evidence":
+              // machine-readable attribution per task — recorded outcomes,
+              // plus observed-so-far evidence for tasks still running.
+              attributedFiles:
+                (call.action === "poll" || call.action === "wait") &&
+                result.ticket !== undefined
+                  ? tickets.attributionDetails(result.ticket)
+                  : undefined,
+              // Verifier verdicts (#49) — {verdict, taskId} per recorded
+              // outcome that parsed one; poll/wait only, same as results.
+              verdict:
+                (call.action === "poll" || call.action === "wait") &&
+                result.ticket !== undefined
+                  ? tickets.verdictDetails(result.ticket)
+                  : undefined,
+              ...(result.ticket !== undefined &&
+              result.ticket.notices.length > 0
+                ? { notices: result.ticket.notices }
+                : {}),
+              ...(call.action === "poll" || call.action === "wait"
+                ? { questions: result.ticket?.questions }
+                : {}),
+              // A wait's tail sentence (timeout/detached/roster note)
+              // rides details so the collapsed view shows it too (#63).
+              ...(result.note !== undefined ? { note: result.note } : {}),
+              // SPEC v3 "Steering": the receipt's machine half rides
+              // details.steer (status, taskId, replayed original status);
+              // an interrupt's rides details.interrupt the same way. A tail
+              // read's {text, nextOffset, done, taskState} rides
+              // details.tail (#52).
+              ...(result.steer !== undefined ? { steer: result.steer } : {}),
+              ...(result.interrupt !== undefined ? { interrupt: result.interrupt } : {}),
+            } satisfies TicketDetails),
+            isError: result.isError,
+          };
+        },
+      })),
+    );
+
+    api.registerTool(
+      managedTool(defineTool<typeof sessionSchema, DelegateDetails>({
+        name: "delegate_session",
+        label: "Delegate Sessions",
+        description:
+          "List or close pooled delegate sessions created by task sessionId fields. Dispatch tasks with delegate; operate on async tickets with delegate_ticket.",
+        parameters: sessionSchema,
+        promptSnippet: "List or close pooled delegate subagent sessions",
+        prepareArguments: (args) => validatePreparedArguments("delegate_session",
+          sessionSchema, prepareSessionArguments(args)),
+        renderCall: renderSessionCall,
+        renderResult: createResultRenderer(tickets),
+
+        async execute(_toolCallId, params, _signal, _onUpdate, ctx) {
+          const call = validateSessionCall(params);
+          visibility.captureFooterCtx(ctx);
+          const result = handleSessionRpc(call, sessions, admission);
+          return {
+            content: [{ type: "text" as const, text: result.text }],
+            details: ({
+              mode: "session" as const,
+              action: call.action,
+              sessionId: call.sessionId,
+            } satisfies SessionDetails),
+            isError: result.isError,
+          };
+        },
+      })),
+    );
+  }
+
+  // Pi supports replacing same-name definitions at session_start. This keeps
+  // one schema/validator per name and preserves all stores and active tools.
+  registerTools();
+}
