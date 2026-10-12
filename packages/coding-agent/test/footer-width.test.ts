@@ -237,25 +237,8 @@ describe("FooterComponent width handling", () => {
 		expect(statsLine).toContain("CH25.0%");
 	});
 
-	it("marks Kimi Coding costs as subscription estimates", () => {
-		const session = createSession({
-			sessionName: "",
-			provider: "kimi-coding",
-			usage: {
-				input: 100,
-				output: 10,
-				cacheRead: 0,
-				cacheWrite: 0,
-				cost: { total: 1.234 },
-			},
-		});
-		const footer = new FooterComponent(session, createFooterData(1));
-
-		expect(stripAnsi(footer.render(120)[1])).toContain("$1.234 (sub)");
-	});
-
 	it("marks explicitly identified subscription auth", () => {
-		const session = createSession({ sessionName: "", provider: "anthropic", usingSubscription: true });
+		const session = createSession({ sessionName: "", provider: "github-copilot", usingSubscription: true });
 		const footer = new FooterComponent(session, createFooterData(1));
 
 		expect(stripAnsi(footer.render(120)[1])).toContain("$0.000 (sub)");
@@ -264,7 +247,7 @@ describe("FooterComponent width handling", () => {
 	it("does not mark generic OAuth sign-in as a subscription", () => {
 		const session = createSession({
 			sessionName: "",
-			provider: "openrouter",
+			provider: "compatible",
 			usage: {
 				input: 100,
 				output: 10,

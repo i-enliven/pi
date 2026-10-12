@@ -193,18 +193,17 @@ describe("Anthropic mid-conversation effort", () => {
 		expect(betaHeader).toContain("thinking-binding-controls-2026-08-01");
 	});
 
-	it("generates exact model and transport gates", () => {
-		const direct = getModel("anthropic", "claude-fable-5-1");
-		const openRouter = getModel("openrouter", "anthropic/claude-fable-5.1");
-		const unsupported = getModel("anthropic", "claude-opus-4-8");
-		expect(direct.compat?.supportsMidConvoEffort).toBe(true);
-		expect(direct.thinkingLevelMap?.off).toBeNull();
-		expect(openRouter.api).toBe("anthropic-messages");
-		expect(openRouter.baseUrl).toBe("https://openrouter.ai/api");
-		expect(openRouter.compat?.supportsMidConvoEffort).toBe(true);
-		expect(unsupported.compat?.supportsMidConvoEffort).toBeUndefined();
-		// OpenRouter rejects configuration_update on Opus 5 but accepts it on Fable 5.1.
-		expect(getModel("openrouter", "anthropic/claude-opus-5").compat?.supportsMidConvoEffort).toBeUndefined();
-		expect(getModel("anthropic", "claude-opus-5").compat?.allowedFallbackModels).toBeUndefined();
+	it("gates mid-conversation effort on the exact model compat flags", () => {
+		const managed = managedModel();
+		const unsupported: Model<"anthropic-messages"> = {
+			...managed,
+			compat: { ...managed.compat, supportsMidConvoEffort: false },
+		};
+		expect(managed.compat?.supportsMidConvoEffort).toBe(true);
+		expect(managed.thinkingLevelMap?.off).toBeNull();
+		expect(unsupported.compat?.supportsMidConvoEffort).toBe(false);
+		// Built-in Copilot transports do not advertise the effort-only controls yet.
+		expect(getModel("github-copilot", "claude-opus-4.8").compat?.supportsMidConvoEffort).toBeUndefined();
+		expect(getModel("github-copilot", "claude-opus-5").compat?.allowedFallbackModels).toBeUndefined();
 	});
 });

@@ -73,7 +73,10 @@ function grammarTranscript() {
 				name: "calc",
 				description: "Evaluate an expression",
 				parameters: Type.Object({ expression: Type.String() }),
-				constrainedSampling: { type: "grammar", variants: { openai_lark: 'expr: /"1"/' } },
+				constrainedSampling: {
+					type: "grammar",
+					variants: { openai_lark: 'expr: /"1"/' },
+				},
 			},
 		],
 	});
@@ -88,7 +91,7 @@ describe("openai-responses prepareRequest", () => {
 		vi.restoreAllMocks();
 	});
 	it("sends max_output_tokens only when compat allows it", () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = normalizeContext({ messages: [userTurn] });
 
 		expect(prepareRequest(model, context, { maxTokens: 1024 }).max_output_tokens).toBe(1024);
@@ -99,19 +102,29 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("clamps max_output_tokens to the provider minimum", () => {
-		const payload = prepareRequest(getModel("openai", "gpt-5.4"), normalizeContext({ messages: [userTurn] }), {
-			maxTokens: 8,
-		});
+		const payload = prepareRequest(
+			getModel("github-copilot", "gpt-5.4"),
+			normalizeContext({ messages: [userTurn] }),
+			{
+				maxTokens: 8,
+			},
+		);
 
 		expect(payload.max_output_tokens).toBe(16);
 	});
 
 	it("forwards options into the payload", () => {
 		const payload = prepareRequest(
-			getModel("openai", "gpt-5.4"),
+			getModel("github-copilot", "gpt-5.4"),
 			normalizeContext({
 				messages: [userTurn],
-				tools: [{ name: "ping", description: "Ping", parameters: Type.Object({ value: Type.String() }) }],
+				tools: [
+					{
+						name: "ping",
+						description: "Ping",
+						parameters: Type.Object({ value: Type.String() }),
+					},
+				],
 			}),
 			{ toolChoice: "required", temperature: 0.3, sessionId: "session-1" },
 		);
@@ -123,7 +136,10 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("omits cache fields when cacheRetention is none", () => {
-		const payload = prepareRequest(getModel("openai", "gpt-5.6-sol"), normalizeContext({ messages: [userTurn] }), {
+		const model = withCompat(getModel("github-copilot", "gpt-5.6-sol"), {
+			supportsExplicitPromptCacheMode: true,
+		});
+		const payload = prepareRequest(model, normalizeContext({ messages: [userTurn] }), {
 			cacheRetention: "none",
 			sessionId: "session-1",
 		});
@@ -134,7 +150,9 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("collapses the mid-conversation system message when compat rejects it", () => {
-		const model = withCompat(getModel("openai", "gpt-5.4"), { supportsMidConvoSystemMessages: false });
+		const model = withCompat(getModel("github-copilot", "gpt-5.4"), {
+			supportsMidConvoSystemMessages: false,
+		});
 
 		expect(instructions(prepareRequest(model, transcriptWithMidConversationSystemPrompt(), {}))).toEqual([
 			{ role: "developer", content: "base prompt\n\nlater instruction" },
@@ -142,7 +160,9 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("keeps the mid-conversation system message in place when compat allows it", () => {
-		const model = withCompat(getModel("openai", "gpt-5.4"), { supportsMidConvoSystemMessages: true });
+		const model = withCompat(getModel("github-copilot", "gpt-5.4"), {
+			supportsMidConvoSystemMessages: true,
+		});
 
 		expect(instructions(prepareRequest(model, transcriptWithMidConversationSystemPrompt(), {}))).toEqual([
 			{ role: "developer", content: "base prompt" },
@@ -151,7 +171,7 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("sends grammar tools as custom tools only when compat enables them", () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = grammarTranscript();
 
 		// The OpenAI catalog sets supportsOpenAIGrammarTools, so the call replays as a custom tool call.
@@ -166,8 +186,16 @@ describe("openai-responses prepareRequest", () => {
 		// The replayed call carries the raw grammar input instead of JSON-encoded arguments.
 		expect(inputItems(grammar)).toEqual(
 			expect.arrayContaining([
-				expect.objectContaining({ type: "custom_tool_call", call_id: "call-1", name: "calc", input: "1 + 1" }),
-				expect.objectContaining({ type: "custom_tool_call_output", call_id: "call-1" }),
+				expect.objectContaining({
+					type: "custom_tool_call",
+					call_id: "call-1",
+					name: "calc",
+					input: "1 + 1",
+				}),
+				expect.objectContaining({
+					type: "custom_tool_call_output",
+					call_id: "call-1",
+				}),
 			]),
 		);
 
@@ -181,17 +209,26 @@ describe("openai-responses prepareRequest", () => {
 					name: "calc",
 					arguments: '{"expression":"1 + 1"}',
 				}),
-				expect.objectContaining({ type: "function_call_output", call_id: "call-1" }),
+				expect.objectContaining({
+					type: "function_call_output",
+					call_id: "call-1",
+				}),
 			]),
 		);
 	});
 
 	it("hands onPayload exactly the object prepareRequest returns", async () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = normalizeContext({
 			systemPrompt: "base prompt",
 			messages: [userTurn],
-			tools: [{ name: "ping", description: "Ping", parameters: Type.Object({ value: Type.String() }) }],
+			tools: [
+				{
+					name: "ping",
+					description: "Ping",
+					parameters: Type.Object({ value: Type.String() }),
+				},
+			],
 		});
 		const options = {
 			apiKey: "sk-test-key",
@@ -204,7 +241,10 @@ describe("openai-responses prepareRequest", () => {
 
 		let captured: unknown;
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response("data: [DONE]\n\n", { status: 200, headers: { "content-type": "text/event-stream" } }),
+			new Response("data: [DONE]\n\n", {
+				status: 200,
+				headers: { "content-type": "text/event-stream" },
+			}),
 		);
 		const stream = streamOpenAIResponses(model, context, {
 			...options,

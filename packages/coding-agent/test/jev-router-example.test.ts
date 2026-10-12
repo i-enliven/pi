@@ -31,7 +31,7 @@ const jevModel: ClassifierModel<string> = {
 	id: "jev-latest",
 	name: "Jev",
 	api: "typesafe-system-one",
-	provider: "typesafe",
+	provider: "llama.cpp",
 	baseUrl: "",
 	input: ["text"],
 	cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -45,14 +45,14 @@ describe("jev-router example", () => {
 		for (const harness of harnesses.splice(0)) harness.cleanup();
 	});
 
-	/** Runs the example against a faux OpenAI Codex provider and a scripted Jev complexity rating. */
+	/** Runs the example against a faux GitHub Copilot provider and a scripted Jev complexity rating. */
 	async function setup(complex: number, tools: AgentTool[]) {
-		const codex = fauxProvider({
-			provider: "openai-codex",
+		const copilot = fauxProvider({
+			provider: "github-copilot",
 			models: ["gpt-5.6-sol", "gpt-5.6-terra", "gpt-5.6-luna"].map((id) => ({ id, reasoning: true })),
 		});
-		const typesafe = createProvider({
-			id: "typesafe",
+		const classifierProvider = createProvider({
+			id: "llama.cpp",
 			auth: { apiKey: { name: "TypeSafe", resolve: async () => ({ auth: {} }) } },
 			models: [jevModel],
 			classifiers: {
@@ -79,8 +79,8 @@ describe("jev-router example", () => {
 			tools,
 			extensionFactories: [
 				(pi) => {
-					pi.registerProvider(codex.provider);
-					pi.registerProvider(typesafe);
+					pi.registerProvider(copilot.provider);
+					pi.registerProvider(classifierProvider);
 				},
 				jevRouter,
 			],
@@ -91,7 +91,7 @@ describe("jev-router example", () => {
 		await runtime.refresh({ allowNetwork: false });
 		await harness.session.setModel(runtime.getModel("jev", "auto")!);
 
-		const respond = (...messages: AssistantMessage[]) => codex.appendResponses(messages);
+		const respond = (...messages: AssistantMessage[]) => copilot.appendResponses(messages);
 		const dispatched = () =>
 			harness.session.messages.flatMap((m) => (m.role === "assistant" ? [m.model.replace("gpt-5.6-", "")] : []));
 		const phases = () =>

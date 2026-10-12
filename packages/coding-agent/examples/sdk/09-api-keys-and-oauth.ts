@@ -25,7 +25,7 @@ const { session: customAuthSession } = await createAgentSession({
 console.log("Session with custom auth and models locations");
 customAuthSession.dispose();
 
-await modelRuntime.setRuntimeApiKey("anthropic", "sk-my-temp-key");
+await modelRuntime.setRuntimeApiKey("github-copilot", "gh-my-temp-token");
 const { session: runtimeKeySession } = await createAgentSession({
 	sessionManager: SessionManager.inMemory(),
 	modelRuntime,

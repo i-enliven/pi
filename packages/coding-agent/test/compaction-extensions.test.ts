@@ -22,9 +22,7 @@ import { SessionManager } from "../src/core/session-manager.ts";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 import { createSyntheticSourceInfo } from "../src/core/source-info.ts";
 import { createCodingTools } from "../src/index.ts";
-import { createTestResourceLoader } from "./utilities.ts";
-
-const API_KEY = process.env.ANTHROPIC_OAUTH_TOKEN || process.env.ANTHROPIC_API_KEY;
+import { API_KEY, createTestResourceLoader } from "./utilities.ts";
 
 describe.skipIf(!API_KEY)("Compaction extensions", () => {
 	let session: AgentSession;
@@ -86,7 +84,7 @@ describe.skipIf(!API_KEY)("Compaction extensions", () => {
 	}
 
 	async function createSession(extensions: Extension[]) {
-		const model = getModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getModel("github-copilot", "claude-sonnet-4.6")!;
 		const agent = new Agent({
 			getApiKey: () => API_KEY,
 			streamFn: streamSimple,

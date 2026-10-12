@@ -111,7 +111,7 @@ Publish persisted catalog data only when it should survive across runs. A live s
 
 Use one of Pi AI’s API implementations whenever the provider protocol matches it.
 
-Supported implementations cover Anthropic Messages, OpenAI Chat Completions and Responses, Google Generative AI and Vertex, Azure OpenAI Responses, Mistral Conversations, and Bedrock Converse.
+Supported chat implementations cover Anthropic Messages, OpenAI Chat Completions, and OpenAI Responses. Classifier implementations cover llama.cpp's `llama-cpp-classify` and the System One protocol served by llama.cpp and TypeSafe-compatible services.
 
 The provider can still customize authentication, base URLs, headers, model filtering, and discovery while delegating request conversion and streaming to an existing API implementation.
 

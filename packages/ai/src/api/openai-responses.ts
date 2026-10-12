@@ -28,22 +28,16 @@ import { clampOpenAIPromptCacheKey } from "./openai-prompt-cache.ts";
 import { convertResponsesMessages, convertResponsesTools, processResponsesStream } from "./openai-responses-shared.ts";
 import { buildBaseOptions, resolveSamplingParams } from "./simple-options.ts";
 
-const OPENAI_TOOL_CALL_PROVIDERS = new Set(["openai", "openai-codex", "opencode"]);
 // OpenAI Responses rejects max_output_tokens below 16: https://github.com/earendil-works/pi/issues/6265
 const OPENAI_RESPONSES_MIN_OUTPUT_TOKENS = 16;
-const CHATGPT_USAGE_URL = "https://chatgpt.com/settings/usage";
 
 /**
- * OpenAI API keys start with `sk-`; a different credential sent directly to OpenAI
- * is a Sign in with ChatGPT access token.
+ * Replayed tool call ids keep the Responses `{call_id}|{fc_item_id}` form only for
+ * endpoints that require the `fc_`-prefixed item id. Custom openai-compatible
+ * endpoints opt in by URL; every other model replays ids in the cross-provider form.
  */
-function isChatGPTSignIn(model: Model<"openai-responses">, apiKey: string | undefined): boolean {
-	return (
-		model.provider === "openai" &&
-		model.baseUrl === "https://api.openai.com/v1" &&
-		apiKey !== undefined &&
-		!apiKey.startsWith("sk-")
-	);
+function responsesToolCallIdProviders(model: Model<"openai-responses">): ReadonlySet<string> {
+	return model.baseUrl.includes("api.openai.com") ? new Set([model.provider]) : new Set();
 }
 
 function hasHeader(headers: ProviderHeaders | undefined, name: string): boolean {
@@ -62,7 +56,7 @@ function getClientApiKey(provider: string, apiKey: string | undefined, headers: 
 }
 
 function detectSessionAffinityFormat(model: Pick<Model<"openai-responses">, "provider" | "baseUrl">) {
-	return model.provider === "openrouter" || model.baseUrl.includes("openrouter.ai") ? "openrouter" : "openai";
+	return model.baseUrl.includes("openrouter.ai") ? "openrouter" : "openai";
 }
 
 /**
@@ -215,14 +209,8 @@ export const stream: StreamFunction<"openai-responses", OpenAIResponsesOptions> 
 				delete (block as { customInput?: unknown }).customInput;
 			}
 			output.stopReason = options?.signal?.aborted ? "aborted" : "error";
-			const errorMessage = formatProviderError(
-				normalizeProviderError(error),
-				`${model.provider === "openai" ? "OpenAI" : model.provider} API error`,
-			);
-			// Sign in with ChatGPT shares the subscription's usage limit with other apps.
-			output.errorMessage = errorMessage.includes("subscription_sharing_usage_limit_exceeded")
-				? `${errorMessage}\nCheck your ChatGPT usage: ${CHATGPT_USAGE_URL}`
-				: errorMessage;
+			const errorMessage = formatProviderError(normalizeProviderError(error), `${model.provider} API error`);
+			output.errorMessage = errorMessage;
 			stream.push({ type: "error", reason: output.stopReason, error: output });
 			stream.end();
 		}
@@ -352,7 +340,7 @@ function buildParams(
 		context.messages,
 		compat.supportsAdditionalTools || compat.supportsToolSearch,
 	);
-	const messages = convertResponsesMessages(model, context, OPENAI_TOOL_CALL_PROVIDERS, {
+	const messages = convertResponsesMessages(model, context, responsesToolCallIdProviders(model), {
 		grammarToolInputProperties,
 		supportsMidConvoSystemMessages: compat.supportsMidConvoSystemMessages,
 		supportsAdditionalTools: compat.supportsAdditionalTools,
@@ -364,23 +352,21 @@ function buildParams(
 	});
 
 	const cacheRetention = resolveCacheRetention(options?.cacheRetention, options?.env);
-	// Sign in with ChatGPT rejects these request fields.
-	const omitUnsupportedFields = isChatGPTSignIn(model, options?.apiKey);
 	const params: ResponseCreateParamsStreaming = {
 		model: model.id,
 		input: messages,
 		stream: true,
 		prompt_cache_key: cacheRetention === "none" ? undefined : clampOpenAIPromptCacheKey(options?.sessionId),
-		prompt_cache_retention: omitUnsupportedFields ? undefined : getPromptCacheRetention(compat, cacheRetention),
-		prompt_cache_options: omitUnsupportedFields ? undefined : getPromptCacheOptions(compat, cacheRetention),
+		prompt_cache_retention: getPromptCacheRetention(compat, cacheRetention),
+		prompt_cache_options: getPromptCacheOptions(compat, cacheRetention),
 		store: false,
 	};
 
-	if (options?.maxTokens && compat.supportsMaxOutputTokens && !omitUnsupportedFields) {
+	if (options?.maxTokens && compat.supportsMaxOutputTokens) {
 		params.max_output_tokens = Math.max(options.maxTokens, OPENAI_RESPONSES_MIN_OUTPUT_TOKENS);
 	}
 
-	if (options?.temperature !== undefined && !omitUnsupportedFields) {
+	if (options?.temperature !== undefined) {
 		params.temperature = options?.temperature;
 	}
 
@@ -415,7 +401,6 @@ function buildParams(
 				effort: (model.thinkingLevelMap?.off ?? "none") as NonNullable<typeof params.reasoning>["effort"],
 			};
 		}
-		if (model.provider === "xai") params.include = ["reasoning.encrypted_content"];
 	}
 
 	// Last so model and request sampling parameters override named request fields.

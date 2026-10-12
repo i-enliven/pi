@@ -16,7 +16,6 @@ import type {
 	AuthType,
 	Credential,
 	CredentialStore,
-	LoginOptions,
 	ProviderAuth,
 } from "./auth/types.ts";
 import { InMemoryModelsStore, type ModelsStore, type ModelsStoreEntry } from "./models-store.ts";
@@ -308,7 +307,7 @@ export interface Models {
 	getAuth(model: AnyModel, overrides?: AuthResolutionOverrides): Promise<AuthResult | undefined>;
 
 	/** Run a provider-owned login flow and persist its returned credential. */
-	login(providerId: string, type: AuthType, interaction: AuthInteraction, options?: LoginOptions): Promise<Credential>;
+	login(providerId: string, type: AuthType, interaction: AuthInteraction): Promise<Credential>;
 
 	/** Remove the stored credential for a provider. */
 	logout(providerId: string, options?: AuthOperationOptions): Promise<void>;
@@ -759,12 +758,7 @@ class ModelsImpl implements MutableModels {
 		};
 	}
 
-	async login(
-		providerId: string,
-		type: AuthType,
-		interaction: AuthInteraction,
-		options?: LoginOptions,
-	): Promise<Credential> {
+	async login(providerId: string, type: AuthType, interaction: AuthInteraction): Promise<Credential> {
 		const signal = operationSignal(interaction.signal);
 		signal.throwIfAborted();
 		const provider = this.providers.get(providerId);
@@ -773,7 +767,7 @@ class ModelsImpl implements MutableModels {
 		if (!method?.login) {
 			throw new ModelsError("auth", `${provider.name} does not support ${type} login`);
 		}
-		const loginOperation: Promise<Credential> = method.login({ ...interaction, signal }, options);
+		const loginOperation: Promise<Credential> = method.login({ ...interaction, signal });
 		const credential = await raceWithAbortSignal(loginOperation, signal);
 		let mutationStarted = false;
 		let markMutationStarted: (() => void) | undefined;
@@ -1185,7 +1179,7 @@ export function createProvider<TApi extends Api = Api>(input: CreateProviderOpti
  * Runtime-checked narrowing for dynamically looked-up models:
  *
  * ```ts
- * const model = models.getModel("anthropic", "claude-opus-4-7");
+ * const model = models.getModel("github-copilot", "claude-opus-4.7");
  * if (model && hasApi(model, "anthropic-messages")) {
  *   // model: Model<"anthropic-messages">, stream options fully typed
  * }

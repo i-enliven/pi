@@ -41,7 +41,7 @@ cd /path/to/project
 pi
 ```
 
-For a built-in AI provider, run `/login` inside Pi to connect a subscription or API key. Then give Pi a task.
+Run `/login` inside Pi to connect your GitHub Copilot subscription, or set `COPILOT_GITHUB_TOKEN`. Compatible endpoints and local servers are configured through [`models.json`](docs/models.md). Then give Pi a task.
 
 See the [documentation](docs/index.md) for full setup and usage instructions.
 

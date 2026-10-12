@@ -81,10 +81,12 @@ describe("openai-completions prompt caching", () => {
 	});
 
 	function createModel(overrides: Partial<Model<"openai-completions">> = {}): Model<"openai-completions"> {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
+		const { compat: _compat, ...baseModel } = getModel("github-copilot", "gpt-5.4-mini");
 		return {
 			...(baseModel as Omit<Model<"openai-completions">, "api">),
 			api: "openai-completions",
+			// Direct OpenAI-compatible endpoint: prompt cache fields are keyed off the base URL.
+			baseUrl: "https://api.openai.com/v1",
 			...overrides,
 		};
 	}
@@ -171,22 +173,22 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-affinity"]).toBe("session-affinity");
 	});
 
-	it.each(["accounts/fireworks/models/glm-5p3", "accounts/fireworks/routers/glm-5p3-fast"] as const)(
-		"sends Fireworks session affinity for %s",
+	it.each(["models/glm-5p3", "routers/glm-5p3-fast"] as const)(
+		"sends OpenAI-format session affinity for %s",
 		async (modelId) => {
-			const model = getModel("fireworks", modelId);
-			const { headers } = await captureRequest({ sessionId: "fireworks-session" }, model);
+			const model = createModel({ id: modelId, compat: { sendSessionAffinityHeaders: true } });
+			const { headers } = await captureRequest({ sessionId: "affinity-session" }, model);
 
-			expect(headers["x-session-affinity"]).toBe("fireworks-session");
+			expect(headers["x-session-affinity"]).toBe("affinity-session");
 		},
 	);
 
-	it("sends Baseten session affinity for built-in catalog models", async () => {
-		const model = getModel("baseten", "zai-org/GLM-5.2");
-		const { headers } = await captureRequest({ sessionId: "baseten-catalog-session" }, model);
+	it("sends the client request id alongside the session affinity header", async () => {
+		const model = createModel({ compat: { sendSessionAffinityHeaders: true } });
+		const { headers } = await captureRequest({ sessionId: "affinity-session" }, model);
 
-		expect(headers["x-session-affinity"]).toBe("baseten-catalog-session");
-		expect(headers["x-client-request-id"]).toBe("baseten-catalog-session");
+		expect(headers["x-session-affinity"]).toBe("affinity-session");
+		expect(headers["x-client-request-id"]).toBe("affinity-session");
 	});
 
 	it("uses OpenAI no-session format when configured", async () => {
@@ -218,8 +220,11 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-affinity"]).toBeUndefined();
 	});
 
-	it("sends OpenRouter session-affinity header by default for built-in OpenRouter models", async () => {
-		const model = getModel("openrouter", "auto");
+	it("sends the OpenRouter session-affinity header when the format is configured", async () => {
+		const model = createModel({
+			baseUrl: "https://proxy.example.com/v1",
+			compat: { sendSessionAffinityHeaders: true, sessionAffinityFormat: "openrouter" },
+		});
 		const { payload, headers } = await captureRequest({ sessionId: "session-openrouter" }, model);
 
 		expect(payload?.session_id).toBeUndefined();

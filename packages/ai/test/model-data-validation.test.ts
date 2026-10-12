@@ -126,7 +126,7 @@ describe("published model catalog hydration", () => {
 			type: "image",
 			id: "model-a",
 			name: "Model A Image",
-			api: "openrouter-images",
+			api: "openai-compatible-images",
 			provider: "test-provider",
 			baseUrl: "https://example.test/v1",
 			input: ["text"],
@@ -137,7 +137,7 @@ describe("published model catalog hydration", () => {
 		writeFileSync(catalogPath, JSON.stringify({ "test-provider": [chatModel(values), image] }));
 		hydrateModelCatalog(packageRoot, catalogPath);
 		expect(readModelDataStructure(packageRoot)).toEqual({
-			"test-provider": { "chat:model-a": "openai-completions", "image:model-a": "openrouter-images" },
+			"test-provider": { "chat:model-a": "openai-completions", "image:model-a": "openai-compatible-images" },
 		});
 	});
 

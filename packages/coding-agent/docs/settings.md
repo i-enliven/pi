@@ -157,10 +157,9 @@ Resource arrays support glob exclusions with `!pattern`, exact inclusion with `+
 
 The built-in extensions are named `builtin:mcp` and `builtin:llama.cpp` in `extensions`. They load by default; `-builtin:mcp` disables one. A `+builtin:<name>` or `-builtin:<name>` entry in project settings overrides the user setting. `pi config` lists them under Built-in. `--no-extensions` disables them too, and `-e builtin:<name>` loads one explicitly.
 
-## Updates, telemetry, and warnings
+## Updates and telemetry
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `enableInstallTelemetry` | boolean | `true` | Enable anonymous install/update reporting and selected provider attribution headers. Does not control update checks. |
+| `enableInstallTelemetry` | boolean | `true` | Enable anonymous install/update reporting: an opt-out version/update ping after a detected update. Does not control update checks or request headers. |
 | `enableAnalytics` | boolean | `false` | Opt in to analytics data sharing. Currently used only by the experimental first-run setup. |
-| `warnings.anthropicExtraUsage` | boolean | `true` | Warn when Anthropic subscription authentication may use paid extra usage. |

@@ -94,42 +94,42 @@ describe("ModelRegistry", () => {
 	describe("baseUrl override (no custom models)", () => {
 		test("overriding baseUrl keeps all built-in models", async () => {
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://my-proxy.example.com/v1"),
+				"github-copilot": overrideConfig("https://my-proxy.example.com/v1"),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
 			// Should have multiple built-in models, not just one
-			expect(anthropicModels.length).toBeGreaterThan(1);
-			expect(anthropicModels.some((m) => m.id.includes("claude"))).toBe(true);
+			expect(builtInModels.length).toBeGreaterThan(1);
+			expect(builtInModels.some((m) => m.id.includes("claude"))).toBe(true);
 		});
 
 		test("overriding baseUrl changes URL on all built-in models", async () => {
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://my-proxy.example.com/v1"),
+				"github-copilot": overrideConfig("https://my-proxy.example.com/v1"),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
 			// All models should have the new baseUrl
-			for (const model of anthropicModels) {
+			for (const model of builtInModels) {
 				expect(model.baseUrl).toBe("https://my-proxy.example.com/v1");
 			}
 		});
 
 		test("overriding headers resolves at request time", async () => {
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://my-proxy.example.com/v1", {
+				"github-copilot": overrideConfig("https://my-proxy.example.com/v1", {
 					"X-Custom-Header": "custom-value",
 				}),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
-			for (const model of anthropicModels) {
+			for (const model of builtInModels) {
 				const auth = await registry.getApiKeyAndHeaders(model);
 				expect(auth.ok).toBe(true);
 				if (auth.ok) {
@@ -140,7 +140,7 @@ describe("ModelRegistry", () => {
 
 		test("headers-only override resolves at request time", async () => {
 			writeRawModelsJson({
-				anthropic: {
+				"github-copilot": {
 					headers: {
 						"X-Custom-Header": "custom-value",
 					},
@@ -149,9 +149,9 @@ describe("ModelRegistry", () => {
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 			expect(registry.getError()).toBeUndefined();
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
-			for (const model of anthropicModels) {
+			for (const model of builtInModels) {
 				const auth = await registry.getApiKeyAndHeaders(model);
 				expect(auth.ok).toBe(true);
 				if (auth.ok) {
@@ -171,62 +171,64 @@ describe("ModelRegistry", () => {
 
 			const auth = await registry.getApiKeyAndHeaders(model);
 
-			expect(auth).toEqual({ ok: true, headers: { "X-Static-Model": "static-value" } });
+			expect(auth).toEqual({
+				ok: true,
+				headers: { "X-Static-Model": "static-value" },
+			});
 		});
 
 		test("baseUrl-only override does not affect other providers", async () => {
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://my-proxy.example.com/v1"),
+				"github-copilot": overrideConfig("https://my-proxy.example.com/v1"),
+				demo: providerConfig("https://demo.example.com/v1", [{ id: "demo-model" }]),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const googleModels = getModelsForProvider(registry, "google");
+			const demoModels = getModelsForProvider(registry, "demo");
 
-			// Google models should still have their original baseUrl
-			expect(googleModels.length).toBeGreaterThan(0);
-			expect(googleModels[0].baseUrl).not.toBe("https://my-proxy.example.com/v1");
+			// The other provider keeps its own baseUrl.
+			expect(demoModels.length).toBeGreaterThan(0);
+			expect(demoModels[0].baseUrl).toBe("https://demo.example.com/v1");
 		});
 
 		test("can mix baseUrl override and models merge", async () => {
 			writeRawModelsJson({
-				// baseUrl-only for anthropic
-				anthropic: overrideConfig("https://anthropic-proxy.example.com/v1"),
-				// Add custom model for google (merged with built-ins)
-				google: providerConfig(
-					"https://google-proxy.example.com/v1",
-					[{ id: "gemini-custom" }],
-					"google-generative-ai",
-				),
+				// baseUrl-only for the built-in provider
+				"github-copilot": overrideConfig("https://copilot-proxy.example.com/v1"),
+				// Custom provider with its own model list
+				demo: providerConfig("https://demo-proxy.example.com/v1", [{ id: "demo-custom" }]),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-			// Anthropic: multiple built-in models with new baseUrl
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
-			expect(anthropicModels.length).toBeGreaterThan(1);
-			expect(anthropicModels[0].baseUrl).toBe("https://anthropic-proxy.example.com/v1");
+			// Built-in provider: multiple built-in models with the new baseUrl
+			const copilotModels = getModelsForProvider(registry, "github-copilot");
+			expect(copilotModels.length).toBeGreaterThan(1);
+			expect(copilotModels[0].baseUrl).toBe("https://copilot-proxy.example.com/v1");
 
-			// Google: built-ins plus custom model
-			const googleModels = getModelsForProvider(registry, "google");
-			expect(googleModels.length).toBeGreaterThan(1);
-			expect(googleModels.some((m) => m.id === "gemini-custom")).toBe(true);
+			// Custom provider keeps its own baseUrl and models
+			const demoModels = getModelsForProvider(registry, "demo");
+			expect(demoModels.map((m) => m.id)).toEqual(["demo-custom"]);
+			expect(demoModels[0].baseUrl).toBe("https://demo-proxy.example.com/v1");
 		});
 
 		test("refresh() picks up baseUrl override changes", async () => {
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://first-proxy.example.com/v1"),
+				"github-copilot": overrideConfig("https://first-proxy.example.com/v1"),
 			});
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-			expect(getModelsForProvider(registry, "anthropic")[0].baseUrl).toBe("https://first-proxy.example.com/v1");
+			expect(getModelsForProvider(registry, "github-copilot")[0].baseUrl).toBe("https://first-proxy.example.com/v1");
 
 			// Update and refresh
 			writeRawModelsJson({
-				anthropic: overrideConfig("https://second-proxy.example.com/v1"),
+				"github-copilot": overrideConfig("https://second-proxy.example.com/v1"),
 			});
 			await registry.refresh();
 
-			expect(getModelsForProvider(registry, "anthropic")[0].baseUrl).toBe("https://second-proxy.example.com/v1");
+			expect(getModelsForProvider(registry, "github-copilot")[0].baseUrl).toBe(
+				"https://second-proxy.example.com/v1",
+			);
 		});
 	});
 
@@ -235,11 +237,11 @@ describe("ModelRegistry", () => {
 			// Built-in providers already have api/baseUrl on every model, and auth
 			// comes from env vars / auth storage. No need to specify them.
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					models: [
 						{
-							id: "fake-provider/fake-model",
-							name: "Fake model",
+							id: "custom/copilot-model",
+							name: "Custom model",
 							reasoning: true,
 							input: ["text"],
 						},
@@ -250,10 +252,10 @@ describe("ModelRegistry", () => {
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 			expect(registry.getError()).toBeUndefined();
 
-			const model = registry.find("openrouter", "fake-provider/fake-model");
+			const model = registry.find("github-copilot", "custom/copilot-model");
 			expect(model).toBeDefined();
 			expect(model?.api).toBe("openai-completions");
-			expect(model?.baseUrl).toBe("https://openrouter.ai/api/v1");
+			expect(model?.baseUrl).toBe("https://api.individual.githubcopilot.com");
 		});
 
 		test("non-built-in provider custom models still require baseUrl", async () => {
@@ -290,54 +292,60 @@ describe("ModelRegistry", () => {
 
 		test("custom provider with same name as built-in merges with built-in models", async () => {
 			writeModelsJson({
-				anthropic: providerConfig("https://my-proxy.example.com/v1", [{ id: "claude-custom" }]),
+				"github-copilot": providerConfig("https://my-proxy.example.com/v1", [{ id: "claude-custom" }]),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
-			expect(anthropicModels.length).toBeGreaterThan(1);
-			expect(anthropicModels.some((m) => m.id === "claude-custom")).toBe(true);
-			expect(anthropicModels.some((m) => m.id.includes("claude"))).toBe(true);
+			expect(builtInModels.length).toBeGreaterThan(1);
+			expect(builtInModels.some((m) => m.id === "claude-custom")).toBe(true);
+			expect(builtInModels.some((m) => m.id.includes("claude"))).toBe(true);
 		});
 
 		test("custom model with same id replaces built-in model by id", async () => {
 			writeModelsJson({
-				openrouter: providerConfig(
+				"github-copilot": providerConfig(
 					"https://my-proxy.example.com/v1",
-					[{ id: "anthropic/claude-sonnet-4" }],
+					[{ id: "claude-sonnet-4.6" }],
 					"openai-completions",
 				),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnetModels = models.filter((m) => m.id === "anthropic/claude-sonnet-4");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnetModels = models.filter((m) => m.id === "claude-sonnet-4.6");
 
 			expect(sonnetModels).toHaveLength(1);
 			expect(sonnetModels[0].baseUrl).toBe("https://my-proxy.example.com/v1");
 		});
 
-		test("custom provider with same name as built-in does not affect other built-in providers", async () => {
-			writeModelsJson({
-				anthropic: providerConfig("https://my-proxy.example.com/v1", [{ id: "claude-custom" }]),
+		test("custom provider with same name as built-in does not affect other providers", async () => {
+			writeRawModelsJson({
+				"github-copilot": providerConfig(
+					"https://my-proxy.example.com/v1",
+					[{ id: "claude-custom" }],
+					"anthropic-messages",
+				),
+				demo: providerConfig("https://demo.example.com/v1", [{ id: "demo-model" }]),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-			expect(getModelsForProvider(registry, "google").length).toBeGreaterThan(0);
-			expect(getModelsForProvider(registry, "openai").length).toBeGreaterThan(0);
+			expect(getModelsForProvider(registry, "github-copilot").length).toBeGreaterThan(0);
+			expect(getModelsForProvider(registry, "demo").map((m) => m.id)).toEqual(["demo-model"]);
+			expect(getModelsForProvider(registry, "demo")[0].baseUrl).toBe("https://demo.example.com/v1");
 		});
 
 		test("provider-level baseUrl applies to both built-in and custom models", async () => {
 			writeModelsJson({
-				anthropic: providerConfig("https://merged-proxy.example.com/v1", [{ id: "claude-custom" }]),
+				"github-copilot": providerConfig("https://merged-proxy.example.com/v1", [{ id: "claude-custom" }]),
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
 
-			for (const model of anthropicModels) {
+			for (const model of builtInModels) {
 				expect(model.baseUrl).toBe("https://merged-proxy.example.com/v1");
 			}
 		});
@@ -408,7 +416,7 @@ describe("ModelRegistry", () => {
 
 		test("provider-level compat applies to built-in models", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					compat: {
 						supportsUsageInStreaming: false,
 						supportsStrictMode: false,
@@ -417,7 +425,7 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
 			expect(models.length).toBeGreaterThan(0);
 			for (const model of models) {
@@ -617,7 +625,7 @@ describe("ModelRegistry", () => {
 
 		test("modelOverrides still apply when provider also defines models", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					baseUrl: "https://my-proxy.example.com/v1",
 					apiKey: "OPENROUTER_API_KEY",
 					api: "openai-completions",
@@ -633,7 +641,7 @@ describe("ModelRegistry", () => {
 						},
 					],
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "Overridden Built-in Sonnet",
 						},
 					},
@@ -641,56 +649,54 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
 			expect(models.some((m) => m.id === "custom/openrouter-model")).toBe(true);
-			expect(
-				models.some((m) => m.id === "anthropic/claude-sonnet-4" && m.name === "Overridden Built-in Sonnet"),
-			).toBe(true);
+			expect(models.some((m) => m.id === "claude-sonnet-4.6" && m.name === "Overridden Built-in Sonnet")).toBe(true);
 		});
 
 		test("refresh() reloads merged custom models from disk", async () => {
 			writeModelsJson({
-				anthropic: providerConfig("https://first-proxy.example.com/v1", [{ id: "claude-custom" }]),
+				"github-copilot": providerConfig("https://first-proxy.example.com/v1", [{ id: "claude-custom" }]),
 			});
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			expect(getModelsForProvider(registry, "anthropic").some((m) => m.id === "claude-custom")).toBe(true);
+			expect(getModelsForProvider(registry, "github-copilot").some((m) => m.id === "claude-custom")).toBe(true);
 
 			// Update and refresh
 			writeModelsJson({
-				anthropic: providerConfig("https://second-proxy.example.com/v1", [{ id: "claude-custom-2" }]),
+				"github-copilot": providerConfig("https://second-proxy.example.com/v1", [{ id: "claude-custom-2" }]),
 			});
 			await registry.refresh();
 
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
-			expect(anthropicModels.some((m) => m.id === "claude-custom")).toBe(false);
-			expect(anthropicModels.some((m) => m.id === "claude-custom-2")).toBe(true);
-			expect(anthropicModels.some((m) => m.id.includes("claude"))).toBe(true);
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
+			expect(builtInModels.some((m) => m.id === "claude-custom")).toBe(false);
+			expect(builtInModels.some((m) => m.id === "claude-custom-2")).toBe(true);
+			expect(builtInModels.some((m) => m.id.includes("claude"))).toBe(true);
 		});
 
 		test("removing custom models from models.json keeps built-in provider models", async () => {
 			writeModelsJson({
-				anthropic: providerConfig("https://proxy.example.com/v1", [{ id: "claude-custom" }]),
+				"github-copilot": providerConfig("https://proxy.example.com/v1", [{ id: "claude-custom" }]),
 			});
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			expect(getModelsForProvider(registry, "anthropic").some((m) => m.id === "claude-custom")).toBe(true);
+			expect(getModelsForProvider(registry, "github-copilot").some((m) => m.id === "claude-custom")).toBe(true);
 
 			// Remove custom models and refresh
 			writeModelsJson({});
 			await registry.refresh();
 
-			const anthropicModels = getModelsForProvider(registry, "anthropic");
-			expect(anthropicModels.some((m) => m.id === "claude-custom")).toBe(false);
-			expect(anthropicModels.some((m) => m.id.includes("claude"))).toBe(true);
+			const builtInModels = getModelsForProvider(registry, "github-copilot");
+			expect(builtInModels.some((m) => m.id === "claude-custom")).toBe(false);
+			expect(builtInModels.some((m) => m.id.includes("claude"))).toBe(true);
 		});
 	});
 
 	describe("modelOverrides (per-model customization)", () => {
 		test("model override applies to a single built-in model", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "Custom Sonnet Name",
 						},
 					},
@@ -698,31 +704,31 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 			expect(sonnet?.name).toBe("Custom Sonnet Name");
 
 			// Other models should be unchanged
-			const opus = models.find((m) => m.id === "anthropic/claude-opus-4.1");
+			const opus = models.find((m) => m.id === "claude-opus-4.7");
 			expect(opus?.name).not.toBe("Custom Sonnet Name");
 		});
 
 		test("Anthropic model override replaces allowed fallback metadata", async () => {
 			const allowedFallbackModels = [
 				{
-					provider: "anthropic",
+					provider: "github-copilot",
 					model: "claude-opus-5",
 					cost: { input: 5, output: 25, cacheRead: 0.5, cacheWrite: 6.25 },
 				},
 				{
-					provider: "anthropic",
-					model: "claude-opus-4-8",
+					provider: "github-copilot",
+					model: "claude-opus-4.8",
 					cost: { input: 4, output: 20, cacheRead: 0.4, cacheWrite: 5 },
 				},
 			];
 			writeRawModelsJson({
-				anthropic: {
+				"github-copilot": {
 					modelOverrides: {
 						"claude-fable-5": {
 							compat: { allowedFallbackModels },
@@ -732,7 +738,9 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const compat = registry.find("anthropic", "claude-fable-5")?.compat as AnthropicMessagesCompat | undefined;
+			const compat = registry.find("github-copilot", "claude-fable-5")?.compat as
+				| AnthropicMessagesCompat
+				| undefined;
 
 			expect(registry.getError()).toBeUndefined();
 			expect(compat?.allowedFallbackModels).toEqual(allowedFallbackModels);
@@ -740,7 +748,7 @@ describe("ModelRegistry", () => {
 
 		test("empty allowed fallback model override disables server-side fallback", async () => {
 			writeRawModelsJson({
-				anthropic: {
+				"github-copilot": {
 					modelOverrides: {
 						"claude-fable-5": { compat: { allowedFallbackModels: [] } },
 					},
@@ -748,7 +756,9 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const compat = registry.find("anthropic", "claude-fable-5")?.compat as AnthropicMessagesCompat | undefined;
+			const compat = registry.find("github-copilot", "claude-fable-5")?.compat as
+				| AnthropicMessagesCompat
+				| undefined;
 
 			expect(registry.getError()).toBeUndefined();
 			expect(compat?.allowedFallbackModels).toEqual([]);
@@ -756,7 +766,7 @@ describe("ModelRegistry", () => {
 
 		test("custom models and model overrides carry sampling params", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					baseUrl: "https://my-proxy.example.com/v1",
 					api: "openai-completions",
 					models: [
@@ -776,7 +786,7 @@ describe("ModelRegistry", () => {
 								max: { temperature: 1 },
 							},
 						},
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							samplingParams: { top_p: 0.9 },
 							samplingParamsByThinkingLevel: { high: { temperature: 0.8 } },
 						},
@@ -785,52 +795,52 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
 			const custom = models.find((m) => m.id === "custom/sampling-model");
-			expect(custom?.samplingParams).toEqual({ temperature: 1, top_p: 0.95, top_k: 0 });
+			expect(custom?.samplingParams).toEqual({
+				temperature: 1,
+				top_p: 0.95,
+				top_k: 0,
+			});
 			expect(custom?.samplingParamsByThinkingLevel).toEqual({
 				low: { temperature: 0.5, top_p: 0.95, top_k: 20 },
 				high: { temperature: 0.8 },
 				max: { temperature: 1 },
 			});
 
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 			expect(sonnet?.samplingParams).toEqual({ top_p: 0.9 });
-			expect(sonnet?.samplingParamsByThinkingLevel).toEqual({ high: { temperature: 0.8 } });
+			expect(sonnet?.samplingParamsByThinkingLevel).toEqual({
+				high: { temperature: 0.8 },
+			});
 
 			// Models without sampling config keep it unset.
-			const opus = models.find((m) => m.id === "anthropic/claude-opus-4.1");
+			const opus = models.find((m) => m.id === "claude-opus-4.7");
 			expect(opus?.samplingParams).toBeUndefined();
 			expect(opus?.samplingParamsByThinkingLevel).toBeUndefined();
 		});
 
 		test("custom model and model override carry prompt cache lifetimes", async () => {
 			writeRawModelsJson({
-				openrouter: {
-					baseUrl: "https://my-proxy.example.com/v1",
-					api: "openai-completions",
+				"github-copilot": {
 					models: [{ id: "custom/cached-model", promptCache: { short: 120 } }],
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": { promptCache: { short: 300 } },
-					},
-				},
-				anthropic: {
-					modelOverrides: {
-						"claude-sonnet-4-6": { promptCache: { long: 1800 } },
+						"claude-sonnet-4.6": { promptCache: { short: 300 } },
+						"claude-opus-4.7": { promptCache: { short: 300, long: 1800 } },
 					},
 				},
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const openrouter = getModelsForProvider(registry, "openrouter");
+			const copilot = getModelsForProvider(registry, "github-copilot");
 
 			expect(registry.getError()).toBeUndefined();
-			expect(openrouter.find((m) => m.id === "custom/cached-model")?.promptCache).toEqual({ short: 120 });
-			expect(openrouter.find((m) => m.id === "anthropic/claude-sonnet-4")?.promptCache).toEqual({ short: 300 });
-			expect(openrouter.find((m) => m.id === "anthropic/claude-opus-4.1")?.promptCache).toBeUndefined();
-			// Overrides merge per tier with the built-in catalog.
-			expect(registry.find("anthropic", "claude-sonnet-4-6")?.promptCache).toEqual({ short: 300, long: 1800 });
+			expect(copilot.find((m) => m.id === "custom/cached-model")?.promptCache).toEqual({ short: 120 });
+			expect(copilot.find((m) => m.id === "claude-sonnet-4.6")?.promptCache).toEqual({ short: 300 });
+			expect(copilot.find((m) => m.id === "claude-opus-4.7")?.promptCache).toEqual({ short: 300, long: 1800 });
+			// Models without an override keep the catalog value, which is unset here.
+			expect(copilot.find((m) => m.id === "claude-opus-4.8")?.promptCache).toBeUndefined();
 		});
 
 		// Regression test for https://github.com/earendil-works/pi/issues/9631
@@ -861,7 +871,9 @@ describe("ModelRegistry", () => {
 					modelOverrides: {
 						"vision-model": {
 							inputLimits: {
-								images: { resize: { maxWidth: 1568, maxBytes: 524288, jpegQuality: 75 } },
+								images: {
+									resize: { maxWidth: 1568, maxBytes: 524288, jpegQuality: 75 },
+								},
 							},
 						},
 					},
@@ -876,16 +888,21 @@ describe("ModelRegistry", () => {
 				maxRequestBytes: 32 * 1024 * 1024,
 				images: {
 					maxPerRequest: 100,
-					resize: { maxWidth: 1568, maxHeight: 2000, maxBytes: 524288, jpegQuality: 75 },
+					resize: {
+						maxWidth: 1568,
+						maxHeight: 2000,
+						maxBytes: 524288,
+						jpegQuality: 75,
+					},
 				},
 			});
 		});
 
 		test("model override with compat.openRouterRouting", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							compat: {
 								openRouterRouting: { only: ["amazon-bedrock"] },
 							},
@@ -895,9 +912,9 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 			const compat = sonnet?.compat as OpenAICompletionsCompat | undefined;
 			expect(compat?.openRouterRouting).toEqual({ only: ["amazon-bedrock"] });
 		});
@@ -906,17 +923,17 @@ describe("ModelRegistry", () => {
 			const provider: ModelsJsonProvider = {
 				compat: { supportsFinishReason: true },
 				modelOverrides: {
-					"anthropic/claude-sonnet-4": {
+					"claude-sonnet-4.6": {
 						compat: { supportsFinishReason: false },
 					},
 				},
 			};
-			writeRawModelsJson({ openrouter: provider });
+			writeRawModelsJson({ "github-copilot": provider });
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnet = models.find((model) => model.id === "anthropic/claude-sonnet-4");
-			const opus = models.find((model) => model.id === "anthropic/claude-opus-4.1");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnet = models.find((model) => model.id === "claude-sonnet-4.6");
+			const opus = models.find((model) => model.id === "claude-opus-4.7");
 
 			expect((sonnet?.compat as OpenAICompletionsCompat | undefined)?.supportsFinishReason).toBe(false);
 			expect((opus?.compat as OpenAICompletionsCompat | undefined)?.supportsFinishReason).toBe(true);
@@ -924,9 +941,9 @@ describe("ModelRegistry", () => {
 
 		test("model override deep merges compat settings", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							compat: {
 								openRouterRouting: { order: ["anthropic", "together"] },
 							},
@@ -936,22 +953,24 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 
 			// Should have both the new routing AND preserve other compat settings
 			const compat = sonnet?.compat as OpenAICompletionsCompat | undefined;
-			expect(compat?.openRouterRouting).toEqual({ order: ["anthropic", "together"] });
+			expect(compat?.openRouterRouting).toEqual({
+				order: ["anthropic", "together"],
+			});
 		});
 
 		test("multiple model overrides on same provider", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							compat: { openRouterRouting: { only: ["amazon-bedrock"] } },
 						},
-						"anthropic/claude-opus-4.1": {
+						"claude-opus-4.7": {
 							compat: { openRouterRouting: { only: ["anthropic"] } },
 						},
 					},
@@ -959,23 +978,25 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
-			const opus = models.find((m) => m.id === "anthropic/claude-opus-4.1");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
+			const opus = models.find((m) => m.id === "claude-opus-4.7");
 
 			const sonnetCompat = sonnet?.compat as OpenAICompletionsCompat | undefined;
 			const opusCompat = opus?.compat as OpenAICompletionsCompat | undefined;
-			expect(sonnetCompat?.openRouterRouting).toEqual({ only: ["amazon-bedrock"] });
+			expect(sonnetCompat?.openRouterRouting).toEqual({
+				only: ["amazon-bedrock"],
+			});
 			expect(opusCompat?.openRouterRouting).toEqual({ only: ["anthropic"] });
 		});
 
 		test("model override combined with baseUrl override", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					baseUrl: "https://my-proxy.example.com/v1",
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "Proxied Sonnet",
 						},
 					},
@@ -983,22 +1004,22 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 
 			// Both overrides should apply
 			expect(sonnet?.baseUrl).toBe("https://my-proxy.example.com/v1");
 			expect(sonnet?.name).toBe("Proxied Sonnet");
 
 			// Other models should have the baseUrl but not the name override
-			const opus = models.find((m) => m.id === "anthropic/claude-opus-4.1");
+			const opus = models.find((m) => m.id === "claude-opus-4.7");
 			expect(opus?.baseUrl).toBe("https://my-proxy.example.com/v1");
 			expect(opus?.name).not.toBe("Proxied Sonnet");
 		});
 
 		test("model override for non-existent model ID is ignored", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
 						"nonexistent/model-id": {
 							name: "This should not appear",
@@ -1008,7 +1029,7 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
+			const models = getModelsForProvider(registry, "github-copilot");
 
 			// Should not create a new model
 			expect(models.find((m) => m.id === "nonexistent/model-id")).toBeUndefined();
@@ -1018,9 +1039,9 @@ describe("ModelRegistry", () => {
 
 		test("model override can change cost fields partially", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							cost: { input: 99 },
 						},
 					},
@@ -1028,8 +1049,8 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 
 			// Input cost should be overridden
 			expect(sonnet?.cost.input).toBe(99);
@@ -1039,9 +1060,9 @@ describe("ModelRegistry", () => {
 
 		test("model override can add headers at request time", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							headers: { "X-Custom-Model-Header": "value" },
 						},
 					},
@@ -1049,8 +1070,8 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const models = getModelsForProvider(registry, "openrouter");
-			const sonnet = models.find((m) => m.id === "anthropic/claude-sonnet-4");
+			const models = getModelsForProvider(registry, "github-copilot");
+			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 			expect(sonnet).toBeDefined();
 
 			const auth = await registry.getApiKeyAndHeaders(sonnet!);
@@ -1062,9 +1083,9 @@ describe("ModelRegistry", () => {
 
 		test("refresh() picks up model override changes", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "First Name",
 						},
 					},
@@ -1072,15 +1093,15 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			expect(
-				getModelsForProvider(registry, "openrouter").find((m) => m.id === "anthropic/claude-sonnet-4")?.name,
-			).toBe("First Name");
+			expect(getModelsForProvider(registry, "github-copilot").find((m) => m.id === "claude-sonnet-4.6")?.name).toBe(
+				"First Name",
+			);
 
 			// Update and refresh
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "Second Name",
 						},
 					},
@@ -1088,16 +1109,16 @@ describe("ModelRegistry", () => {
 			});
 			await registry.refresh();
 
-			expect(
-				getModelsForProvider(registry, "openrouter").find((m) => m.id === "anthropic/claude-sonnet-4")?.name,
-			).toBe("Second Name");
+			expect(getModelsForProvider(registry, "github-copilot").find((m) => m.id === "claude-sonnet-4.6")?.name).toBe(
+				"Second Name",
+			);
 		});
 
 		test("removing model override restores built-in values", async () => {
 			writeRawModelsJson({
-				openrouter: {
+				"github-copilot": {
 					modelOverrides: {
-						"anthropic/claude-sonnet-4": {
+						"claude-sonnet-4.6": {
 							name: "Custom Name",
 						},
 					},
@@ -1105,8 +1126,8 @@ describe("ModelRegistry", () => {
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const customName = getModelsForProvider(registry, "openrouter").find(
-				(m) => m.id === "anthropic/claude-sonnet-4",
+			const customName = getModelsForProvider(registry, "github-copilot").find(
+				(m) => m.id === "claude-sonnet-4.6",
 			)?.name;
 			expect(customName).toBe("Custom Name");
 
@@ -1114,8 +1135,8 @@ describe("ModelRegistry", () => {
 			writeRawModelsJson({});
 			await registry.refresh();
 
-			const restoredName = getModelsForProvider(registry, "openrouter").find(
-				(m) => m.id === "anthropic/claude-sonnet-4",
+			const restoredName = getModelsForProvider(registry, "github-copilot").find(
+				(m) => m.id === "claude-sonnet-4.6",
 			)?.name;
 			expect(restoredName).not.toBe("Custom Name");
 		});
@@ -1125,9 +1146,7 @@ describe("ModelRegistry", () => {
 		test("getProviderDisplayName resolves registered, OAuth, built-in, and fallback names", async () => {
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-			expect(registry.getProviderDisplayName("openai")).toBe("OpenAI");
 			expect(registry.getProviderDisplayName("github-copilot")).toBe("GitHub Copilot");
-			expect(registry.getProviderDisplayName("zai")).toBe("Z.AI");
 			expect(registry.getProviderDisplayName("unknown-provider")).toBe("unknown-provider");
 
 			registry.registerProvider("named-provider", {
@@ -1154,7 +1173,11 @@ describe("ModelRegistry", () => {
 				api: "openai-completions",
 				oauth: {
 					name: "OAuth Provider",
-					login: async () => ({ access: "access", refresh: "refresh", expires: Date.now() + 60_000 }),
+					login: async () => ({
+						access: "access",
+						refresh: "refresh",
+						expires: Date.now() + 60_000,
+					}),
 					refreshToken: async (credentials) => credentials,
 					getApiKey: (credentials) => credentials.access,
 				},
@@ -1231,39 +1254,35 @@ describe("ModelRegistry", () => {
 		});
 
 		test("stored API key env propagates to request auth and resolves headers", async () => {
-			await authStorage.modify("cloudflare-ai-gateway", async () => ({
+			await authStorage.modify("github-copilot", async () => ({
 				type: "api_key",
-				key: "$CLOUDFLARE_API_KEY",
+				key: "$COPILOT_TOKEN",
 				env: {
-					CLOUDFLARE_API_KEY: "stored-cf-token",
-					CLOUDFLARE_ACCOUNT_ID: "stored-account",
-					CLOUDFLARE_GATEWAY_ID: "stored-gateway",
+					COPILOT_TOKEN: "stored-copilot-token",
+					COPILOT_ACCOUNT_ID: "stored-account",
 				},
 			}));
 			writeRawModelsJson({
-				"cloudflare-ai-gateway": {
-					headers: { "x-account": "$CLOUDFLARE_ACCOUNT_ID" },
+				"github-copilot": {
+					headers: { "x-account": "$COPILOT_ACCOUNT_ID" },
 				},
 			});
 
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
-			const model = registry.getAll().find((m) => m.provider === "cloudflare-ai-gateway");
+			const model = registry.getAll().find((m) => m.provider === "github-copilot");
 			expect(model).toBeDefined();
 
 			const auth = await registry.getApiKeyAndHeaders(model!);
 
-			expect(auth).toEqual({
+			// The stored credential's scoped env feeds both the key and header interpolation.
+			// Static model headers (the Copilot editor headers) ride along and are asserted elsewhere.
+			expect(auth).toMatchObject({
 				ok: true,
-				apiKey: undefined,
-				headers: {
-					"cf-aig-authorization": "Bearer stored-cf-token",
-					Authorization: null,
-					"x-api-key": null,
-					"x-account": "stored-account",
-				},
+				apiKey: "stored-copilot-token",
+				headers: { "x-account": "stored-account" },
 				env: {
-					CLOUDFLARE_ACCOUNT_ID: "stored-account",
-					CLOUDFLARE_GATEWAY_ID: "stored-gateway",
+					COPILOT_TOKEN: "stored-copilot-token",
+					COPILOT_ACCOUNT_ID: "stored-account",
 				},
 			});
 		});
@@ -1332,7 +1351,9 @@ describe("ModelRegistry", () => {
 				}),
 			).toThrow('Provider broken-provider: "api" is required when registering streamSimple.');
 
-			await expect(registry.refresh()).resolves.toMatchObject({ aborted: false });
+			await expect(registry.refresh()).resolves.toMatchObject({
+				aborted: false,
+			});
 		});
 
 		test("failed registerProvider does not remove existing provider models", async () => {
@@ -1376,14 +1397,16 @@ describe("ModelRegistry", () => {
 			).toThrow('Provider demo-provider, model broken-model: no "api" specified.');
 
 			expect(registry.find("demo-provider", "demo-model")).toBeDefined();
-			await expect(registry.refresh()).resolves.toMatchObject({ aborted: false });
+			await expect(registry.refresh()).resolves.toMatchObject({
+				aborted: false,
+			});
 			expect(registry.find("demo-provider", "demo-model")).toBeDefined();
 		});
 
 		test("unregisterProvider removes the runtime OAuth overlay without mutating global state", async () => {
 			const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-			registry.registerProvider("anthropic", {
+			registry.registerProvider("github-copilot", {
 				oauth: {
 					name: "Custom Anthropic OAuth",
 					login: async () => ({
@@ -1396,11 +1419,11 @@ describe("ModelRegistry", () => {
 				},
 			});
 
-			expect(registry.getRegisteredProviderConfig("anthropic")?.oauth?.name).toBe("Custom Anthropic OAuth");
+			expect(registry.getRegisteredProviderConfig("github-copilot")?.oauth?.name).toBe("Custom Anthropic OAuth");
 
-			registry.unregisterProvider("anthropic");
+			registry.unregisterProvider("github-copilot");
 
-			expect(registry.getRegisteredProviderConfig("anthropic")).toBeUndefined();
+			expect(registry.getRegisteredProviderConfig("github-copilot")).toBeUndefined();
 		});
 
 		test("streamSimple overlays do not mutate the global compat API registry", async () => {
@@ -1437,39 +1460,43 @@ describe("ModelRegistry", () => {
 			test("baseUrl-only override keeps built-in provider models after refresh", async () => {
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-				registry.registerProvider("anthropic", { baseUrl: "https://proxy.test/anthropic" });
+				registry.registerProvider("github-copilot", {
+					baseUrl: "https://proxy.test/anthropic",
+				});
 				await registry.refresh();
 
-				const anthropicModels = getModelsForProvider(registry, "anthropic");
-				expect(anthropicModels.length).toBeGreaterThan(1);
-				expect(anthropicModels.every((m) => m.baseUrl === "https://proxy.test/anthropic")).toBe(true);
+				const builtInModels = getModelsForProvider(registry, "github-copilot");
+				expect(builtInModels.length).toBeGreaterThan(1);
+				expect(builtInModels.every((m) => m.baseUrl === "https://proxy.test/anthropic")).toBe(true);
 			});
 
 			test("models-only override replaces built-in provider models after refresh", async () => {
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-				registry.registerProvider("anthropic", {
+				registry.registerProvider("github-copilot", {
 					...providerConfig("https://custom.test/anthropic", [{ id: "custom-claude" }], "anthropic-messages"),
 					baseUrl: "https://custom.test/anthropic",
 				});
 				await registry.refresh();
 
-				expect(getModelsForProvider(registry, "anthropic").map((m) => m.id)).toEqual(["custom-claude"]);
-				expect(registry.find("anthropic", "custom-claude")?.baseUrl).toBe("https://custom.test/anthropic");
+				expect(getModelsForProvider(registry, "github-copilot").map((m) => m.id)).toEqual(["custom-claude"]);
+				expect(registry.find("github-copilot", "custom-claude")?.baseUrl).toBe("https://custom.test/anthropic");
 			});
 
 			test("models plus baseUrl override replaces built-in provider models after refresh", async () => {
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-				registry.registerProvider("anthropic", {
+				registry.registerProvider("github-copilot", {
 					...providerConfig("https://custom.test/anthropic", [{ id: "custom-claude" }], "anthropic-messages"),
 					baseUrl: "https://custom.test/anthropic",
 				});
-				registry.registerProvider("anthropic", { baseUrl: "https://proxy.test/anthropic" });
+				registry.registerProvider("github-copilot", {
+					baseUrl: "https://proxy.test/anthropic",
+				});
 				await registry.refresh();
 
-				expect(getModelsForProvider(registry, "anthropic").map((m) => m.id)).toEqual(["custom-claude"]);
-				expect(registry.find("anthropic", "custom-claude")?.baseUrl).toBe("https://proxy.test/anthropic");
+				expect(getModelsForProvider(registry, "github-copilot").map((m) => m.id)).toEqual(["custom-claude"]);
+				expect(registry.find("github-copilot", "custom-claude")?.baseUrl).toBe("https://proxy.test/anthropic");
 			});
 
 			test("models-only custom provider registration survives refresh", async () => {
@@ -1494,7 +1521,9 @@ describe("ModelRegistry", () => {
 					"custom-provider",
 					providerConfig("https://custom.test/v1", [{ id: "custom-a" }, { id: "custom-b" }], "openai-completions"),
 				);
-				registry.registerProvider("custom-provider", { baseUrl: "https://proxy.test/custom" });
+				registry.registerProvider("custom-provider", {
+					baseUrl: "https://proxy.test/custom",
+				});
 				await registry.refresh();
 
 				expect(getModelsForProvider(registry, "custom-provider").map((m) => m.id)).toEqual([
@@ -1515,7 +1544,9 @@ describe("ModelRegistry", () => {
 					"custom-provider",
 					providerConfig("https://custom.test/v1", [{ id: "custom-a" }, { id: "custom-b" }], "openai-completions"),
 				);
-				registry.registerProvider("custom-provider", { headers: { "x-proxy": "enabled" } });
+				registry.registerProvider("custom-provider", {
+					headers: { "x-proxy": "enabled" },
+				});
 				await registry.refresh();
 
 				const models = getModelsForProvider(registry, "custom-provider");
@@ -1936,7 +1967,9 @@ describe("ModelRegistry", () => {
 
 					const registry = await createModelRegistry(authStorage, modelsJsonPath);
 
-					expect(registry.getProviderAuthStatus("custom-provider")).toEqual({ configured: false });
+					expect(registry.getProviderAuthStatus("custom-provider")).toEqual({
+						configured: false,
+					});
 					expect(registry.getAvailable().some((model) => model.provider === "custom-provider")).toBe(false);
 				} finally {
 					if (originalEnv === undefined) {
@@ -2098,7 +2131,10 @@ describe("ModelRegistry", () => {
 				writeRawModelsJson({
 					"custom-provider": providerWithApiKey(`!sh -c 'echo 1 > "${counterPath}"; echo fallback-key'`),
 				});
-				await authStorage.modify("custom-provider", async () => ({ type: "api_key", key: "stored-key" }));
+				await authStorage.modify("custom-provider", async () => ({
+					type: "api_key",
+					key: "stored-key",
+				}));
 
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);
 				const auth = await registry.getApiKeyAndHeaders(registry.find("custom-provider", "test-model")!);
@@ -2120,7 +2156,10 @@ describe("ModelRegistry", () => {
 				const registry = await createModelRegistry(authStorage, modelsJsonPath);
 				const auth = await registry.getApiKeyAndHeaders(registry.find("custom-provider", "test-model")!);
 
-				expect(auth).toEqual({ ok: false, error: 'No API key found for "custom-provider"' });
+				expect(auth).toEqual({
+					ok: false,
+					error: 'No API key found for "custom-provider"',
+				});
 			});
 
 			test("getApiKeyAndHeaders returns an error for failed authHeader resolution", async () => {

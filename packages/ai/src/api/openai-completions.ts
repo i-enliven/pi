@@ -612,11 +612,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 					if (foundReasoningField) {
 						const delta = deltaFields[foundReasoningField];
 						if (typeof delta === "string" && delta.length > 0) {
-							const thinkingSignature =
-								model.provider === "opencode-go" && foundReasoningField === "reasoning"
-									? "reasoning_content"
-									: foundReasoningField;
-							const block = ensureThinkingBlock(thinkingSignature);
+							const block = ensureThinkingBlock(foundReasoningField);
 							block.thinking += delta;
 							stream.push({
 								type: "thinking_delta",
@@ -1237,7 +1233,7 @@ export function convertMessages(
 	const normalizeToolCallId = (id: string): string => {
 		// Handle pipe-separated IDs from OpenAI Responses API
 		// Format: {call_id}|{id} where {id} can be 400+ chars with special chars (+, /, =)
-		// These come from providers like github-copilot, openai-codex, opencode
+		// These come from Responses-style endpoints that return paired call/item ids
 		// Extract just the call_id part and normalize it
 		// Multiple tool calls in the same turn can share call_id but differ by item_id.
 		// Preserve item-level uniqueness when replaying into Chat Completions, which
@@ -1256,7 +1252,7 @@ export function convertMessages(
 			return `${prefix}_${hash}`;
 		}
 
-		if (model.provider === "openai") return id.length > 40 ? id.slice(0, 40) : id;
+		if (model.baseUrl.includes("api.openai.com")) return id.length > 40 ? id.slice(0, 40) : id;
 		return id;
 	};
 
@@ -1374,10 +1370,7 @@ export function convertMessages(
 					// reasoning_details is the structured alternative to a raw reasoning field.
 					if (!preservedReasoningDetails) {
 						// Use the signature from the first thinking block if available (for llama.cpp server + gpt-oss)
-						let signature = nonEmptyThinkingBlocks[0].thinkingSignature;
-						if (model.provider === "opencode-go" && signature === "reasoning") {
-							signature = "reasoning_content";
-						}
+						const signature = nonEmptyThinkingBlocks[0].thinkingSignature;
 						if (signature && isOpenAICompletionsReasoningField(signature)) {
 							assistantMsg[signature] = nonEmptyThinkingBlocks.map((block) => block.thinking).join("\n");
 						}
@@ -1621,41 +1614,33 @@ function mapStopReason(reason: ChatCompletionChunk.Choice["finish_reason"] | str
 }
 
 /**
- * Auto-detect compatibility settings from provider name and baseUrl.
+ * Auto-detect compatibility settings from the model baseUrl.
  * Used as the base when model.compat is not set; explicit model.compat
  * entries override these detected values.
  */
 function detectCompat(model: Model<"openai-completions">): ResolvedOpenAICompletionsCompat {
-	const provider = model.provider;
 	const baseUrl = model.baseUrl;
 
-	const isZai =
-		provider === "zai" ||
-		provider === "zai-coding-cn" ||
-		baseUrl.includes("api.z.ai") ||
-		baseUrl.includes("open.bigmodel.cn");
-	const isTogether =
-		provider === "together" || baseUrl.includes("api.together.ai") || baseUrl.includes("api.together.xyz");
-	const isMoonshot = provider === "moonshotai" || provider === "moonshotai-cn" || baseUrl.includes("api.moonshot.");
-	const isOpenRouter = provider === "openrouter" || baseUrl.includes("openrouter.ai");
-	const isCloudflareWorkersAI = provider === "cloudflare-workers-ai" || baseUrl.includes("api.cloudflare.com");
-	const isCloudflareAiGateway = provider === "cloudflare-ai-gateway" || baseUrl.includes("gateway.ai.cloudflare.com");
-	const isNvidia = provider === "nvidia" || baseUrl.includes("integrate.api.nvidia.com");
-	const isAntLing = provider === "ant-ling" || baseUrl.includes("api.ant-ling.com");
-	const isCerebras = provider === "cerebras" || baseUrl.includes("cerebras.ai");
-	const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com");
+	const isZai = baseUrl.includes("api.z.ai") || baseUrl.includes("open.bigmodel.cn");
+	const isTogether = baseUrl.includes("api.together.ai") || baseUrl.includes("api.together.xyz");
+	const isMoonshot = baseUrl.includes("api.moonshot.");
+	const isOpenRouter = baseUrl.includes("openrouter.ai");
+	const isCloudflareWorkersAI = baseUrl.includes("api.cloudflare.com");
+	const isCloudflareAiGateway = baseUrl.includes("gateway.ai.cloudflare.com");
+	const isNvidia = baseUrl.includes("integrate.api.nvidia.com");
+	const isAntLing = baseUrl.includes("api.ant-ling.com");
+	const isCerebras = baseUrl.includes("cerebras.ai");
+	const isDeepSeek = baseUrl.toLowerCase().includes("deepseek.com");
 
 	const isNonStandard =
 		isNvidia ||
 		isCerebras ||
-		provider === "xai" ||
 		baseUrl.includes("api.x.ai") ||
 		isTogether ||
 		baseUrl.includes("chutes.ai") ||
 		isDeepSeek ||
 		isZai ||
 		isMoonshot ||
-		provider === "opencode" ||
 		baseUrl.includes("opencode.ai") ||
 		isCloudflareWorkersAI ||
 		isCloudflareAiGateway ||
@@ -1671,10 +1656,10 @@ function detectCompat(model: Model<"openai-completions">): ResolvedOpenAIComplet
 		isAntLing ||
 		isZai;
 
-	const isGrok = provider === "xai" || baseUrl.includes("api.x.ai");
+	const isGrok = baseUrl.includes("api.x.ai");
 	const isOpenRouterDeveloperRoleModel =
 		isOpenRouter && (model.id.startsWith("anthropic/") || model.id.startsWith("openai/"));
-	const cacheControlFormat = provider === "openrouter" && model.id.startsWith("anthropic/") ? "anthropic" : undefined;
+	const cacheControlFormat = isOpenRouter && model.id.startsWith("anthropic/") ? "anthropic" : undefined;
 
 	return {
 		supportsStore: !isNonStandard,

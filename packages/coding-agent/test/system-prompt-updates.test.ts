@@ -61,7 +61,7 @@ describe("system prompt updates", () => {
 			const created = await createAgentSession({
 				cwd: tempDir,
 				agentDir: join(tempDir, "agent"),
-				model: getModel("anthropic", "claude-sonnet-4-5")!,
+				model: getModel("github-copilot", "claude-sonnet-4.6")!,
 				settingsManager: SettingsManager.inMemory(),
 				sessionManager,
 				noTools: "all",

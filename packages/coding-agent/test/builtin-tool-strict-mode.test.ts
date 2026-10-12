@@ -74,7 +74,7 @@ describe("strict built-in tools", () => {
 				const { session } = await createAgentSession({
 					cwd,
 					agentDir,
-					model: getModel("anthropic", "claude-sonnet-4-5"),
+					model: getModel("github-copilot", "claude-sonnet-4.6"),
 					settingsManager,
 					sessionManager: SessionManager.inMemory(cwd),
 					resourceLoader,

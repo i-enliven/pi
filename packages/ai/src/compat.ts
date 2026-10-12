@@ -11,12 +11,7 @@
  */
 
 export * from "./api/anthropic-messages.lazy.ts";
-export * from "./api/azure-openai-responses.lazy.ts";
-export * from "./api/bedrock-converse-stream.lazy.ts";
-export * from "./api/google-generative-ai.lazy.ts";
-export * from "./api/google-vertex.lazy.ts";
-export * from "./api/mistral-conversations.lazy.ts";
-export * from "./api/openai-codex-responses.lazy.ts";
+export * from "./api/openai-compatible-images.lazy.ts";
 export * from "./api/openai-completions.lazy.ts";
 export * from "./api/openai-responses.lazy.ts";
 export * from "./env-api-keys.ts";
@@ -25,19 +20,13 @@ export * from "./images.ts";
 export * from "./images-api-registry.ts";
 export * from "./index.ts";
 export * from "./legacy-api-aliases.ts";
-export * from "./providers/images/register-builtins.ts";
 
 import { anthropicMessagesApi } from "./api/anthropic-messages.lazy.ts";
-import { azureOpenAIResponsesApi } from "./api/azure-openai-responses.lazy.ts";
-import { bedrockConverseStreamApi } from "./api/bedrock-converse-stream.lazy.ts";
-import { googleGenerativeAIApi } from "./api/google-generative-ai.lazy.ts";
-import { googleVertexApi } from "./api/google-vertex.lazy.ts";
-import { mistralConversationsApi } from "./api/mistral-conversations.lazy.ts";
-import { openAICodexResponsesApi } from "./api/openai-codex-responses.lazy.ts";
+import { openAICompatibleImagesApi } from "./api/openai-compatible-images.lazy.ts";
 import { openAICompletionsApi } from "./api/openai-completions.lazy.ts";
 import { openAIResponsesApi } from "./api/openai-responses.lazy.ts";
 import { getEnvApiKey } from "./env-api-keys.ts";
-import type { ModelsApiStreamOptions } from "./models.ts";
+import { getImagesApiProvider, registerImagesApiProvider } from "./images-api-registry.ts";
 import { builtinModels, getBuiltinModel, getBuiltinModels, getBuiltinProviders } from "./providers/all.ts";
 
 export type { BuiltinProvider } from "./providers/all.ts";
@@ -49,7 +38,9 @@ import type {
 	AssistantMessage,
 	AssistantMessageEventStream,
 	Context,
+	ImageApi,
 	Model,
+	ProviderImages,
 	ProviderStreamOptions,
 	ProviderStreams,
 	SimpleStreamOptions,
@@ -179,12 +170,6 @@ const BUILTIN_APIS: [Api, ProviderStreams][] = [
 	["anthropic-messages", anthropicMessagesApi()],
 	["openai-completions", openAICompletionsApi()],
 	["openai-responses", openAIResponsesApi()],
-	["openai-codex-responses", openAICodexResponsesApi()],
-	["azure-openai-responses", azureOpenAIResponsesApi()],
-	["google-generative-ai", googleGenerativeAIApi()],
-	["google-vertex", googleVertexApi()],
-	["mistral-conversations", mistralConversationsApi()],
-	["bedrock-converse-stream", bedrockConverseStreamApi()],
 ];
 
 const builtinApiProviderInstances = new Map<Api, ReturnType<typeof getApiProvider>>();
@@ -209,7 +194,23 @@ export function resetApiProviders(): void {
 	registerBuiltInApiProviders();
 }
 
+const BUILTIN_IMAGE_APIS: [ImageApi, ProviderImages][] = [["openai-compatible-images", openAICompatibleImagesApi()]];
+
+/**
+ * Registers the builtin image API implementations into the images api
+ * registry without clobbering existing entries, mirroring
+ * `registerBuiltInApiProviders()`.
+ */
+export function registerBuiltInImagesApiProviders(): void {
+	for (const [api, images] of BUILTIN_IMAGE_APIS) {
+		if (!getImagesApiProvider(api)) {
+			registerImagesApiProvider({ api, generateImages: images.generateImages });
+		}
+	}
+}
+
 registerBuiltInApiProviders();
+registerBuiltInImagesApiProviders();
 
 const compatModels = builtinModels();
 const AMBIENT_AUTH_MARKER = "<authenticated>";
@@ -226,10 +227,6 @@ function withEnvApiKey<TOptions extends StreamOptions>(
 	const apiKey = getEnvApiKey(model.provider, options?.env);
 	if (!apiKey || apiKey === AMBIENT_AUTH_MARKER) return options;
 	return { ...options, apiKey } as TOptions;
-}
-
-function hasResolvedCloudflareAuth(options: StreamOptions | undefined): boolean {
-	return hasExplicitApiKey(options?.apiKey) || typeof options?.headers?.["cf-aig-authorization"] === "string";
 }
 
 function getBuiltinProviderForModel(model: Model<Api>) {
@@ -254,9 +251,6 @@ export function stream<TApi extends Api>(
 	const transcript = normalizeContext(context);
 	const builtinProvider = getBuiltinProviderForModel(model);
 	if (builtinProvider) {
-		if (model.provider.startsWith("cloudflare-") && !hasResolvedCloudflareAuth(options)) {
-			return compatModels.stream(model, transcript, options as ModelsApiStreamOptions<TApi> | undefined);
-		}
 		return builtinProvider.stream(model, transcript, withEnvApiKey(model, options) as ApiStreamOptions<TApi>);
 	}
 	const provider = resolveApiProvider(model.api);
@@ -280,9 +274,6 @@ export function streamSimple<TApi extends Api>(
 	const transcript = normalizeContext(context);
 	const builtinProvider = getBuiltinProviderForModel(model);
 	if (builtinProvider) {
-		if (model.provider.startsWith("cloudflare-") && !hasResolvedCloudflareAuth(options)) {
-			return compatModels.streamSimple(model, transcript, options);
-		}
 		return builtinProvider.streamSimple(model, transcript, withEnvApiKey(model, options));
 	}
 	const provider = resolveApiProvider(model.api);

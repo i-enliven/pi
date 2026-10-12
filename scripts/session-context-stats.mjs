@@ -39,7 +39,7 @@ function printHelp() {
 Options:
   --sessions-dir <path>  Sessions directory (default: ~/.pi/agent/sessions)
   --model <substring>    Filter provider/model by substring
-  --model-prefix <p>     Include provider/model prefixes, repeatable, e.g. openai-codex/
+  --model-prefix <p>     Include provider/model prefixes, repeatable, e.g. github-copilot/
   --bash-contains <text> Include only sessions with bash tool calls containing text, repeatable
   --git-commit-or-push   Shortcut for --bash-contains "git commit" --bash-contains "git push"
   --cwd <path>           Include only sessions whose cwd is this path (default: current cwd)

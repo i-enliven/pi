@@ -215,6 +215,21 @@ const ModelDefinitionSchema = Type.Object({
 	compat: Type.Optional(ProviderCompatSchema),
 });
 
+const ImageModelOutputSchema = Type.Array(Type.Union([Type.Literal("text"), Type.Literal("image")]));
+
+/** Image models never chat: they only answer `generateImages()` requests. */
+const ImageModelDefinitionSchema = Type.Object({
+	id: Type.String({ minLength: 1 }),
+	name: Type.Optional(Type.String({ minLength: 1 })),
+	api: Type.Optional(Type.String({ minLength: 1 })),
+	baseUrl: Type.Optional(Type.String({ minLength: 1 })),
+	input: Type.Optional(Type.Array(Type.Union([Type.Literal("text"), Type.Literal("image")]))),
+	output: Type.Optional(ImageModelOutputSchema),
+	inputLimits: Type.Optional(ModelInputLimitsSchema),
+	cost: Type.Optional(ModelCostSchema),
+	headers: Type.Optional(Type.Record(Type.String(), Type.String())),
+});
+
 const ModelOverrideSchema = Type.Object({
 	name: Type.Optional(Type.String({ minLength: 1 })),
 	reasoning: Type.Optional(Type.Boolean()),
@@ -244,10 +259,12 @@ const ProviderConfigSchema = Type.Object({
 	baseUrl: Type.Optional(Type.String({ minLength: 1 })),
 	apiKey: Type.Optional(Type.String({ minLength: 1 })),
 	api: Type.Optional(Type.String({ minLength: 1 })),
+	imageApi: Type.Optional(Type.String({ minLength: 1 })),
 	headers: Type.Optional(Type.Record(Type.String(), Type.String())),
 	compat: Type.Optional(ProviderCompatSchema),
 	authHeader: Type.Optional(Type.Boolean()),
 	models: Type.Optional(Type.Array(ModelDefinitionSchema)),
+	imageModels: Type.Optional(Type.Array(ImageModelDefinitionSchema)),
 	modelOverrides: Type.Optional(Type.Record(Type.String(), ModelOverrideSchema)),
 });
 
@@ -257,6 +274,7 @@ const ModelsConfigSchema = Type.Object({
 const validateModelsConfig = Compile(ModelsConfigSchema);
 
 export type ModelsJsonModel = Static<typeof ModelDefinitionSchema>;
+export type ModelsJsonImageModel = Static<typeof ImageModelDefinitionSchema>;
 export type ModelsJsonModelOverride = Static<typeof ModelOverrideSchema>;
 export type ModelsJsonProvider = Static<typeof ProviderConfigSchema>;
 type ModelsJson = Static<typeof ModelsConfigSchema>;

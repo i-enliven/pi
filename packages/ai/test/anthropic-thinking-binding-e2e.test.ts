@@ -3,8 +3,8 @@ import { stream } from "../src/api/anthropic-messages.ts";
 import { getModel, normalizeContext } from "../src/compat.ts";
 import type { AssistantMessage, Context } from "../src/types.ts";
 
-const enabled = Boolean(process.env.ANTHROPIC_API_KEY);
-const model = getModel("anthropic", "claude-fable-5-1");
+const enabled = Boolean(process.env.COPILOT_GITHUB_TOKEN);
+const model = getModel("github-copilot", "claude-fable-5.1");
 const user = (content: string, timestamp: number) => ({ role: "user" as const, content, timestamp });
 
 function strictBinding(payload: unknown): unknown {
@@ -21,7 +21,7 @@ function strictBinding(payload: unknown): unknown {
 
 async function request(context: Context, effort: "low" | "high"): Promise<AssistantMessage> {
 	return stream(model, normalizeContext(context), {
-		apiKey: process.env.ANTHROPIC_API_KEY,
+		apiKey: process.env.COPILOT_GITHUB_TOKEN,
 		cacheRetention: "none",
 		maxTokens: 1536,
 		thinkingEnabled: true,
@@ -31,7 +31,7 @@ async function request(context: Context, effort: "low" | "high"): Promise<Assist
 	}).result();
 }
 
-describe.skipIf(!enabled)("Anthropic thinking binding conformance", () => {
+describe.skipIf(!enabled)("Anthropic Messages thinking binding conformance", () => {
 	it("replays managed effort markers required by signed Fable thinking", { timeout: 120000 }, async () => {
 		const firstUser = user("Compute 982451653 multiplied by 961748941. Return only the integer.", 1);
 		const first = await request({ messages: [firstUser] }, "low");

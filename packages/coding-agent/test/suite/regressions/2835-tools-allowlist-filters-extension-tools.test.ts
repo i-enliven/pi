@@ -55,7 +55,7 @@ describe("regression #2835: tool allowlists filter extension tools", () => {
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir,
-			model: getModel("anthropic", "claude-sonnet-4-5")!,
+			model: getModel("github-copilot", "claude-sonnet-4.6")!,
 			settingsManager,
 			sessionManager,
 			resourceLoader,

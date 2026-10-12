@@ -63,13 +63,13 @@ From the working folder you want Pi to access, run:
 
 ```bash
 docker run --rm -it \
-  -e ANTHROPIC_API_KEY \
+  -e COPILOT_GITHUB_TOKEN \
   -v "$PWD:/workspace" \
   -v pi-agent-home:/root/.pi/agent \
   pi-sandbox
 ```
 
-Replace `ANTHROPIC_API_KEY` with the credential required by your provider. The named `pi-agent-home` volume keeps container-local settings, credentials, and sessions between runs.
+For a compatible endpoint configured in `models.json`, pass the variables its `apiKey` and headers interpolate instead. The named `pi-agent-home` volume keeps container-local settings, credentials, and sessions between runs.
 
 Do not mount the host's `~/.pi/agent` unless the container should have access to your host Pi configuration and credentials.
 
@@ -89,22 +89,20 @@ The command should report `/workspace`. Changes under `/workspace` write through
 
 Configure credentials before creating the sandbox. Do not run `/login` inside the sandbox because that writes a real credential into it.
 
-### Use a Claude Pro or Max token
+### Use a GitHub Copilot token
 
-Generate the token with `claude setup-token` on a machine with Claude Code. If an `anthropic` secret is already configured, remove it first so the proxy does not add an API-key header alongside the bearer token:
+Create a GitHub account token at <https://github.com/settings/tokens> with the `read:user` and `api` scopes, then configure it as a custom secret so the proxy substitutes it only for Copilot requests:
 
 ```bash
-sbx secret rm anthropic
-
 sbx secret set-custom \
-  --host api.anthropic.com \
-  --env ANTHROPIC_OAUTH_TOKEN \
-  --placeholder 'sk-ant-oat01-{rand}'
+  --host api.individual.githubcopilot.com \
+  --env COPILOT_GITHUB_TOKEN \
+  --placeholder 'ghp_{rand}'
 ```
 
-`sbx secret set-custom` reads the real token from standard input. The sandbox receives an OAuth-shaped placeholder, which the proxy replaces only for requests to the configured host.
+`sbx secret set-custom` reads the real token from standard input. The sandbox receives a placeholder, which the proxy replaces only for requests to the configured host.
 
-For an Anthropic API key, use `sbx secret set anthropic` instead.
+For a compatible endpoint, point `--host` at its host and use the variable its `apiKey` interpolates.
 
 ### Start Pi
 

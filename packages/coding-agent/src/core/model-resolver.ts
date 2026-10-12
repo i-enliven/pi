@@ -12,46 +12,7 @@ import type { ModelRuntime } from "./model-runtime.ts";
 
 /** Default chat model IDs for providers with built-in chat models. */
 export const defaultModelPerProvider: Partial<Record<KnownProvider, string>> = {
-	"amazon-bedrock": "us.anthropic.claude-opus-4-6-v1",
-	"ant-ling": "Ring-2.6-1T",
-	anthropic: "claude-opus-4-8",
-	openai: "gpt-5.5",
-	azure: "gpt-5.4",
-	"openai-codex": "gpt-6.1-sol",
-	nvidia: "nvidia/nemotron-3-ultra-550b-a55b",
-	deepseek: "deepseek-v4-pro",
-	google: "gemini-3.1-pro-preview",
-	"google-vertex": "gemini-3.1-pro-preview",
 	"github-copilot": "gpt-5.4",
-	openrouter: "moonshotai/kimi-k2.6",
-	"vercel-ai-gateway": "zai/glm-5.1",
-	xai: "grok-4.7",
-	groq: "openai/gpt-oss-120b",
-	cerebras: "gpt-oss-120b",
-	zai: "glm-5.3",
-	"zai-coding-cn": "glm-5.3",
-	mistral: "devstral-medium-latest",
-	minimax: "MiniMax-M2.7",
-	"minimax-cn": "MiniMax-M2.7",
-	moonshotai: "kimi-k2.6",
-	"moonshotai-cn": "kimi-k2.6",
-	huggingface: "moonshotai/Kimi-K2.6",
-	fireworks: "accounts/fireworks/models/kimi-k3",
-	together: "moonshotai/Kimi-K3",
-	baseten: "zai-org/GLM-5.2",
-	opencode: "kimi-k2.6",
-	"opencode-go": "kimi-k3",
-	"kimi-coding": "kimi-for-coding",
-	meta: "muse-spark-1.3",
-	"cloudflare-workers-ai": "@cf/moonshotai/kimi-k2.6",
-	"cloudflare-ai-gateway": "workers-ai/@cf/moonshotai/kimi-k2.6",
-	"qwen-token-plan": "qwen3.7-max",
-	"qwen-token-plan-cn": "qwen3.7-max",
-	"qwen-token-plan-individual": "qwen3.8-max",
-	xiaomi: "mimo-v2.5-pro",
-	"xiaomi-token-plan-cn": "mimo-v2.5-pro",
-	"xiaomi-token-plan-ams": "mimo-v2.5-pro",
-	"xiaomi-token-plan-sgp": "mimo-v2.5-pro",
 };
 
 export interface ScopedModel {
@@ -183,7 +144,7 @@ function buildFallbackModel(provider: string, modelId: string, availableModels: 
 
 /**
  * Parse a pattern to extract model and thinking level.
- * Handles models with colons in their IDs (e.g., OpenRouter's :exacto suffix).
+ * Handles models with colons in their IDs (e.g., a gateway's `model:exacto` suffix).
  *
  * Algorithm:
  * 1. Try to match full pattern as a model
@@ -256,7 +217,7 @@ export function parseModelPattern(
  * 1. Prefer alias (e.g., claude-sonnet-4-5) over dated versions (claude-sonnet-4-5-20250929)
  * 2. If no alias, pick the latest dated version
  *
- * Supports models with colons in their IDs (e.g., OpenRouter's model:exacto).
+ * Supports models with colons in their IDs (e.g., a gateway's `model:exacto` suffix).
  * The algorithm tries to match the full pattern first, then progressively
  * strips colon-suffixes to find a match.
  */
@@ -437,8 +398,8 @@ export function resolveCliModel(options: {
 	// If no explicit --provider, try to interpret "provider/model" format first.
 	// When the prefix before the first slash matches a known provider, prefer that
 	// interpretation over matching models whose IDs literally contain slashes
-	// (e.g. "zai/glm-5" should resolve to provider=zai, model=glm-5, not to a
-	// vercel-ai-gateway model with id "zai/glm-5").
+	// (e.g. "meta-llama/Llama-3-70B" should resolve to provider=meta-llama, model=Llama-3-70B,
+	// not to a compatible endpoint whose model id is literally "meta-llama/Llama-3-70B").
 	let pattern = cliModel;
 	let inferredProvider = false;
 
@@ -456,7 +417,8 @@ export function resolveCliModel(options: {
 	}
 
 	// If no provider was inferred from the slash, try exact matches without provider inference.
-	// This handles models whose IDs naturally contain slashes (e.g. OpenRouter-style IDs).
+	// This handles models whose IDs naturally contain slashes (e.g. Hugging Face-style ids served by
+	// an OpenAI-compatible endpoint).
 	// Bare exact IDs can exist in multiple providers, so do not choose by catalog order.
 	// Prefer the sole authenticated provider when there is one; otherwise require an
 	// explicit provider to avoid silently selecting an unusable provider.
@@ -514,7 +476,7 @@ export function resolveCliModel(options: {
 		// one exact raw model-id match that is authenticated. This keeps
 		// "provider/model" syntax preferred when usable, but handles models whose
 		// literal id starts with a known provider name (for example
-		// commandcode model id "xiaomi/mimo-v2.5-pro").
+		// model id "meta-llama/Llama-3-70B" on a gateway whose provider id is "meta-llama").
 		if (inferredProvider) {
 			const rawExactMatches = availableModels.filter(
 				(m) => m.id.toLowerCase() === cliModel.toLowerCase() && !modelsAreEqual(m, model),
@@ -536,8 +498,8 @@ export function resolveCliModel(options: {
 
 	// If we inferred a provider from the slash but found no match within that provider,
 	// fall back to matching the full input as a raw model id across all models.
-	// This handles OpenRouter-style IDs like "openai/gpt-4o:extended" where "openai"
-	// looks like a provider but the full string is actually a model id on openrouter.
+	// This handles slash-containing IDs like "meta-llama/Llama-3-70B:extended" where "meta-llama"
+	// looks like a provider but the full string is actually one model id on another provider.
 	if (inferredProvider) {
 		const lower = cliModel.toLowerCase();
 		const exact = availableModels.find(
@@ -563,7 +525,7 @@ export function resolveCliModel(options: {
 	if (provider) {
 		// Parse thinking level suffix from the pattern before building the fallback model,
 		// but only when --thinking is not explicitly provided.
-		// e.g. "zai-org/GLM-5.1-FP8:high" → modelId="zai-org/GLM-5.1-FP8", fallbackThinking="high"
+		// e.g. "meta-llama/Llama-3-70B:high" → modelId="meta-llama/Llama-3-70B", fallbackThinking="high"
 		let fallbackPattern = pattern;
 		let fallbackThinking: ThinkingLevel | undefined;
 		if (!cliThinking) {

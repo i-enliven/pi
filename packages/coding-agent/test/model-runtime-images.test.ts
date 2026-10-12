@@ -7,10 +7,10 @@ import {
 	type AssistantImages,
 	type ClassifierModel,
 	createProvider,
+	type FetchFunction,
 	type ImageModel,
 	type ImagesOptions,
 	InMemoryModelsStore,
-	isModelType,
 	type Model,
 } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it } from "vitest";
@@ -89,20 +89,6 @@ describe("ModelRuntime image generation", () => {
 			allowModelNetwork: false,
 		});
 	}
-
-	it("lists built-in OpenRouter image models separately from chat models", async () => {
-		const runtime = await createRuntime();
-		const images = runtime.getModelsOfType("image", "openrouter");
-		expect(images.length).toBeGreaterThan(0);
-		expect(runtime.getModels("openrouter").every((model) => isModelType(model, "chat"))).toBe(true);
-		expect(runtime.getModelOfType("image", "openrouter", images[0].id)).toBe(images[0]);
-		expect(runtime.getModel("openrouter", "google/gemini-3-pro-image")?.api).toBe("openai-completions");
-		expect(runtime.getModelOfType("image", "openrouter", "google/gemini-3-pro-image")?.type).toBe("image");
-		const classifiers = runtime.getModelsOfType("classifier", "openrouter");
-		expect(runtime.getAllModels("openrouter").length).toBe(
-			runtime.getModels("openrouter").length + images.length + classifiers.length,
-		);
-	});
 
 	it("extension model lists replace undeclared models of every operation", async () => {
 		const runtime = await createRuntime();
@@ -283,42 +269,86 @@ describe("ModelRuntime image generation", () => {
 		expect(chatDispatches).toBe(0);
 	});
 
-	it("keeps image generation on a built-in provider composed with models.json overrides", async () => {
+	it("does not add image generation or classification to composed chat-only providers", async () => {
+		const runtime = await createRuntime({
+			providers: { "github-copilot": { headers: { "X-Title": "pi" } } },
+		});
+		const provider = runtime.getProvider("github-copilot")!;
+		expect(provider.generateImages).toBeUndefined();
+		expect(provider.classify).toBeUndefined();
+		expect(runtime.getModelsOfType("image", "github-copilot")).toEqual([]);
+		expect(runtime.getModelsOfType("classifier", "github-copilot")).toEqual([]);
+	});
+
+	it("generates images for models.json image models through the registered image API", async () => {
 		const runtime = await createRuntime({
 			providers: {
-				openrouter: {
-					headers: { "X-Title": "pi" },
-					modelOverrides: {
-						"openrouter/auto": { name: "Auto (renamed)" },
-						"google/gemini-3-pro-image": { headers: { "X-Chat-Only": "yes" } },
-					},
+				painter: {
+					baseUrl: "https://painter.test/v1",
+					apiKey: "sk-painter",
+					api: "openai-completions",
+					imageApi: "openai-compatible-images",
+					models: [{ id: "chat-model" }],
+					imageModels: [
+						{
+							id: "flux-like",
+							name: "Flux-like",
+							input: ["text"],
+							output: ["image"],
+							headers: { "X-Painter": "configured" },
+						},
+					],
 				},
 			},
 		});
-		const provider = runtime.getProvider("openrouter")!;
-		expect(provider.generateImages).toBeDefined();
-		expect(runtime.getModel("openrouter", "openrouter/auto")?.name).toBe("Auto (renamed)");
-		expect(runtime.getModelsOfType("image", "openrouter").length).toBeGreaterThan(0);
 
-		// Auth is provider-scoped: the same key serves chat and image models.
-		await runtime.setRuntimeApiKey("openrouter", "sk-or");
-		const chat = runtime.getModel("openrouter", "google/gemini-3-pro-image")!;
-		const image = runtime.getModelOfType("image", "openrouter", "google/gemini-3-pro-image")!;
-		const chatAuth = await runtime.getAuth(chat);
-		const imageAuth = await runtime.getAuth(image);
-		expect(imageAuth?.auth.apiKey).toBe("sk-or");
-		expect(chatAuth?.auth.headers).toMatchObject({ "X-Title": "pi", "X-Chat-Only": "yes" });
-		expect(imageAuth?.auth.headers).toEqual({ "X-Title": "pi" });
+		const image = runtime.getModelOfType("image", "painter", "flux-like")!;
+		expect(image.api).toBe("openai-compatible-images");
+		expect(image.baseUrl).toBe("https://painter.test/v1");
+		expect(runtime.getModels("painter").map((model) => model.id)).toEqual(["chat-model"]);
+		expect(runtime.getProvider("painter")?.generateImages).toBeDefined();
+
+		const requests: Array<{ url: string; body: Record<string, unknown>; header?: string | null }> = [];
+		const fetch: FetchFunction = async (input, init) => {
+			const headers = new Headers(init?.headers);
+			requests.push({
+				url: String(input),
+				body: typeof init?.body === "string" ? (JSON.parse(init.body) as Record<string, unknown>) : {},
+				header: headers.get("x-painter") ?? undefined,
+			});
+			return new Response(
+				JSON.stringify({
+					choices: [{ message: { content: "", images: [{ image_url: "data:image/png;base64,ZmFrZS1wbmc=" }] } }],
+				}),
+				{ status: 200, headers: { "content-type": "application/json" } },
+			);
+		};
+
+		const result = await runtime.generateImages(image, context, { fetch });
+
+		expect(result.stopReason, `Error: ${result.errorMessage}`).toBe("stop");
+		expect(result.output).toEqual([{ type: "image", mimeType: "image/png", data: "ZmFrZS1wbmc=" }]);
+		expect(requests).toHaveLength(1);
+		expect(requests[0].url).toBe("https://painter.test/v1/chat/completions");
+		expect(requests[0].body.modalities).toEqual(["image"]);
+		expect(requests[0].header).toBe("configured");
 	});
 
-	it("does not add image generation or classification to composed chat-only providers", async () => {
+	it("reports image models whose API has no registered implementation", async () => {
 		const runtime = await createRuntime({
-			providers: { anthropic: { headers: { "X-Title": "pi" } } },
+			providers: {
+				"unwired-painter": {
+					baseUrl: "https://unwired.test/v1",
+					apiKey: "sk-unwired",
+					imageModels: [{ id: "private-protocol", api: "not-registered-images", output: ["image"] }],
+				},
+			},
 		});
-		const provider = runtime.getProvider("anthropic")!;
-		expect(provider.generateImages).toBeUndefined();
-		expect(provider.classify).toBeUndefined();
-		expect(runtime.getProvider("openrouter")?.generateImages).toBeDefined();
-		expect(runtime.getProvider("typesafe")?.classify).toBeDefined();
+
+		const image = runtime.getModelOfType("image", "unwired-painter", "private-protocol")!;
+		const result = await runtime.generateImages(image, context);
+
+		expect(result.stopReason).toBe("error");
+		expect(result.errorMessage).toContain('no image implementation for "not-registered-images"');
 	});
 });

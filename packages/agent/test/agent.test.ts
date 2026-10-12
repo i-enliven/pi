@@ -125,7 +125,7 @@ describe("Agent", () => {
 	});
 
 	it("should create an agent instance with custom initial state", () => {
-		const customModel = getModel("openai", "gpt-4o-mini");
+		const customModel = getModel("github-copilot", "gpt-5.4-mini");
 		const agent = new Agent({
 			streamFn: unusedStreamFunction,
 			initialState: {
@@ -614,7 +614,7 @@ describe("Agent", () => {
 		const agent = new Agent({ streamFn: unusedStreamFunction });
 
 		// Test setModel
-		const newModel = getModel("google", "gemini-2.5-flash");
+		const newModel = getModel("github-copilot", "gemini-3.7-flash");
 		agent.state.model = newModel;
 		expect(agent.state.model).toBe(newModel);
 

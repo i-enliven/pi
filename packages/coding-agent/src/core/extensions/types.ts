@@ -1788,11 +1788,11 @@ export interface ExtensionAPI {
 	 * pi.registerProvider("my-proxy", {
 	 *   baseUrl: "https://proxy.example.com",
 	 *   apiKey: "$PROXY_API_KEY",
-	 *   api: "anthropic-messages",
+	 *   api: "openai-completions",
 	 *   models: [
 	 *     {
-	 *       id: "claude-sonnet-4-20250514",
-	 *       name: "Claude 4 Sonnet (proxy)",
+	 *       id: "work/gpt-large",
+	 *       name: "Work GPT Large (proxy)",
 	 *       reasoning: false,
 	 *       input: ["text", "image"],
 	 *       cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -1804,8 +1804,8 @@ export interface ExtensionAPI {
 	 *
 	 * @example
 	 * // Override baseUrl for an existing provider
-	 * pi.registerProvider("anthropic", {
-	 *   baseUrl: "https://proxy.example.com"
+	 * pi.registerProvider("github-copilot", {
+	 *   baseUrl: "https://copilot.example.com"
 	 * });
 	 *
 	 * @example

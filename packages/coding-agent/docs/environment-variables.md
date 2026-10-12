@@ -86,7 +86,7 @@ These variables are read by Pi itself:
 | `PI_SKIP_VERSION_CHECK` | Disable the GitHub latest-release request |
 | `PI_UPDATE_REPO` | Override the GitHub repository checked for updates (default: `i-enliven/pi`) |
 | `PI_UPDATE_REMOTE` | Override the git remote a source checkout updates from (default: `fork`, falling back to the tracked upstream, then `origin`) |
-| `PI_TELEMETRY` | Override install/update telemetry and provider attribution headers: `1`/`true`/`yes` or `0`/`false`/`no` |
+| `PI_TELEMETRY` | Override install/update telemetry only: `1`/`true`/`yes` or `0`/`false`/`no`. It does not affect request headers |
 | `PI_CACHE_RETENTION` | Set to `long` for extended provider prompt caching where supported |
 | `PI_HARDWARE_CURSOR` | Set to `1` to show the hardware cursor; see [Terminal setup](terminal-setup.md) |
 | `PI_HYPERLINKS` | Override OSC 8 hyperlink detection with `1`, `0`, or `auto` |
@@ -97,4 +97,4 @@ These variables are read by Pi itself:
 | `VISUAL`, `EDITOR` | External editor fallback when `externalEditor` is unset |
 | `HTTP_PROXY`, `HTTPS_PROXY` | Proxy outbound HTTP requests |
 
-Provider credentials such as `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, and provider-specific configuration are listed in [Providers](providers.md#use-an-api-key-from-the-environment).
+The only built-in provider credential is `COPILOT_GITHUB_TOKEN`; see [Providers](providers.md#use-an-api-key-from-the-environment). Compatible endpoints configured in `models.json` read whatever variable you interpolate in `apiKey` or headers.

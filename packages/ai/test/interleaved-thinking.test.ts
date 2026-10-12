@@ -4,7 +4,6 @@ import { completeSimple, getModel } from "../src/compat.ts";
 import { getEnvApiKey } from "../src/env-api-keys.ts";
 import type { Api, Context, Model, StopReason, Tool, ToolCall, ToolResultMessage } from "../src/types.ts";
 import { StringEnum } from "../src/utils/typebox-helpers.ts";
-import { hasBedrockCredentials } from "./bedrock-utils.ts";
 
 const calculatorSchema = Type.Object({
 	a: Type.Number({ description: "First number" }),
@@ -117,28 +116,16 @@ async function assertSecondToolCallWithInterleavedThinking<TApi extends Api>(
 	expect(secondResponse.content.some((block) => block.type === "text")).toBe(true);
 }
 
-const hasAnthropicCredentials = !!getEnvApiKey("anthropic");
+const hasCopilotCredentials = !!getEnvApiKey("github-copilot");
 
-describe.skipIf(!hasBedrockCredentials())("Amazon Bedrock interleaved thinking", () => {
-	it("should do interleaved thinking on Claude Opus 4.5", { retry: 3 }, async () => {
-		const llm = getModel("amazon-bedrock", "global.anthropic.claude-opus-4-5-20251101-v1:0");
+describe.skipIf(!hasCopilotCredentials)("GitHub Copilot interleaved thinking", () => {
+	it("should do interleaved thinking on Claude Opus 4.7", { retry: 3 }, async () => {
+		const llm = getModel("github-copilot", "claude-opus-4.7");
 		await assertSecondToolCallWithInterleavedThinking(llm, "high");
 	});
 
-	it("should do interleaved thinking on Claude Opus 4.6", { retry: 3 }, async () => {
-		const llm = getModel("amazon-bedrock", "global.anthropic.claude-opus-4-6-v1");
-		await assertSecondToolCallWithInterleavedThinking(llm, "high");
-	});
-});
-
-describe.skipIf(!hasAnthropicCredentials)("Anthropic interleaved thinking", () => {
-	it("should do interleaved thinking on Claude Opus 4.5", { retry: 3 }, async () => {
-		const llm = getModel("anthropic", "claude-opus-4-5");
-		await assertSecondToolCallWithInterleavedThinking(llm, "high");
-	});
-
-	it("should do interleaved thinking on Claude Opus 4.6", { retry: 3 }, async () => {
-		const llm = getModel("anthropic", "claude-opus-4-6");
+	it("should do interleaved thinking on Claude Sonnet 4.6", { retry: 3 }, async () => {
+		const llm = getModel("github-copilot", "claude-sonnet-4.6");
 		await assertSecondToolCallWithInterleavedThinking(llm, "high");
 	});
 });

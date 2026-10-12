@@ -107,7 +107,6 @@ describe("issues #7027 and #7113 credential refresh hang", () => {
 			showStatus: vi.fn(),
 			showError: vi.fn(),
 			showWarning,
-			maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
 			ui: { requestRender: vi.fn() },
 		};
 		await complete.call(context, dynamicModel.provider, "Stalled Login", "api_key", harness.getModel());
@@ -132,7 +131,7 @@ describe("post-login model discovery", () => {
 		vi.restoreAllMocks();
 	});
 
-	const defaultId = defaultModelPerProvider.openrouter!;
+	const defaultId = defaultModelPerProvider["github-copilot"]!;
 
 	async function startLogin() {
 		harness = await createHarness();
@@ -161,10 +160,9 @@ describe("post-login model discovery", () => {
 			showStatus: vi.fn(),
 			showError: vi.fn(),
 			showWarning: vi.fn(),
-			maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
 			ui: { requestRender: vi.fn() },
 		};
-		await complete.call(context, "openrouter", "OpenRouter", "oauth", unknownModel);
+		await complete.call(context, "github-copilot", "GitHub Copilot", "oauth", unknownModel);
 		expect(context.showStatus).toHaveBeenCalledWith(expect.stringContaining("Credentials saved"));
 		expect(context.showError).not.toHaveBeenCalled();
 		expect(setModel).not.toHaveBeenCalled();
@@ -174,7 +172,7 @@ describe("post-login model discovery", () => {
 			setModel,
 			currentModel,
 			async discover(ids: string[]) {
-				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "openrouter", id })));
+				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "github-copilot", id })));
 				finishRefresh();
 				await vi.advanceTimersByTimeAsync(0);
 			},
@@ -184,9 +182,12 @@ describe("post-login model discovery", () => {
 	it("selects the default model from the refreshed catalog", async () => {
 		const login = await startLogin();
 		await login.discover(["fast", defaultId]);
-		expect(login.setModel).toHaveBeenCalledWith(expect.objectContaining({ provider: "openrouter", id: defaultId }), {
-			persist: true,
-		});
+		expect(login.setModel).toHaveBeenCalledWith(
+			expect.objectContaining({ provider: "github-copilot", id: defaultId }),
+			{
+				persist: true,
+			},
+		);
 		expect(login.showError).not.toHaveBeenCalled();
 	});
 

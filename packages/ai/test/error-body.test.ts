@@ -1,16 +1,18 @@
 // Unit tests for the shared provider error-body normalizer.
 //
 // See issues/provider-error-body-passthrough. These cover one synthesized error
-// object per SDK shape (Mistral, openai APIError, @google/genai ApiError, AWS
-// Bedrock ServiceException), plus the non-Error fallback, truncation, the empty
-// parsed-body edge case, and the formatProviderError compose helper.
+// object per error shape (statusCode + string body, OpenAI APIError with a parsed
+// body object, a message that already carries the JSON body, and an SDK
+// ServiceException with $metadata/$response), plus the non-Error fallback,
+// truncation, the empty parsed-body edge case, and the formatProviderError
+// compose helper.
 
 import { describe, expect, it } from "vitest";
 import { formatProviderError, MAX_PROVIDER_ERROR_BODY_CHARS, normalizeProviderError } from "../src/utils/error-body.ts";
 
 describe("normalizeProviderError", () => {
-	it("extracts status and body from a Mistral-shaped error", () => {
-		const error = Object.assign(new Error("Mistral request failed"), {
+	it("extracts status and body from an error carrying statusCode and a string body", () => {
+		const error = Object.assign(new Error("Request failed"), {
 			statusCode: 403,
 			body: '{"error":"blocked by gateway WAF"}',
 		});
@@ -37,7 +39,7 @@ describe("normalizeProviderError", () => {
 		expect(norm.messageCarriesBody).toBe(false);
 	});
 
-	it("preserves the message when @google/genai already folds the body into it", () => {
+	it("preserves the message when the error already folds the body into it", () => {
 		const body = { error: { code: 403, message: "Permission denied" } };
 		const error = Object.assign(new Error(JSON.stringify(body)), {
 			status: 403,
@@ -50,7 +52,7 @@ describe("normalizeProviderError", () => {
 		expect(norm.message).toBe(JSON.stringify(body));
 	});
 
-	it("extracts status and body from a Bedrock-shaped ServiceException", () => {
+	it("extracts status and body from an SDK ServiceException-shaped error", () => {
 		const error = Object.assign(new Error("UnknownError"), {
 			name: "UnknownError",
 			$metadata: { httpStatusCode: 403 },

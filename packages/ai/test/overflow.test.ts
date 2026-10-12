@@ -92,11 +92,11 @@ describe("isContextOverflow", () => {
 		expect(isContextOverflow(message, 32768)).toBe(false);
 	});
 
-	it("only treats bodyless 400 and 413 errors as overflow for Cerebras", () => {
-		// Regression for #9482.
+	it("does not treat bodyless 400 or 413 errors as overflow", () => {
+		// Regression for #9482. The provider-gated exception that treated these as overflow was
+		// tied to a provider id pi no longer ships, so bodyless status errors stay undetectable.
 		for (const errorMessage of ["400 status code (no body)", "413 status code (no body)"]) {
-			expect(isContextOverflow(createErrorMessage(errorMessage, "cerebras"), 131072)).toBe(true);
-			expect(isContextOverflow(createErrorMessage(errorMessage, "opencode-go"), 1000000)).toBe(false);
+			expect(isContextOverflow(createErrorMessage(errorMessage, "compatible-endpoint"), 131072)).toBe(false);
 		}
 	});
 

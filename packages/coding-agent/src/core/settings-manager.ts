@@ -87,10 +87,6 @@ export interface MarkdownSettings {
 	mermaid?: MermaidRenderingMode; // default: "streaming"
 }
 
-export interface WarningSettings {
-	anthropicExtraUsage?: boolean; // default: true
-}
-
 export type DefaultProjectTrust = "ask" | "always" | "never";
 /** true hides all startup output, "header" keeps only the startup header. */
 export type QuietStartup = boolean | "header";
@@ -137,7 +133,7 @@ export interface Settings {
 	enableInstallTelemetry?: boolean; // default: true - anonymous version/update ping after detected updates
 	enableAnalytics?: boolean; // default: false - opt-in analytics data sharing
 	trackingId?: string; // analytics tracking identifier, generated when analytics is enabled
-	deviceId?: string; // stable UUID of this installation, created when a login first needs it; global setting only
+	deviceId?: string; // stable UUID of this installation, created on first use; global setting only
 	packages?: PackageSource[]; // Array of npm/git package sources (string or object with filtering)
 	extensions?: string[]; // Array of local extension file paths or directories
 	skills?: string[]; // Array of local skill file paths or directories
@@ -156,7 +152,6 @@ export interface Settings {
 	autocompleteMaxVisible?: number; // Max visible items in autocomplete dropdown (default: 5)
 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
 	markdown?: MarkdownSettings;
-	warnings?: WarningSettings;
 	sessionDir?: string; // Custom session storage directory (same format as --session-dir CLI flag)
 	httpProxy?: string; // Proxy URL applied as HTTP_PROXY and HTTPS_PROXY for Pi-managed HTTP clients
 	httpIdleTimeoutMs?: number; // HTTP header/body idle timeout in milliseconds; 0 disables it
@@ -1152,9 +1147,10 @@ export class SettingsManager {
 	}
 
 	/**
-	 * Stable ID of this installation, e.g. sent to OpenAI as its agent host ID.
-	 * Created on first use. Project settings are ignored so a committed project
-	 * settings file cannot give every clone the same ID.
+	 * Stable ID of this installation, created on first use. Project settings are
+	 * ignored so a committed project settings file cannot give every clone the
+	 * same ID. No built-in login flow reads it today; the value stays persisted so
+	 * an installation keeps one identity across any consumer that needs it.
 	 */
 	getOrCreateDeviceId(): string {
 		if (!this.globalSettings.deviceId) {
@@ -1502,16 +1498,6 @@ export class SettingsManager {
 		this.globalSettings.markdown ??= {};
 		this.globalSettings.markdown.mermaid = mode;
 		this.markModified("markdown", "mermaid");
-		this.save();
-	}
-
-	getWarnings(): WarningSettings {
-		return { ...(this.settings.warnings ?? {}) };
-	}
-
-	setWarnings(warnings: WarningSettings): void {
-		this.globalSettings.warnings = { ...warnings };
-		this.markModified("warnings");
 		this.save();
 	}
 }

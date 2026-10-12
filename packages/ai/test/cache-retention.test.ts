@@ -3,8 +3,8 @@ import { stream as streamAnthropic } from "../src/api/anthropic-messages.ts";
 import { stream as streamOpenAICompletions } from "../src/api/openai-completions.ts";
 import { stream as streamOpenAIResponses } from "../src/api/openai-responses.ts";
 import { getModel, normalizeContext, stream } from "../src/compat.ts";
-import { MODELS } from "../src/models.generated.ts";
 import type { Model } from "../src/types.ts";
+import { openAIResponsesModel } from "./model-fixtures.ts";
 
 class PayloadCaptured extends Error {
 	constructor() {
@@ -20,6 +20,11 @@ interface OpenAICompletionsCachePayload {
 
 interface OpenAIResponsesCachePayload extends OpenAICompletionsCachePayload {
 	prompt_cache_options?: { mode?: "explicit"; ttl?: "30m" };
+}
+
+/** OpenAI Responses fixture on the OpenAI host, so URL-based cache defaults apply. */
+function openAIResponsesFixture(id: string, compat?: Model<"openai-responses">["compat"]): Model<"openai-responses"> {
+	return openAIResponsesModel(id, { baseUrl: "https://api.openai.com/v1", compat });
 }
 
 function stopAfterPayload<TPayload>(capture: (payload: TPayload) => void): (payload: unknown) => never {
@@ -49,11 +54,11 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		messages: [{ role: "user", content: "Hello", timestamp: Date.now() }],
 	});
 
-	describe("Anthropic Provider", () => {
-		it.skipIf(!process.env.ANTHROPIC_API_KEY)(
+	describe("Anthropic Messages (GitHub Copilot)", () => {
+		it.skipIf(!process.env.COPILOT_GITHUB_TOKEN)(
 			"should use default cache TTL (no ttl field) when PI_CACHE_RETENTION is not set",
 			async () => {
-				const model = getModel("anthropic", "claude-haiku-4-5");
+				const model = getModel("github-copilot", "claude-haiku-4.5");
 				let capturedPayload: any = null;
 
 				const s = stream(model, context, {
@@ -74,9 +79,9 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			},
 		);
 
-		it.skipIf(!process.env.ANTHROPIC_API_KEY)("should use 1h cache TTL when PI_CACHE_RETENTION=long", async () => {
+		it.skipIf(!process.env.COPILOT_GITHUB_TOKEN)("should use 1h cache TTL when PI_CACHE_RETENTION=long", async () => {
 			process.env.PI_CACHE_RETENTION = "long";
-			const model = getModel("anthropic", "claude-haiku-4-5");
+			const model = getModel("github-copilot", "claude-haiku-4.5");
 			let capturedPayload: any = null;
 
 			const s = stream(model, context, {
@@ -100,7 +105,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			process.env.PI_CACHE_RETENTION = "long";
 
 			// Create a model with a different baseUrl (simulating a proxy)
-			const baseModel = getModel("anthropic", "claude-haiku-4-5");
+			const baseModel = getModel("github-copilot", "claude-haiku-4.5");
 			const proxyModel = {
 				...baseModel,
 				baseUrl: "https://my-proxy.example.com/v1",
@@ -136,7 +141,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should omit ttl when supportsLongCacheRetention is false", async () => {
-			const baseModel = getModel("anthropic", "claude-haiku-4-5");
+			const baseModel = getModel("github-copilot", "claude-haiku-4.5");
 			const proxyModel = {
 				...baseModel,
 				baseUrl: "https://my-proxy.example.com/v1",
@@ -165,7 +170,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should omit cache_control when cacheRetention is none", async () => {
-			const baseModel = getModel("anthropic", "claude-haiku-4-5");
+			const baseModel = getModel("github-copilot", "claude-haiku-4.5");
 			let capturedPayload: any = null;
 
 			try {
@@ -189,7 +194,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should add cache_control to string user messages", async () => {
-			const baseModel = getModel("anthropic", "claude-haiku-4-5");
+			const baseModel = getModel("github-copilot", "claude-haiku-4.5");
 			let capturedPayload: any = null;
 
 			try {
@@ -215,7 +220,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should set 1h cache TTL when cacheRetention is long", async () => {
-			const baseModel = getModel("anthropic", "claude-haiku-4-5");
+			const baseModel = getModel("github-copilot", "claude-haiku-4.5");
 			let capturedPayload: any = null;
 
 			try {
@@ -239,18 +244,18 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 	});
 
-	describe("OpenAI Responses Provider", () => {
+	describe("OpenAI Responses provider", () => {
 		it.each(["gpt-5.6-luna", "gpt-5.6-sol", "gpt-5.6-terra", "gpt-6-astra", "gpt-6-luna", "gpt-6-sol"] as const)(
 			"does not enable cache warming from the documented TTL alone for %s",
 			(modelId) => {
-				expect(getModel("openai", modelId).promptCache).toBeUndefined();
+				expect(getModel("github-copilot", modelId).promptCache).toBeUndefined();
 			},
 		);
 
-		it.skipIf(!process.env.OPENAI_API_KEY)(
+		it.skipIf(!process.env.COPILOT_GITHUB_TOKEN)(
 			"should not set prompt_cache_retention when PI_CACHE_RETENTION is not set",
 			async () => {
-				const model = getModel("openai", "gpt-4o-mini");
+				const model = openAIResponsesFixture("gpt-4o-mini");
 				let capturedPayload: any = null;
 
 				const s = stream(model, context, {
@@ -269,11 +274,11 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			},
 		);
 
-		it.skipIf(!process.env.OPENAI_API_KEY)(
+		it.skipIf(!process.env.COPILOT_GITHUB_TOKEN)(
 			"should set prompt_cache_retention to 24h when PI_CACHE_RETENTION=long",
 			async () => {
 				process.env.PI_CACHE_RETENTION = "long";
-				const model = getModel("openai", "gpt-4o-mini");
+				const model = openAIResponsesFixture("gpt-4o-mini");
 				let capturedPayload: any = null;
 
 				const s = stream(model, context, {
@@ -296,7 +301,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			process.env.PI_CACHE_RETENTION = "long";
 
 			// Create a model with a different baseUrl (simulating a proxy)
-			const baseModel = getModel("openai", "gpt-4o-mini");
+			const baseModel = openAIResponsesFixture("gpt-4o-mini");
 			const proxyModel = {
 				...baseModel,
 				baseUrl: "https://my-proxy.example.com/v1",
@@ -326,7 +331,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 
 		it("should omit prompt_cache_retention when supportsLongCacheRetention is false", async () => {
 			const model = {
-				...getModel("openai", "gpt-4o-mini"),
+				...openAIResponsesFixture("gpt-4o-mini"),
 				compat: { supportsLongCacheRetention: false },
 			};
 			let capturedPayload: any = null;
@@ -353,7 +358,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should omit prompt_cache_key and disable implicit writes when cacheRetention is none", async () => {
-			const model = getModel("openai", "gpt-5.6-sol");
+			const model = openAIResponsesFixture("gpt-5.6-sol", { supportsExplicitPromptCacheMode: true });
 			let capturedPayload: OpenAIResponsesCachePayload | undefined;
 
 			try {
@@ -380,7 +385,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 
 		it("should omit prompt_cache_options for models that reject it", async () => {
-			const model = getModel("openai", "gpt-4o-mini");
+			const model = openAIResponsesFixture("gpt-4o-mini");
 			let capturedPayload: OpenAIResponsesCachePayload | undefined;
 
 			try {
@@ -411,7 +416,10 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			["gpt-6-sol", undefined, { ttl: "30m" }],
 			["gpt-6-luna", undefined, { ttl: "30m" }],
 		] as const)("should use the supported long cache field for %s", async (modelId, retention, cacheOptions) => {
-			const model = getModel("openai", modelId);
+			const model = openAIResponsesFixture(
+				modelId,
+				retention === undefined ? { supportsExplicitPromptCacheMode: true } : undefined,
+			);
 			let capturedPayload: OpenAIResponsesCachePayload | undefined;
 
 			try {
@@ -437,7 +445,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 		});
 	});
 
-	describe("OpenAI Completions Provider", () => {
+	describe("OpenAI Completions provider", () => {
 		function createCompletionsModel(compat?: Model<"openai-completions">["compat"]): Model<"openai-completions"> {
 			return {
 				id: "test-model",
@@ -504,21 +512,15 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			expect(capturedPayload.prompt_cache_retention).toBeUndefined();
 		});
 
-		it.each([
-			MODELS.opencode["deepseek-v4-flash"],
-			MODELS.opencode["deepseek-v4-pro"],
-			MODELS.opencode["kimi-k2.5"],
-			MODELS.opencode["kimi-k2.6"],
-			MODELS.opencode["minimax-m2.7"],
-		] as const)("should omit long cache retention for $provider/$id", async (metadata) => {
-			const model = metadata as Model<"openai-completions">;
+		it("should omit long cache retention for endpoints without long cache support", async () => {
+			const model = createCompletionsModel({ supportsLongCacheRetention: false });
 			let capturedPayload: OpenAICompletionsCachePayload | undefined;
 
 			try {
 				const s = streamOpenAICompletions(model, context, {
 					apiKey: "fake-key",
 					cacheRetention: "long",
-					sessionId: "session-opencode-long-cache-unsupported",
+					sessionId: "session-long-cache-unsupported",
 					onPayload: stopAfterPayload<OpenAICompletionsCachePayload>((payload) => {
 						capturedPayload = payload;
 					}),
@@ -537,11 +539,9 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 			expect(capturedPayload?.prompt_cache_retention).toBeUndefined();
 		});
 
-		it.each([MODELS.cerebras["gpt-oss-120b"], MODELS.cerebras["qwen-3.8-27b"]] as const)(
-			"should omit strict field on tools for cerebras/$id",
-			async (metadata) => {
-				const model = metadata as Model<"openai-completions">;
-
+		it.each([createCompletionsModel(), createCompletionsModel({ supportsStrictMode: false })])(
+			"should omit the strict field on tools when the endpoint does not declare strict support",
+			async (model) => {
 				const contextWithTools = {
 					messages: [
 						{
@@ -592,7 +592,7 @@ describe("Cache Retention (PI_CACHE_RETENTION)", () => {
 					// Expected to fail
 				}
 
-				expect(model.compat?.supportsStrictMode).toBeUndefined();
+				expect(model.compat?.supportsStrictMode).not.toBe(true);
 				expect(capturedPayload).toBeDefined();
 				const tools = capturedPayload?.tools as any[] | undefined;
 				expect(tools).toBeDefined();

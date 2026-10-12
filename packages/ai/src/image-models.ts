@@ -4,6 +4,12 @@ import type { ImageApi, ImageModel } from "./types.ts";
 /**
  * Compat reads of the generated catalog restricted to image models. New code
  * uses `Models.getModelOfType("image", ...)` or `getBuiltinImageModel()` from `providers/all`.
+ *
+ * The built-in catalog currently ships no image model, so `BuiltinImageProvider`
+ * is `never` and these reads are uncallable/empty. They become usable again if a
+ * generated catalog entry adds an image model; image models declared outside the
+ * built-in catalog (provider extensions, `models.json` `imageModels`) are read
+ * through `Models.getModelsOfType("image", ...)` instead.
  */
 
 type Catalog = typeof IMAGE_MODELS;

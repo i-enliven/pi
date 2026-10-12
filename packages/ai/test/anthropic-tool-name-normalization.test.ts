@@ -4,12 +4,13 @@ import { getModel, stream } from "../src/compat.ts";
 import type { Context, Tool } from "../src/types.ts";
 import { resolveApiKey } from "./oauth.ts";
 
-const oauthToken = await resolveApiKey("anthropic");
+const copilotApiKey = await resolveApiKey("github-copilot");
 
 /**
- * Tests for Anthropic OAuth tool name normalization.
+ * Tests for Anthropic Messages tool name normalization.
  *
- * When using Claude Code OAuth, tool names must match CC's canonical casing.
+ * The API implementation mimics Claude Code's tool naming, so tool names must
+ * match CC's canonical casing.
  * The normalization should:
  * 1. Convert tool names that match CC tools (case-insensitive) to CC casing on outbound
  * 2. Convert tool names back to the original casing on inbound
@@ -22,8 +23,8 @@ const oauthToken = await resolveApiKey("anthropic");
  * - Inbound: "Glob" -> ??? (no tool named "glob" in context.tools, only "find")
  * - Result: tool call has name "Glob" but no tool exists with that name
  */
-describe.skipIf(!oauthToken)("Anthropic OAuth tool name normalization", () => {
-	const model = getModel("anthropic", "claude-sonnet-4-6");
+describe.skipIf(!copilotApiKey)("Anthropic Messages tool name normalization", () => {
+	const model = getModel("github-copilot", "claude-sonnet-4.6");
 
 	it("should normalize user-defined tool matching CC name (todowrite -> TodoWrite -> todowrite)", async () => {
 		// User defines a tool named "todowrite" (lowercase)
@@ -48,7 +49,7 @@ describe.skipIf(!oauthToken)("Anthropic OAuth tool name normalization", () => {
 			tools: [todoTool],
 		};
 
-		const s = stream(model, context, { apiKey: oauthToken });
+		const s = stream(model, context, { apiKey: copilotApiKey });
 		let toolCallName: string | undefined;
 
 		for await (const event of s) {
@@ -89,7 +90,7 @@ describe.skipIf(!oauthToken)("Anthropic OAuth tool name normalization", () => {
 			tools: [readTool],
 		};
 
-		const s = stream(model, context, { apiKey: oauthToken });
+		const s = stream(model, context, { apiKey: copilotApiKey });
 		let toolCallName: string | undefined;
 
 		for await (const event of s) {
@@ -132,7 +133,7 @@ describe.skipIf(!oauthToken)("Anthropic OAuth tool name normalization", () => {
 			tools: [findTool],
 		};
 
-		const s = stream(model, context, { apiKey: oauthToken });
+		const s = stream(model, context, { apiKey: copilotApiKey });
 		let toolCallName: string | undefined;
 
 		for await (const event of s) {
@@ -183,7 +184,7 @@ describe.skipIf(!oauthToken)("Anthropic OAuth tool name normalization", () => {
 			tools: [customTool],
 		};
 
-		const s = stream(model, context, { apiKey: oauthToken });
+		const s = stream(model, context, { apiKey: copilotApiKey });
 		let toolCallName: string | undefined;
 
 		for await (const event of s) {

@@ -111,7 +111,7 @@ function createResponseModelSseResponse(model: string, contentBlock: ResponseCon
 
 describe("Anthropic raw SSE parsing", () => {
 	it("forwards parsed provider stream events in order", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const providerEvents: unknown[] = [];
 		const eventModels: Model<Api>[] = [];
 		const result = await streamAnthropic(
@@ -141,7 +141,7 @@ describe("Anthropic raw SSE parsing", () => {
 
 	it("keeps signed thinking replayable when a proxy relabels the model", async () => {
 		// Regression test for earendil-works/pi#9188.
-		const model = getModel("anthropic", "claude-opus-5");
+		const model = getModel("github-copilot", "claude-opus-5");
 		const responseModel = "kimi-for-coding";
 		const initialContext = normalizeContext({
 			messages: [{ role: "user", content: "Hello", timestamp: 1 }],
@@ -168,12 +168,13 @@ describe("Anthropic raw SSE parsing", () => {
 
 	it("uses a returned fallback model for cost attribution", async () => {
 		const fallbackModel = "fallback-model";
+		const base = getModel("github-copilot", "claude-opus-5");
 		const model: Model<"anthropic-messages"> = {
-			...getModel("anthropic", "claude-opus-5"),
+			...base,
 			compat: {
 				allowedFallbackModels: [
 					{
-						provider: "anthropic",
+						provider: base.provider,
 						model: fallbackModel,
 						cost: { input: 3, output: 5, cacheRead: 0, cacheWrite: 0 },
 					},
@@ -197,7 +198,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("fails safely when Anthropic falls back after output begins", async () => {
-		const model = getModel("anthropic", "claude-opus-5");
+		const model = getModel("github-copilot", "claude-opus-5");
 		const response = createSseResponse([
 			{
 				event: "message_start",
@@ -257,7 +258,7 @@ describe("Anthropic raw SSE parsing", () => {
 		} as unknown as Anthropic;
 
 		await streamAnthropic(
-			getModel("anthropic", "claude-fable-5-1"),
+			getModel("github-copilot", "claude-fable-5.1"),
 			normalizeContext({ messages: [{ role: "user", content: "Hello", timestamp: 1 }] }),
 			{
 				client,
@@ -282,7 +283,7 @@ describe("Anthropic raw SSE parsing", () => {
 		} as unknown as Anthropic;
 
 		await streamAnthropic(
-			getModel("openrouter", "anthropic/claude-haiku-4.5"),
+			getModel("github-copilot", "claude-haiku-4.5"),
 			normalizeContext({ messages: [{ role: "user", content: "Hello", timestamp: 1 }] }),
 			{ client, thinkingEnabled: false },
 		).result();
@@ -303,8 +304,12 @@ describe("Anthropic raw SSE parsing", () => {
 			},
 		} as unknown as Anthropic;
 
+		const managed: Model<"anthropic-messages"> = {
+			...getModel("github-copilot", "claude-fable-5.1"),
+			compat: { forceAdaptiveThinking: true, supportsMidConvoEffort: true },
+		};
 		const result = await streamAnthropic(
-			getModel("anthropic", "claude-fable-5-1"),
+			managed,
 			normalizeContext({ messages: [{ role: "user", content: "Hello", timestamp: 1 }] }),
 			{ client },
 		).result();
@@ -334,7 +339,7 @@ describe("Anthropic raw SSE parsing", () => {
 		events[4].data = JSON.stringify(delta);
 
 		const result = await streamAnthropic(
-			getModel("anthropic", "claude-fable-5-1"),
+			getModel("github-copilot", "claude-fable-5.1"),
 			normalizeContext({ messages: [{ role: "user", content: "Hello", timestamp: 1 }] }),
 			{ client: createFakeAnthropicClient(createSseResponse(events)) },
 		).result();
@@ -356,7 +361,7 @@ describe("Anthropic raw SSE parsing", () => {
 		]);
 	});
 	it("repairs malformed SSE JSON and malformed streamed tool JSON", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "Use the edit tool.", timestamp: Date.now() }],
 			tools: [
@@ -443,7 +448,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("preserves content from content_block_start events", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "Say hello.", timestamp: Date.now() }],
 		});
@@ -541,7 +546,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("preserves refusal stop details from message_delta", async () => {
-		const model = getModel("anthropic", "claude-fable-5");
+		const model = getModel("github-copilot", "claude-fable-5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "blocked request", timestamp: Date.now() }],
 		});
@@ -600,7 +605,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("preserves sensitive stop reasons with a descriptive error message", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "blocked request", timestamp: Date.now() }],
 		});
@@ -650,7 +655,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("treats message_delta without usage as a no-op for usage accumulation", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "Say hello.", timestamp: Date.now() }],
 		});
@@ -678,7 +683,7 @@ describe("Anthropic raw SSE parsing", () => {
 	});
 
 	it("ignores unknown SSE events after message_stop", async () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const context = normalizeContext({
 			messages: [{ role: "user", content: "Say hello.", timestamp: Date.now() }],
 		});

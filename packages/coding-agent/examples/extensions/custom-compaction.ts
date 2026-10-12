@@ -24,10 +24,10 @@ export default function (pi: ExtensionAPI) {
 		const { preparation, branchEntries: _, signal } = event;
 		const { messagesToSummarize, turnPrefixMessages, tokensBefore, firstKeptEntryId, previousSummary } = preparation;
 
-		// Use Gemini Flash for summarization (cheaper/faster than most conversation models)
-		const model = ctx.modelRegistry.find("google", "gemini-2.5-flash");
+		// Use a small model for summarization (cheaper/faster than most conversation models)
+		const model = ctx.modelRegistry.find("github-copilot", "claude-haiku-4.5");
 		if (!model) {
-			ctx.ui.notify(`Could not find Gemini Flash model, using default compaction`, "warning");
+			ctx.ui.notify(`Could not find the summarization model, using default compaction`, "warning");
 			return;
 		}
 

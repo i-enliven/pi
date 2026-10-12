@@ -46,7 +46,7 @@ describe("defaultTools setting", () => {
 			await createAgentSession({
 				cwd: tempDir,
 				agentDir,
-				model: getModel("anthropic", "claude-sonnet-4-5")!,
+				model: getModel("github-copilot", "claude-sonnet-4.6")!,
 				settingsManager,
 				sessionManager: SessionManager.inMemory(tempDir),
 				resourceLoader,
@@ -228,7 +228,7 @@ describe("defaultTools setting", () => {
 				await createAgentSession({
 					cwd: tempDir,
 					agentDir,
-					model: getModel("anthropic", "claude-sonnet-4-5")!,
+					model: getModel("github-copilot", "claude-sonnet-4.6")!,
 					settingsManager,
 					sessionManager: SessionManager.inMemory(tempDir),
 					resourceLoader,
@@ -295,7 +295,7 @@ describe("defaultTools setting", () => {
 		const { session } = await createAgentSessionFromServices({
 			services,
 			sessionManager: SessionManager.inMemory(tempDir),
-			model: getModel("anthropic", "claude-sonnet-4-5")!,
+			model: getModel("github-copilot", "claude-sonnet-4.6")!,
 		});
 
 		expect(

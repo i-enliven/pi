@@ -13,7 +13,7 @@ afterEach(() => {
 });
 
 describe("strict model generation", () => {
-	it("fails before mutating generated data when an Individual model loses tool support", () => {
+	it("fails before mutating generated data when the upstream catalog fetch fails", () => {
 		const fixtureRoot = mkdtempSync(join(tmpdir(), "pi-generate-models-"));
 		temporaryRoots.push(fixtureRoot);
 		const isolatedPackageRoot = join(fixtureRoot, "package");
@@ -21,45 +21,18 @@ describe("strict model generation", () => {
 		for (const entry of ["package.json", "scripts", "src"]) {
 			cpSync(join(packageRoot, entry), join(isolatedPackageRoot, entry), { recursive: true });
 		}
-		const preloadPath = join(fixtureRoot, "mock-models-dev.mjs");
-		const modelIds = [
-			"deepseek-v4-flash-0731",
-			"deepseek-v4-pro",
-			"deepseek-v4-pro-0813",
-			"glm-5.2",
-			"qwen3.6-flash",
-			"qwen3.7-max",
-			"qwen3.7-plus",
-			"qwen3.8-flash",
-			"qwen3.8-max",
-			"qwen3.8-max-preview",
-		];
-		const sourceModels = Object.fromEntries(
-			modelIds.map((id) => [
-				id,
-				{
-					id,
-					name: id,
-					tool_call: id !== "deepseek-v4-flash-0731",
-				},
-			]),
-		);
-		const catalog = { "alibaba-token-plan": { models: sourceModels } };
+		const preloadPath = join(fixtureRoot, "failing-fetch.mjs");
 		writeFileSync(
 			preloadPath,
-			`const catalog = ${JSON.stringify(catalog)};\n` +
-				`globalThis.fetch = async (input) => {\n` +
-				`  if (String(input) === "https://models.dev/api.json") {\n` +
-				`    return new Response(JSON.stringify(catalog), { status: 200 });\n` +
-				`  }\n` +
-				`  throw new Error(\`Unexpected fetch: \${String(input)}\`);\n` +
-				`};\n`,
+			"globalThis.fetch = async (input) => {\n" +
+				`  throw new Error(\`Simulated upstream failure: \${String(input)}\`);\n` +
+				"};\n",
 		);
 
 		const generatedPaths = [
 			"src/models.generated.ts",
-			"src/providers/qwen-token-plan-individual.models.ts",
-			"src/providers/data/qwen-token-plan-individual.json",
+			"src/providers/github-copilot.models.ts",
+			"src/providers/data/github-copilot.json",
 			"src/providers/data/.manifest.json",
 		];
 		const sourceBefore = generatedPaths.map((path) => readFileSync(join(packageRoot, path), "utf8"));
@@ -76,9 +49,7 @@ describe("strict model generation", () => {
 		);
 
 		expect(result.status).toBe(1);
-		expect(`${result.stdout}\n${result.stderr}`).toContain(
-			"qwen-token-plan-individual model IDs do not match (missing: deepseek-v4-flash-0731)",
-		);
+		expect(`${result.stdout}\n${result.stderr}`).toContain("Simulated upstream failure: https://models.dev/api.json");
 		expect(generatedPaths.map((path) => readFileSync(join(isolatedPackageRoot, path), "utf8"))).toEqual(
 			isolatedBefore,
 		);

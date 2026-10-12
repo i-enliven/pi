@@ -83,7 +83,7 @@ function createModel(
 
 /** OpenAI Chat Completions model with a real OpenAI catalog entry. */
 function createOpenAIModel(): Model<"openai-completions"> {
-	const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
+	const { compat: _compat, ...baseModel } = getModel("github-copilot", "gpt-5.4-mini");
 	return { ...baseModel, api: "openai-completions", provider: "openai", baseUrl: "https://api.openai.com/v1" };
 }
 
@@ -143,9 +143,7 @@ describe("prepareRequest (openai-completions)", () => {
 		expect(defaultPayload.max_completion_tokens).toBe(512);
 		expect(defaultPayload).not.toHaveProperty("max_tokens");
 
-		const catalogModel = getModel("ant-ling", "Ring-2.6-1T");
-		expect(catalogModel.compat?.maxTokensField).toBe("max_tokens");
-		const maxTokensPayload = assemble(catalogModel, simpleContext(), options);
+		const maxTokensPayload = assemble(createModel({ maxTokensField: "max_tokens" }), simpleContext(), options);
 		expect(maxTokensPayload.max_tokens).toBe(512);
 		expect(maxTokensPayload).not.toHaveProperty("max_completion_tokens");
 	});

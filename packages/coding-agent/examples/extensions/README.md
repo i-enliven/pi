@@ -183,14 +183,14 @@ export default function (pi: ExtensionAPI) {
 
 ## Key Patterns
 
-**Use StringEnum for string parameters** (required for Google API compatibility):
+**Use StringEnum for string parameters** (some OpenAI-compatible servers reject `Type.Enum` output):
 ```typescript
 import { StringEnum } from "@i-enliven/pi-ai";
 
 // Good
 action: StringEnum(["list", "add"] as const)
 
-// Bad - doesn't work with Google
+// Bad - some servers reject anyOf/const patterns
 action: Type.Union([Type.Literal("list"), Type.Literal("add")])
 ```
 

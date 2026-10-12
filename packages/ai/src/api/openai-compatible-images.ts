@@ -22,23 +22,30 @@ import { headersToRecord, providerHeadersToRecord } from "../utils/headers.ts";
 import { retryProviderRequest } from "../utils/provider-retry.ts";
 import { sanitizeSurrogates } from "../utils/sanitize-unicode.ts";
 
-interface OpenRouterGeneratedImage {
+interface GeneratedImage {
 	image_url?: string | { url?: string };
 }
 
-type OpenRouterImageGenerationMessage = ChatCompletion["choices"][number]["message"] & {
-	images?: OpenRouterGeneratedImage[];
+type ImageGenerationMessage = ChatCompletion["choices"][number]["message"] & {
+	images?: GeneratedImage[];
 };
 
-type OpenRouterImageGenerationChoice = ChatCompletion["choices"][number] & {
-	message: OpenRouterImageGenerationMessage;
+type ImageGenerationChoice = ChatCompletion["choices"][number] & {
+	message: ImageGenerationMessage;
 };
 
-type OpenRouterImageGenerationResponse = ChatCompletion & {
-	choices: OpenRouterImageGenerationChoice[];
+type ImageGenerationResponse = ChatCompletion & {
+	choices: ImageGenerationChoice[];
 };
 
-/** Image generation over OpenRouter's chat completions endpoint. */
+/**
+ * Image generation over any OpenAI-compatible chat completions endpoint.
+ *
+ * Requests `modalities: ["image"]` on `model.baseUrl` and reads generated
+ * assets back from `choices[0].message.images[].image_url` data URLs. Servers
+ * that answer with a different response shape are served by their own image
+ * API implementation.
+ */
 export const generateImages: ImagesFunction<ImagesOptions> = async (
 	model: ImageModel<ImageApi>,
 	context: ImagesContext,
@@ -82,7 +89,7 @@ export const generateImages: ImagesFunction<ImagesOptions> = async (
 		);
 		await options?.onResponse?.({ status: rawResponse.status, headers: headersToRecord(rawResponse.headers) }, model);
 
-		const imageResponse = response as OpenRouterImageGenerationResponse;
+		const imageResponse = response as ImageGenerationResponse;
 		output.responseId = imageResponse.id;
 		if (imageResponse.usage) {
 			output.usage = parseUsage(imageResponse.usage, model);
@@ -131,11 +138,11 @@ function createClient(
 	});
 }
 
-type OpenRouterImagesCreateParams = Omit<ChatCompletionCreateParamsNonStreaming, "modalities"> & {
+type ImagesCreateParams = Omit<ChatCompletionCreateParamsNonStreaming, "modalities"> & {
 	modalities: Array<"image" | "text">;
 };
 
-function buildParams(model: ImageModel<ImageApi>, context: ImagesContext): OpenRouterImagesCreateParams {
+function buildParams(model: ImageModel<ImageApi>, context: ImagesContext): ImagesCreateParams {
 	const content: ChatCompletionContentPart[] = context.input.map((item): ChatCompletionContentPart => {
 		if (item.type === "text") {
 			return {

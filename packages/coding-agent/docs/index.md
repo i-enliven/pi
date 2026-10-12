@@ -11,7 +11,7 @@ New to Pi? Follow the [Quickstart](quickstart.md) to install Pi, connect a model
 If Pi is already installed, choose what you want to do:
 
 - [Use Pi interactively](usage.md) to add files, run commands, direct ongoing work, and export results.
-- [Choose a model](models.md) or connect a subscription, API key, local model, or compatible endpoint.
+- [Choose a model](models.md) or connect a GitHub Copilot account, a local model, or a compatible endpoint.
 - [Continue or branch a session](sessions.md) to resume work or explore another approach without losing history.
 - [Configure Pi](configuration.md) for your preferences, working folders, instructions, and reusable resources.
 - [Understand how Pi works](how-pi-works.md), including tools, context, sessions, and the agent loop.

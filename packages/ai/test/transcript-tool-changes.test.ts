@@ -322,8 +322,12 @@ describe("transcript system messages", () => {
 			id: "kimi-k3",
 			name: "Kimi K3",
 			api: "openai-completions",
-			provider: "moonshotai",
-			compat: { supportsMidConvoSystemMessages: true, supportsMidConvoToolAdditions: true },
+			provider: "compatible",
+			compat: {
+				supportsMidConvoSystemMessages: true,
+				supportsMidConvoToolAdditions: true,
+				supportsDeveloperRole: false,
+			},
 		};
 		const payload = await capturePayload<{
 			tools?: Array<{ function?: { name: string } }>;
@@ -345,8 +349,8 @@ describe("transcript system messages", () => {
 			id: "kimi-k2.7-code",
 			name: "Kimi K2.7 Code",
 			api: "openai-completions",
-			provider: "moonshotai",
-			compat: { supportsMidConvoSystemMessages: true },
+			provider: "compatible",
+			compat: { supportsMidConvoSystemMessages: true, supportsDeveloperRole: false },
 		};
 		const payload = await capturePayload<{
 			tools?: Array<{ function?: { name: string } }>;

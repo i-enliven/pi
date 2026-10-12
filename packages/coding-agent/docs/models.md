@@ -1,15 +1,17 @@
 # Choose a Model
 
-For a built-in provider, start with `/login`, then choose a model with `/model`. Use custom model configuration only when Pi does not already include the provider or endpoint you need.
+For GitHub Copilot, start with `/login`, then choose a model with `/model`. Use custom model configuration only when Pi does not already include the endpoint you need.
 
 ## Choose a connection
 
 | What you have | Recommended setup |
 |---|---|
-| A supported subscription | Sign in through `/login` |
-| A provider API key | Store it through `/login` or set its environment variable |
+| A GitHub Copilot subscription | Sign in through `/login` |
+| A GitHub Copilot API token | Set `COPILOT_GITHUB_TOKEN` |
 | A local GGUF model | Connect Pi to the llama.cpp router |
-| An OpenAI-, Anthropic-, or Google-compatible endpoint | Add it to `models.json` |
+| A provider API key for a compatible endpoint | Add it to `models.json` |
+| A local GGUF model | Connect Pi to the llama.cpp router |
+| An OpenAI- or Anthropic-compatible endpoint | Add it to `models.json` |
 | A provider with a custom protocol or authentication flow | Build or install a provider extension |
 
 This fork ships a bundled model catalog, generated at build time from the checked-in model data. On refresh (model search, `pi update --models`), Pi overlays newer data from the catalog file committed to the fork repository (`nix/model-catalog/models.all.json` on GitHub). The overlay is cached in `~/.pi/agent/models-store.json` and stays available offline. Set `PI_MODEL_CATALOG_URL` to serve the catalog from another location, or `PI_OFFLINE` to disable the overlay and use only the bundled catalog.
@@ -20,7 +22,7 @@ Run `/login` and select a provider. Pi stores credentials in [`auth.json`](confi
 
 You can instead provide an API key through the provider's environment variable. This is useful in CI and other environments where Pi should not write credentials. [Providers](providers.md) lists the variables and provider-specific setup.
 
-When several credential sources are configured, Pi uses a runtime `--api-key` first, then a stored `auth.json` credential, an `apiKey` from `models.json`, and finally the provider's environment variables or ambient cloud credentials. Provider extensions can define their own authentication behavior.
+When several credential sources are configured, Pi uses a runtime `--api-key` first, then a stored `auth.json` credential, an `apiKey` from `models.json`, and finally the provider's environment variables. Provider extensions can define their own authentication behavior.
 
 Keep `auth.json` and any credential commands private. Project settings and extensions can execute inside the Pi process after you trust a project. Review [Security](security.md) before loading configuration from an untrusted directory.
 
@@ -44,7 +46,7 @@ For Ollama, LM Studio, vLLM, SGLang, and other compatible servers, [configure a 
 
 ## Configure a compatible endpoint
 
-Use [`models.json`](configuration.md#agent-directory) when an endpoint speaks an API Pi already supports. This includes most Ollama, LM Studio, vLLM, SGLang, and proxy deployments.
+Use [`models.json`](configuration.md#agent-directory) when an endpoint speaks an API Pi already supports: `openai-completions`, `openai-responses`, or `anthropic-messages`. This includes most Ollama, LM Studio, vLLM, SGLang, and proxy deployments.
 
 ```json
 {
@@ -122,33 +124,24 @@ OpenAI-compatible APIs support free-form `samplingParams` model defaults and `sa
 }
 ```
 
-Pi first clamps unsupported thinking levels, then merges model `samplingParams`, the effective level's override, and request-level `samplingParams` in that order. Later values win per key. Missing levels inherit the model defaults. `modelOverrides` merges per-level entries per key with the base model. These fields apply only to `openai-completions`, `openai-responses`, and `azure-openai-responses`; other APIs ignore them.
+Pi first clamps unsupported thinking levels, then merges model `samplingParams`, the effective level's override, and request-level `samplingParams` in that order. Later values win per key. Missing levels inherit the model defaults. `modelOverrides` merges per-level entries per key with the base model. These fields apply only to `openai-completions` and `openai-responses`; other APIs ignore them.
 
 Compatibility settings should describe verified differences in the endpoint's request or response behavior. Do not enable them based only on an endpoint advertising OpenAI or Anthropic compatibility.
 
+Pi adds no vendor-specific attribution headers to compatible endpoints. Earlier releases injected `X-OpenRouter-Title`/`X-OpenRouter-Categories` for a `baseUrl` pointing at `openrouter.ai`, `X-BILLING-INVOKE-ORIGIN` for `integrate.api.nvidia.com`, `User-Agent: pi-coding-agent` for Cloudflare hosts, and `x-opencode-session`/`x-opencode-client` for `opencode.ai`. Those injections are gone; a `models.json` endpoint now sends only the headers it resolves from provider and model configuration. Set them yourself under `headers` if an endpoint needs them.
+
 ## Use classifier models
 
-Classifier models do not chat. They answer typed questions about JSON state: pick one of several choices, answer yes or no, or give a score, each with probabilities. Pi includes TypeSafe's Jev model from these providers, Cloudflare's Clef and Clef Flash models from Workers AI, and OpenAI's GPT-6 Luna through the [Decisions API](https://developers.openai.com/api/docs/guides/decisions):
+Classifier models do not chat. They answer typed questions about JSON state: pick one of several choices, answer yes or no, or give a score, each with probabilities.
 
-| Provider | Model IDs | Authentication |
-|---|---|---|
-| `typesafe` | `jev-latest` | `TYPESAFE_API_KEY` |
-| `openrouter` | `typesafe/jev-1.13`, `~typesafe/jev-latest` | `OPENROUTER_API_KEY` or `/login` |
-| `cloudflare-workers-ai` | `typesafe/jev`, `@cf/cloudflare/clef`, `@cf/cloudflare/clef-flash` | `CLOUDFLARE_API_KEY` and `CLOUDFLARE_ACCOUNT_ID` |
-| `vercel-ai-gateway` | `typesafe-ai/jev` | `AI_GATEWAY_API_KEY` |
-| `opencode` | `jev-1.13`, `jev-1.13-free` | `OPENCODE_API_KEY` |
-| `openai` | `gpt-6-luna` | `OPENAI_API_KEY` |
-
-Chat models on a [llama.cpp router](llama-cpp.md#classification) are also listed as classifier models.
-
-OpenAI's Decisions API needs an API key. Sign in with ChatGPT credentials do not work with it, so `gpt-6-luna` is not listed as available while `openai` is logged in through `/login`, even when `OPENAI_API_KEY` is set; log out of `openai` to use the key. GPT-6 Luna also judges images passed in `images`; other classifier models return an error for them. The API rejects inputs above 922K tokens, but requests that run longer than about five seconds, currently above roughly 600K input tokens, fail with a gateway timeout.
+The only classifier models Pi lists come from a [llama.cpp router](llama-cpp.md#classification). Decision models that llama.cpp serves natively through `/v1/systemone` use the `typesafe-system-one` API; other loaded chat models are exposed as classifiers through `llama-cpp-classify`, which reads log-probabilities from the router. Both need no API key unless the router was started with `--api-key`.
 
 Classifier models do not appear in `/model` and are not declared to the model. Extensions list them with `ctx.modelRegistry.getAvailableOfType("classifier")` and call `ctx.modelRegistry.classify(model, { state, questions })`, which answers typed `choice`, `bool`, and `score` questions about JSON state:
 
 ```typescript
-const [jev] = await ctx.modelRegistry.getAvailableOfType("classifier", "typesafe");
-if (jev) {
-  const result = await ctx.modelRegistry.classify(jev, {
+const [localClassifier] = await ctx.modelRegistry.getAvailableOfType("classifier", "llamacpp");
+if (localClassifier) {
+  const result = await ctx.modelRegistry.classify(localClassifier, {
     state: { message: "The change works, thanks." },
     questions: {
       approved: {
@@ -162,20 +155,43 @@ if (jev) {
 }
 ```
 
-When the service reports token counts, as all System One services do, `result.usage` carries them with their cost. The cost uses the model's catalog price; models without one, such as TypeSafe's direct `jev-latest`, report tokens at no cost.
+When the service reports token counts, `result.usage` carries them with their cost. The cost uses the model's catalog price; llama.cpp models report tokens at no cost.
 
 [Virtual models](virtual-models.md#route-requests) can use classifiers to route requests; see the `jev-router.ts` example.
 
 ## Use image models
 
-Image models generate images from a prompt and optional input images. Pi lists OpenRouter's image models, such as `google/gemini-2.5-flash-image` and `black-forest-labs/flux.2-pro`, under the `openrouter` provider; they use the same `OPENROUTER_API_KEY` or `/login` credential as its chat models.
+Image models do not chat. Declare them beside your chat models in `models.json` when the endpoint answers image requests over the OpenAI-compatible chat completions protocol:
+
+```json
+{
+  "providers": {
+    "painter": {
+      "baseUrl": "http://localhost:8080/v1",
+      "apiKey": "local",
+      "api": "openai-completions",
+      "imageApi": "openai-compatible-images",
+      "models": [
+        { "id": "qwen2.5-coder:7b" }
+      ],
+      "imageModels": [
+        { "id": "flux-dev", "input": ["text", "image"], "output": ["image"] }
+      ]
+    }
+  }
+}
+```
+
+`openai-compatible-images` is the built-in image API implementation. It posts to the model's `baseUrl` with `modalities: ["image"]` (plus `"text"` when the model's `output` includes `"text"`) and reads results back from `choices[0].message.images[].image_url` data URLs. `imageApi` sets that API for every image model on the provider; a model's own `api` overrides it. `baseUrl` and `apiKey` default to the provider values, so chat and image models on one endpoint share authentication. `input` defaults to `["text"]` and `output` to `["text", "image"]`; `output` must include `"image"`. `modelOverrides` applies to chat models only.
+
+An endpoint that speaks a different image protocol needs a provider extension that registers an image implementation for its own API id; see [Custom Providers](custom-provider.md).
 
 Like classifier models, image models do not appear in `/model` and are not declared to the model. Extensions list them with `ctx.modelRegistry.getAvailableOfType("image")` and generate through `ctx.modelRegistry.generateImages(model, { input })`. The result's `output` holds base64 image blocks:
 
 ```typescript
 const painter = ctx.modelRegistry
-  .getModelsOfType("image", "openrouter")
-  .find((model) => model.id.includes("gemini-2.5-flash-image"));
+  .getModelsOfType("image", "pixels")
+  .find((model) => model.id === "flux-pro");
 if (painter) {
   const result = await ctx.modelRegistry.generateImages(painter, {
     input: [{ type: "text", text: "A red fox in the snow, watercolor" }],

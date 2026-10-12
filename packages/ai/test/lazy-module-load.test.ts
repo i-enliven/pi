@@ -8,7 +8,7 @@ const aiEntryUrl = new URL("../src/index.ts", import.meta.url).href;
 const compatEntryUrl = new URL("../src/compat.ts", import.meta.url).href;
 const providersAllUrl = new URL("../src/providers/all.ts", import.meta.url).href;
 
-const SDK_SPECIFIERS = ["@anthropic-ai/sdk", "openai", "@google/genai", "@aws-sdk/client-bedrock-runtime"] as const;
+const SDK_SPECIFIERS = ["@anthropic-ai/sdk", "openai"] as const;
 
 type ProbeResult = {
 	loadedSpecifiers: string[];
@@ -103,7 +103,7 @@ describe("lazy provider module loading", () => {
 	it("loads only the Anthropic SDK when dispatching through streamSimple", () => {
 		const result = runProbe(`
 			const compat = await import(${JSON.stringify(compatEntryUrl)});
-			const model = compat.getModel("anthropic", "claude-sonnet-4-6");
+			const model = compat.getModel("github-copilot", "claude-sonnet-4.6");
 			const context = { messages: [{ role: "user", content: "hi" }] };
 			await compat.streamSimple(model, context).result();
 		`);

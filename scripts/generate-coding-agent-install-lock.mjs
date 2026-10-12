@@ -13,10 +13,9 @@ const outputPackageJsonPath = join(outputDir, "package.json");
 const outputLockfilePath = join(outputDir, "package-lock.json");
 const internalPackagePrefix = "@i-enliven/pi-";
 const installPackageName = "@i-enliven/pi-coding-agent-install";
-const allowedInstallScriptPackages = new Map([
-	["@google/genai@2.21.0", "preinstall is a no-op in the published package"],
-	["protobufjs@7.6.6", "postinstall only warns about protobufjs version scheme mismatches"],
-]);
+// Packages in the installer lock that run npm lifecycle scripts. Each entry needs a reviewed
+// reason; packages not listed here fail validation.
+const allowedInstallScriptPackages = new Map();
 
 const args = new Set(process.argv.slice(2));
 const checkOnly = args.has("--check");

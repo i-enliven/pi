@@ -35,10 +35,10 @@ function testModel(id: string) {
 describe("ModelRuntime auth options", () => {
 	it("accepts a pi-ai CredentialStore", async () => {
 		const credentials = new InMemoryCredentialStore();
-		await credentials.modify("anthropic", async () => ({ type: "api_key", key: "stored-key" }));
+		await credentials.modify("github-copilot", async () => ({ type: "api_key", key: "stored-key" }));
 		const runtime = await ModelRuntime.create({ credentials, modelsPath: null });
 
-		expect((await runtime.getAuth("anthropic"))?.auth.apiKey).toBe("stored-key");
+		expect((await runtime.getAuth("github-copilot"))?.auth.apiKey).toBe("stored-key");
 	});
 
 	it("scopes provider availability reads and records refresh failures", async () => {
@@ -58,12 +58,14 @@ describe("ModelRuntime auth options", () => {
 		const runtime = await ModelRuntime.create({ credentials, modelsPath: null });
 
 		reads.length = 0;
-		await runtime.getAvailable("anthropic");
-		expect(new Set(reads)).toEqual(new Set(["anthropic"]));
+		await runtime.getAvailable("github-copilot");
+		expect(new Set(reads)).toEqual(new Set(["github-copilot"]));
 
 		failReads = true;
-		await expect(runtime.getAvailable("anthropic")).rejects.toThrow("Credential store read failed for anthropic");
-		expect(runtime.getError()).toContain("Availability refresh: Credential store read failed for anthropic");
+		await expect(runtime.getAvailable("github-copilot")).rejects.toThrow(
+			"Credential store read failed for github-copilot",
+		);
+		expect(runtime.getError()).toContain("Availability refresh: Credential store read failed for github-copilot");
 
 		failReads = false;
 		await runtime.getAvailable();
@@ -78,37 +80,25 @@ describe("ModelRuntime auth options", () => {
 			expect.arrayContaining([
 				expect.objectContaining({
 					type: "api_key",
-					provider: expect.objectContaining({ id: "amazon-bedrock", name: "Amazon Bedrock" }),
-					method: expect.objectContaining({ name: "AWS credentials or bearer token" }),
-				}),
-				expect.objectContaining({
-					type: "api_key",
-					provider: expect.objectContaining({ id: "google-vertex", name: "Google Vertex AI" }),
-					method: expect.objectContaining({ name: "Google Cloud credentials" }),
+					provider: expect.objectContaining({ id: "github-copilot", name: "GitHub Copilot" }),
+					method: expect.objectContaining({ name: "GitHub Copilot token" }),
 				}),
 				expect.objectContaining({
 					type: "oauth",
-					provider: expect.objectContaining({ id: "anthropic", name: "Anthropic" }),
-				}),
-				expect.objectContaining({
-					type: "api_key",
-					provider: expect.objectContaining({ id: "cloudflare-ai-gateway", name: "Cloudflare AI Gateway" }),
-				}),
-				expect.objectContaining({
-					type: "api_key",
-					provider: expect.objectContaining({ id: "cloudflare-workers-ai", name: "Cloudflare Workers AI" }),
+					provider: expect.objectContaining({ id: "github-copilot", name: "GitHub Copilot" }),
 				}),
 			]),
 		);
 		expect(authOptions(runtime, "api_key").every((option) => option.type === "api_key")).toBe(true);
 		expect(authOptions(runtime, "oauth").every((option) => option.type === "oauth")).toBe(true);
-		expect(options.some((option) => option.provider.id === "openai-codex" && option.type === "api_key")).toBe(false);
+		// Only the Copilot provider and the in-process faux test provider remain registered.
+		expect(new Set(options.map((option) => option.provider.id))).toEqual(new Set(["github-copilot"]));
 	});
 
 	it("attaches the provider's active auth status to every method option", async () => {
 		const runtime = await ModelRuntime.create({
 			credentials: AuthStorage.inMemory({
-				anthropic: {
+				"github-copilot": {
 					type: "oauth",
 					access: "access",
 					refresh: "refresh",
@@ -118,34 +108,34 @@ describe("ModelRuntime auth options", () => {
 			modelsPath: null,
 		});
 
-		const options = authOptions(runtime).filter((option) => option.provider.id === "anthropic");
+		const options = authOptions(runtime).filter((option) => option.provider.id === "github-copilot");
 		expect(options).toHaveLength(2);
-		expect(await runtime.checkAuth("anthropic")).toMatchObject({ type: "oauth" });
+		expect(await runtime.checkAuth("github-copilot")).toMatchObject({ type: "oauth" });
 	});
 
-	it("distinguishes subscription OAuth from generic OAuth sign-in", async () => {
+	it("marks the Copilot OAuth flow as a subscription", async () => {
 		const runtime = await ModelRuntime.create({
 			credentials: AuthStorage.inMemory({
-				anthropic: {
+				"github-copilot": {
 					type: "oauth",
-					access: "anthropic-access",
-					refresh: "anthropic-refresh",
+					access: "copilot-access",
+					refresh: "copilot-refresh",
 					expires: Date.now() + 60 * 60_000,
-				},
-				openrouter: {
-					type: "oauth",
-					access: "openrouter-key",
-					refresh: "",
-					expires: Number.MAX_SAFE_INTEGER,
 				},
 			}),
 			modelsPath: null,
 		});
 
-		expect(runtime.isUsingOAuth("anthropic")).toBe(true);
-		expect(runtime.isUsingSubscription("anthropic")).toBe(true);
-		expect(runtime.isUsingOAuth("openrouter")).toBe(true);
-		expect(runtime.isUsingSubscription("openrouter")).toBe(false);
+		expect(runtime.isUsingOAuth("github-copilot")).toBe(true);
+		expect(runtime.isUsingSubscription("github-copilot")).toBe(true);
+
+		// API-key sign-ins are not subscriptions.
+		const keyed = await ModelRuntime.create({
+			credentials: AuthStorage.inMemory({ "github-copilot": { type: "api_key", key: "token" } }),
+			modelsPath: null,
+		});
+		expect(keyed.isUsingOAuth("github-copilot")).toBe(false);
+		expect(keyed.isUsingSubscription("github-copilot")).toBe(false);
 	});
 
 	it("constructs an API key method for an extension API-key provider", async () => {

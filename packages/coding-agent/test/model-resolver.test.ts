@@ -706,18 +706,8 @@ describe("resolveCliModel", () => {
 });
 
 describe("default model selection", () => {
-	test("openai defaults track current models", () => {
-		expect(defaultModelPerProvider.openai).toBe("gpt-5.5");
-		expect(defaultModelPerProvider["openai-codex"]).toBe("gpt-6.1-sol");
-	});
-
-	test("zai, minimax, cerebras, and ant-ling defaults track current models", () => {
-		expect(defaultModelPerProvider.zai).toBe("glm-5.3");
-		expect(defaultModelPerProvider["zai-coding-cn"]).toBe("glm-5.3");
-		expect(defaultModelPerProvider.minimax).toBe("MiniMax-M2.7");
-		expect(defaultModelPerProvider["minimax-cn"]).toBe("MiniMax-M2.7");
-		expect(defaultModelPerProvider.cerebras).toBe("gpt-oss-120b");
-		expect(defaultModelPerProvider["ant-ling"]).toBe("Ring-2.6-1T");
+	test("github-copilot default tracks the current model", () => {
+		expect(defaultModelPerProvider["github-copilot"]).toBe("gpt-5.4");
 	});
 
 	test("built-in chat providers have defaults in their generated catalogs", () => {
@@ -733,18 +723,6 @@ describe("default model selection", () => {
 				`${provider} default ${defaultId} should exist in its generated catalog`,
 			).toBe(true);
 		}
-	});
-
-	test("ai-gateway default tracks current model", () => {
-		expect(defaultModelPerProvider["vercel-ai-gateway"]).toBe("zai/glm-5.1");
-	});
-
-	test("xai default tracks current model", () => {
-		expect(defaultModelPerProvider.xai).toBe("grok-4.7");
-	});
-
-	test("qwen token plan individual default tracks current model", () => {
-		expect(defaultModelPerProvider["qwen-token-plan-individual"]).toBe("qwen3.8-max");
 	});
 
 	test("findInitialModel accepts explicit provider custom model ids", async () => {
@@ -833,8 +811,8 @@ describe("default model selection", () => {
 
 	describe("persisted default model scoping", () => {
 		const tempDirs: string[] = [];
-		const sonnet = getModel("anthropic", "claude-sonnet-4-5")!;
-		const opus = getModel("anthropic", "claude-opus-4-8")!;
+		const sonnet = getModel("github-copilot", "claude-sonnet-4.6")!;
+		const opus = getModel("github-copilot", "claude-opus-4.8")!;
 
 		afterEach(() => {
 			for (const dir of tempDirs.splice(0)) {
@@ -852,7 +830,7 @@ describe("default model selection", () => {
 				settingsManager.setEnabledModels(options.persistedScope);
 			}
 
-			const authStorage = AuthStorage.inMemory({ anthropic: { type: "api_key", key: "test-key" } });
+			const authStorage = AuthStorage.inMemory({ "github-copilot": { type: "api_key", key: "test-key" } });
 			const modelRuntime = getModelRuntime(await createModelRegistry(authStorage, join(tempDir, "models.json")));
 			const agent = new Agent({
 				initialState: {

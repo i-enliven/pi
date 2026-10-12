@@ -73,7 +73,7 @@ export class ModelRegistry {
 		return this.runtime.getModel(provider, modelId);
 	}
 
-	/** Find a model of a non-chat type, e.g. `findOfType("classifier", "typesafe", "jev-latest")`. */
+	/** Find a model of a non-chat type, e.g. `findOfType("classifier", "llama.cpp", "qwen3-4b")`. */
 	findOfType<TType extends ModelType>(
 		type: TType,
 		provider: string,

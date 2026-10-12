@@ -160,13 +160,13 @@ export default function (pi: ExtensionAPI) {
 				ctx.ui.notify("Preparing summary...", "info");
 			}
 
-			const model = ctx.modelRegistry.find("openai", "gpt-5.2");
+			const model = ctx.modelRegistry.find("github-copilot", "gpt-5.4-mini");
 			if (!model) {
-				if (ctx.hasUI) ctx.ui.notify("Model openai/gpt-5.2 not found", "warning");
+				if (ctx.hasUI) ctx.ui.notify("Model github-copilot/gpt-5.4-mini not found", "warning");
 				return;
 			}
 			if (!ctx.modelRegistry.hasConfiguredAuth(model)) {
-				if (ctx.hasUI) ctx.ui.notify("No authentication configured for openai/gpt-5.2", "warning");
+				if (ctx.hasUI) ctx.ui.notify("No authentication configured for github-copilot/gpt-5.4-mini", "warning");
 				return;
 			}
 

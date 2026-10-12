@@ -1,11 +1,5 @@
 import type { TelemetryContext } from "@i-enliven/pi-telemetry";
 import type { AnthropicOptions } from "./api/anthropic-messages.ts";
-import type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
-import type { BedrockOptions } from "./api/bedrock-converse-stream.ts";
-import type { GoogleOptions } from "./api/google-generative-ai.ts";
-import type { GoogleVertexOptions } from "./api/google-vertex.ts";
-import type { MistralOptions } from "./api/mistral-conversations.ts";
-import type { OpenAICodexResponsesOptions } from "./api/openai-codex-responses.ts";
 import type { OpenAICompletionsOptions } from "./api/openai-completions.ts";
 import type { OpenAIResponsesOptions } from "./api/openai-responses.ts";
 import type { AssistantMessageDiagnostic } from "./utils/diagnostics.ts";
@@ -13,73 +7,19 @@ import type { AssistantMessageEventStream } from "./utils/event-stream.ts";
 
 export type { AssistantMessageEventStream } from "./utils/event-stream.ts";
 
-export type KnownApi =
-	| "openai-completions"
-	| "mistral-conversations"
-	| "openai-responses"
-	| "azure-openai-responses"
-	| "openai-codex-responses"
-	| "anthropic-messages"
-	| "bedrock-converse-stream"
-	| "google-generative-ai"
-	| "google-vertex";
+export type KnownApi = "openai-completions" | "openai-responses" | "anthropic-messages";
 
 export type Api = KnownApi | (string & {});
 
-export type KnownImageApi = "openrouter-images";
+export type KnownImageApi = "openai-compatible-images";
 
 export type ImageApi = KnownImageApi | (string & {});
 
-export type KnownClassifierApi =
-	| "typesafe-system-one"
-	| "cloudflare-workers-ai-system-one"
-	| "llama-cpp-classify"
-	| "openai-decisions";
+export type KnownClassifierApi = "typesafe-system-one" | "llama-cpp-classify";
 
 export type ClassifierApi = KnownClassifierApi | (string & {});
 
-export type KnownProvider =
-	| "amazon-bedrock"
-	| "ant-ling"
-	| "anthropic"
-	| "google"
-	| "google-vertex"
-	| "openai"
-	| "azure"
-	| "openai-codex"
-	| "typesafe"
-	| "nvidia"
-	| "deepseek"
-	| "github-copilot"
-	| "xai"
-	| "groq"
-	| "cerebras"
-	| "openrouter"
-	| "vercel-ai-gateway"
-	| "zai"
-	| "zai-coding-cn"
-	| "mistral"
-	| "minimax"
-	| "minimax-cn"
-	| "moonshotai"
-	| "moonshotai-cn"
-	| "huggingface"
-	| "fireworks"
-	| "together"
-	| "baseten"
-	| "opencode"
-	| "opencode-go"
-	| "kimi-coding"
-	| "meta"
-	| "cloudflare-workers-ai"
-	| "cloudflare-ai-gateway"
-	| "qwen-token-plan"
-	| "qwen-token-plan-cn"
-	| "qwen-token-plan-individual"
-	| "xiaomi"
-	| "xiaomi-token-plan-cn"
-	| "xiaomi-token-plan-ams"
-	| "xiaomi-token-plan-sgp";
+export type KnownProvider = "github-copilot";
 export type ProviderId = KnownProvider | string;
 
 export type ToolChoice = "auto" | "none";
@@ -161,9 +101,6 @@ export interface ProviderRequestOptions<TModel = Model<Api>> {
 	/**
 	 * Optional custom HTTP headers to include in API requests.
 	 * Merged with provider defaults; caller values override default headers.
-	 * On AWS Bedrock these are injected via a Smithy `build`-step middleware so
-	 * they are covered by SigV4 signing; reserved headers (`x-amz-*`,
-	 * `authorization`, `host`) are silently ignored to preserve SigV4 / bearer auth.
 	 * A null value suppresses a provider/API default header with the same name.
 	 */
 	headers?: ProviderHeaders;
@@ -210,8 +147,8 @@ export interface StreamOptions extends ProviderRequestOptions<Model<Api>> {
 	samplingParams?: SamplingParams;
 	maxTokens?: number;
 	/**
-	 * Preferred transport for providers that support multiple transports.
-	 * Providers that do not support this option ignore it.
+	 * Preferred transport for APIs that support multiple transports.
+	 * APIs that do not support this option ignore it.
 	 */
 	transport?: Transport;
 	/**
@@ -261,12 +198,6 @@ export interface ApiOptionsMap {
 	"anthropic-messages": AnthropicOptions;
 	"openai-completions": OpenAICompletionsOptions;
 	"openai-responses": OpenAIResponsesOptions;
-	"openai-codex-responses": OpenAICodexResponsesOptions;
-	"azure-openai-responses": AzureOpenAIResponsesOptions;
-	"google-generative-ai": GoogleOptions;
-	"google-vertex": GoogleVertexOptions;
-	"mistral-conversations": MistralOptions;
-	"bedrock-converse-stream": BedrockOptions;
 }
 
 /**
@@ -920,7 +851,7 @@ export interface AnthropicMessagesCompat {
 	supportsLongCacheRetention?: boolean;
 	/**
 	 * Whether to send the `x-session-affinity` header from `options.sessionId`
-	 * when caching is enabled. Required for providers like Fireworks that use
+	 * when caching is enabled. Required for Anthropic-compatible servers that use
 	 * session affinity for prompt cache routing (requests to the same replica
 	 * maximize cache hits).
 	 * Default: false.
@@ -931,7 +862,7 @@ export interface AnthropicMessagesCompat {
 	/**
 	 * Whether the provider supports Anthropic-style `cache_control` markers on
 	 * tool definitions. When false, `cache_control` is omitted from tool params.
-	 * Some Anthropic-compatible providers (e.g., Fireworks) do not support this
+	 * Some Anthropic-compatible providers do not support this
 	 * field on tools and may reject or ignore it.
 	 * Default: true.
 	 */
@@ -969,18 +900,6 @@ export interface AnthropicMessagesCompat {
 	 * with no permitted fallback targets.
 	 */
 	allowedFallbackModels?: AnthropicAllowedFallbackModel[];
-}
-
-/** Compatibility settings for Amazon Bedrock models. */
-export interface BedrockCompat {
-	/** Whether the model supports Bedrock strict tool schemas. Default: false. */
-	supportsStrictMode?: boolean;
-}
-
-/** Compatibility settings for the Mistral chat API. */
-export interface MistralConversationsCompat {
-	/** Whether the exact model accepts system messages after the conversation has started. When false, later system messages are folded into the leading system message. Default: false. */
-	supportsMidConvoSystemMessages?: boolean;
 }
 
 /**
@@ -1149,15 +1068,11 @@ export interface Model<TApi extends Api> extends BaseModel<TApi> {
 	/** Compatibility overrides for OpenAI-compatible APIs. If not set, auto-detected from baseUrl. */
 	compat?: TApi extends "openai-completions"
 		? OpenAICompletionsCompat
-		: TApi extends "openai-responses" | "azure-openai-responses" | "openai-codex-responses"
+		: TApi extends "openai-responses"
 			? OpenAIResponsesCompat
 			: TApi extends "anthropic-messages"
 				? AnthropicMessagesCompat
-				: TApi extends "bedrock-converse-stream"
-					? BedrockCompat
-					: TApi extends "mistral-conversations"
-						? MistralConversationsCompat
-						: never;
+				: never;
 }
 
 /** Image-generation model: usable with `generateImages()` only. */

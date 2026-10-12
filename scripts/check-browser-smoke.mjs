@@ -73,26 +73,36 @@ try {
 	const catalogInputs = Array.from(contributingInputs).filter((input) =>
 		normalizePath(input).includes("packages/ai/src/providers/data/"),
 	);
-	if (catalogInputs.length !== 1 || !normalizePath(catalogInputs[0]).endsWith("/anthropic.json")) {
+	if (catalogInputs.length !== 1 || !normalizePath(catalogInputs[0]).endsWith("/github-copilot.json")) {
 		throw new Error(
-			`Agent selective-provider bundle catalogs: expected only anthropic.json, found ${catalogInputs.join(", ") || "none"}`,
+			`Agent selective-provider bundle catalogs: expected only github-copilot.json, found ${catalogInputs.join(", ") || "none"}`,
 		);
 	}
 
-	const aiSdkPackages = [
-		"@anthropic-ai/sdk",
+	// The Copilot provider registers the Anthropic Messages, Chat Completions and Responses
+	// implementations, so exactly these two API clients may reach the browser bundle.
+	const expectedAiSdkPackages = ["@anthropic-ai/sdk", "openai"];
+	// SDKs the removed providers used. One here means treeshaking regressed and a removed provider
+	// is back in the graph.
+	const forbiddenAiSdkPackages = [
 		"@aws-sdk/client-bedrock-runtime",
+		"@smithy/node-http-handler",
 		"@google/genai",
-		"@mistralai/mistralai",
-		"openai",
+		"http-proxy-agent",
+		"https-proxy-agent",
 	];
-	const includedAiSdkPackages = aiSdkPackages.filter((packageName) => includesNodePackage(inputs, packageName));
-	if (
-		includedAiSdkPackages.length !== 1 ||
-		includedAiSdkPackages[0] !== "@anthropic-ai/sdk"
-	) {
+	const includedAiSdkPackages = expectedAiSdkPackages.filter((packageName) => includesNodePackage(inputs, packageName));
+	if (includedAiSdkPackages.length !== expectedAiSdkPackages.length) {
 		throw new Error(
-			`Agent selective-provider bundle SDKs: expected only @anthropic-ai/sdk, found ${includedAiSdkPackages.join(", ") || "none"}`,
+			`Agent selective-provider bundle SDKs: expected only ${expectedAiSdkPackages.join(", ")}, found ${includedAiSdkPackages.join(", ") || "none"}`,
+		);
+	}
+	const includedForbiddenAiSdkPackages = forbiddenAiSdkPackages.filter((packageName) =>
+		includesNodePackage(inputs, packageName),
+	);
+	if (includedForbiddenAiSdkPackages.length > 0) {
+		throw new Error(
+			`Agent selective-provider bundle SDKs: unexpected removed-provider SDKs ${includedForbiddenAiSdkPackages.join(", ")}`,
 		);
 	}
 

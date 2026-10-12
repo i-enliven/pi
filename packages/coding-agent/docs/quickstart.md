@@ -1,6 +1,6 @@
 # Quickstart
 
-Pi runs in your terminal and works with files on your machine. To use it, you need access to a model through a supported provider. This can be a subscription, an API key, or a local model.
+Pi runs in your terminal and works with files on your machine. To use it, you need access to a model. This fork ships GitHub Copilot as its built-in provider; other services are reached as compatible endpoints in `models.json` or through a local llama.cpp router.
 
 For native Windows setup, read [Windows Setup](windows.md). For Android, read [Termux Setup](termux.md).
 
@@ -53,9 +53,9 @@ In Pi, run:
 /login
 ```
 
-Choose a provider, then follow the prompts to use a subscription or store an API key. Run `/model` afterward if you want to select a different available model.
+Select GitHub Copilot, then follow the prompts to sign in through the device flow or store a `COPILOT_GITHUB_TOKEN` API key. Run `/model` afterward if you want to select a different available model.
 
-See [Choose a model and provider](models.md) for supported providers, environment-variable authentication, local models, and custom endpoints.
+See [Choose a model](models.md) for authentication, local models, and custom endpoints.
 
 ## 4. Give Pi a task
 
@@ -91,7 +91,7 @@ Use `/resume` to choose another saved session. See [Continue or branch a session
 
 - [Use Pi interactively](usage.md) to learn input, commands, shortcuts, and queued messages.
 - [Add instructions](configuration.md#context-files) that Pi should follow whenever it works in a folder.
-- [Choose a model and provider](models.md).
+- [Choose a model](models.md).
 
 ### Choose how to customize Pi
 

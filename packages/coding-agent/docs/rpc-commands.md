@@ -212,7 +212,7 @@ Messages are `AgentMessage` objects (see [Message Types](message-types.md)).
 Switch to a specific model.
 
 ```json
-{"type": "set_model", "provider": "anthropic", "modelId": "claude-sonnet-4-20250514"}
+{"type": "set_model", "provider": "github-copilot", "modelId": "claude-sonnet-4.6"}
 ```
 
 Response contains the full [Model](#model-object) object:
@@ -839,15 +839,15 @@ Model commands return the complete configured model definition. Costs are in US 
 
 ```json
 {
-  "id": "claude-sonnet-4-20250514",
-  "name": "Claude Sonnet 4",
+  "id": "claude-sonnet-4.6",
+  "name": "Claude Sonnet 4.6",
   "api": "anthropic-messages",
-  "provider": "anthropic",
-  "baseUrl": "https://api.anthropic.com",
+  "provider": "github-copilot",
+  "baseUrl": "https://api.individual.githubcopilot.com",
   "reasoning": true,
   "input": ["text", "image"],
-  "contextWindow": 200000,
-  "maxTokens": 16384,
+  "contextWindow": 1000000,
+  "maxTokens": 32000,
   "cost": {
     "input": 3.0,
     "output": 15.0,

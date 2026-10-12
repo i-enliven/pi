@@ -7,11 +7,11 @@
 // the body and surface opaque messages like `"403 status code (no body)"` or
 // collapse to `"Unknown: UnknownError"`.
 //
-// `normalizeProviderError` probes the known SDK field shapes (Mistral,
-// `openai`, `@google/genai`, AWS Bedrock) and returns a struct each provider
-// composes into its display string. The `messageCarriesBody` flag captures the
-// Anthropic / `@google/genai` happy path where the SDK already folded the body
-// into the message, so providers can preserve it without double-printing.
+// `normalizeProviderError` probes the known SDK field shapes (`openai`,
+// `@anthropic-ai/sdk`) and returns a struct each provider composes into its
+// display string. The `messageCarriesBody` flag captures the Anthropic happy
+// path where the SDK already folded the body into the message, so providers can
+// preserve it without double-printing.
 
 export const MAX_PROVIDER_ERROR_BODY_CHARS = 4000;
 
@@ -55,8 +55,8 @@ export function normalizeProviderError(error: unknown): NormalizedProviderError 
 
 /**
  * Probe the HTTP status, first numeric hit wins, in SDK-field order:
- * `statusCode` (Mistral) → `status` (`openai`, `@google/genai`) →
- * `$metadata.httpStatusCode` (Bedrock) → `$response.statusCode` (Bedrock).
+ * `statusCode` → `status` (`openai`) → `$metadata.httpStatusCode` →
+ * `$response.statusCode`.
  */
 function extractStatus(error: SdkErrorShape): number | undefined {
 	if (typeof error.statusCode === "number") return error.statusCode;
@@ -118,7 +118,7 @@ function isPlainNonEmptyObject(value: unknown): boolean {
 
 /**
  * Compose a display string from a normalized error. When the message already
- * carries the body (Anthropic / `@google/genai` happy path) or no body/status
+ * carries the body (Anthropic happy path) or no body/status
  * was extracted, the message is returned unchanged. Otherwise the status and
  * body are surfaced, with an optional provider prefix.
  *

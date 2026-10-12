@@ -30,16 +30,18 @@ import { type SessionEntry, SessionManager, type UsageEntry } from "../src/core/
 import type { CacheWarmingMode } from "../src/core/settings-manager.ts";
 import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 
+// claude-sonnet-4.6 uses adaptive thinking, so a capped replay keeps its cache entry.
 const adaptiveModel: Model<Api> = {
-	...getBuiltinModel("anthropic", "claude-opus-4-6"),
+	...getBuiltinModel("github-copilot", "claude-sonnet-4.6"),
 	promptCache: { short: 300, long: 3600 },
 };
+// claude-haiku-4.5 has budget-based thinking: a capped replay changes `budget_tokens`.
 const budgetModel: Model<Api> = {
-	...getBuiltinModel("anthropic", "claude-sonnet-4-5"),
+	...getBuiltinModel("github-copilot", "claude-haiku-4.5"),
 	promptCache: { short: 300, long: 3600 },
 };
 const openaiModel: Model<Api> = {
-	...getBuiltinModel("openai", "gpt-5"),
+	...getBuiltinModel("github-copilot", "gpt-5.4"),
 	promptCache: { short: 300, long: 86_400 },
 };
 const unknownModel: Model<Api> = { ...adaptiveModel, promptCache: undefined };
@@ -163,8 +165,11 @@ describe("cache warming", () => {
 			continuationProbability: 1,
 			action: "warm",
 		});
-		expect(events[0].missCost).toBeCloseTo(0.575);
-		expect(events[0].warmCost).toBeCloseTo(0.050025);
+		// 100k prompt tokens at claude-sonnet-4.6 prices: cacheWrite 3.75/Mtok minus
+		// cacheRead 0.3/Mtok is the miss premium; a warm refresh is one cache read plus
+		// one output token.
+		expect(events[0].missCost).toBeCloseTo(0.345);
+		expect(events[0].warmCost).toBeCloseTo(0.030015);
 		expect(appendUsage).toHaveBeenCalledWith(
 			"cache_warm",
 			adaptiveModel.provider,

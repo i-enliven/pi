@@ -9,6 +9,7 @@ import {
 	type ClassifierApi,
 	type Credential,
 	type ImageApi,
+	type ImageModel,
 	isModelType,
 	lazyStream,
 	type Model,
@@ -25,9 +26,15 @@ import {
 	type StreamOptions,
 	type TranscriptContext,
 } from "@i-enliven/pi-ai";
-import { getApiProvider } from "@i-enliven/pi-ai/compat";
+import { getApiProvider, getImagesApiProvider } from "@i-enliven/pi-ai/compat";
 import { classifierErrorResult, imageErrorResult } from "@i-enliven/pi-ai/utils/model-operations";
-import type { ModelConfig, ModelsJsonModel, ModelsJsonModelOverride, ModelsJsonProvider } from "./model-config.ts";
+import type {
+	ModelConfig,
+	ModelsJsonImageModel,
+	ModelsJsonModel,
+	ModelsJsonModelOverride,
+	ModelsJsonProvider,
+} from "./model-config.ts";
 import {
 	clearConfigValueCache,
 	getConfigValueEnvVarNames,
@@ -258,6 +265,52 @@ function findModelDefaults(models: readonly AnyModel[], modelId: string, api?: A
 	);
 }
 
+function findImageModelDefaults(
+	models: readonly AnyModel[],
+	modelId: string,
+	api?: ImageApi,
+): ImageModel<ImageApi> | undefined {
+	const imageModels = models.filter((model) => isModelType(model, "image")) as ImageModel<ImageApi>[];
+	return (
+		imageModels.find((model) => model.id === modelId) ??
+		(api ? imageModels.find((model) => model.api === api) : undefined) ??
+		imageModels[0]
+	);
+}
+
+function imageModelFromJson(
+	providerId: string,
+	definition: ModelsJsonImageModel,
+	providerConfig: ModelsJsonProvider,
+	defaults: ImageModel<ImageApi> | undefined,
+): ImageModel<ImageApi> {
+	const api = definition.api ?? providerConfig.imageApi ?? defaults?.api;
+	if (!api) {
+		throw new Error(
+			`Provider ${providerId}, image model ${definition.id}: no "api" specified. Set "imageApi" at provider or model level.`,
+		);
+	}
+	const baseUrl = definition.baseUrl ?? providerConfig.baseUrl ?? defaults?.baseUrl;
+	if (!baseUrl) throw new Error(`Provider ${providerId}: "baseUrl" is required when defining custom image models.`);
+	const output = (definition.output ?? ["text", "image"]) as ("text" | "image")[];
+	if (!output.includes("image")) {
+		throw new Error(`Provider ${providerId}, image model ${definition.id}: "output" must include "image".`);
+	}
+	return {
+		type: "image",
+		id: definition.id,
+		name: definition.name ?? definition.id,
+		api: api as ImageApi,
+		provider: providerId,
+		baseUrl,
+		input: (definition.input ?? ["text"]) as ("text" | "image")[],
+		inputLimits: definition.inputLimits,
+		output,
+		cost: definition.cost ?? { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		headers: undefined,
+	};
+}
+
 function findExtensionModelDefaults(
 	models: readonly AnyModel[],
 	definition: ProviderModelConfig,
@@ -306,6 +359,7 @@ function applyModelsJson(
 	const hasOverrides = config.modelOverrides && Object.keys(config.modelOverrides).length > 0;
 	if (
 		!config.models?.length &&
+		!config.imageModels?.length &&
 		!config.baseUrl &&
 		!config.headers &&
 		!config.compat &&
@@ -314,7 +368,7 @@ function applyModelsJson(
 		config.authHeader === undefined
 	) {
 		throw new Error(
-			`Provider ${providerId}: must specify "baseUrl", "headers", "compat", "modelOverrides", or "models".`,
+			`Provider ${providerId}: must specify "baseUrl", "headers", "compat", "modelOverrides", "models", or "imageModels".`,
 		);
 	}
 
@@ -328,6 +382,13 @@ function applyModelsJson(
 		const existingIndex = models.findIndex((model) => isModelType(model, "chat") && model.id === definition.id);
 		const defaults = findModelDefaults(models, definition.id, definition.api ?? config.api);
 		const model = modelFromJson(providerId, definition, config, defaults);
+		if (existingIndex >= 0) models[existingIndex] = model;
+		else models.push(model);
+	}
+	for (const definition of config.imageModels ?? []) {
+		const existingIndex = models.findIndex((model) => isModelType(model, "image") && model.id === definition.id);
+		const defaults = findImageModelDefaults(models, definition.id, definition.api ?? config.imageApi);
+		const model = imageModelFromJson(providerId, definition, config, defaults);
 		if (existingIndex >= 0) models[existingIndex] = model;
 		else models.push(model);
 	}
@@ -506,10 +567,13 @@ function rawModelHeaders(
 	config: ModelsJsonProvider | undefined,
 	extension: ProviderConfigInput | undefined,
 ): Record<string, string> | undefined {
-	// models.json definitions and overrides are chat-only. Extension definitions
-	// are matched by operation and id so colliding models cannot share headers.
+	// models.json chat and image definitions are matched by operation and id so
+	// colliding models cannot share headers; overrides stay chat-only.
 	const chatDefinition = isModelType(model, "chat")
 		? config?.models?.find((entry) => entry.id === model.id)
+		: undefined;
+	const imageDefinition = isModelType(model, "image")
+		? config?.imageModels?.find((entry) => entry.id === model.id)
 		: undefined;
 	const extensionModel = extension?.models?.find(
 		(entry) => (entry.type ?? "chat") === (model.type ?? "chat") && entry.id === model.id,
@@ -517,6 +581,7 @@ function rawModelHeaders(
 	const headers = {
 		...(isModelType(model, "chat") ? config?.modelOverrides?.[model.id]?.headers : undefined),
 		...chatDefinition?.headers,
+		...imageDefinition?.headers,
 		...extensionModel?.headers,
 	};
 	return Object.keys(headers).length > 0 ? headers : undefined;
@@ -649,11 +714,16 @@ export function composeModelProvider(
 	}
 	const extensionImages = extension?.images;
 	const generateImages = base?.generateImages;
-	if (generateImages || Object.keys(extensionImages ?? {}).length > 0) {
+	const configuredImageModels = config?.imageModels;
+	if (generateImages || Object.keys(extensionImages ?? {}).length > 0 || configuredImageModels?.length) {
 		provider.generateImages = (model, context, options) => {
 			const implementation = extensionImages?.[model.api];
 			if (implementation) return implementation.generateImages(model, context, options);
 			if (generateImages) return generateImages(model, context, options);
+			// Mirror chat dispatch: fall back to the globally registered image API
+			// implementation for this model's api.
+			const apiProvider = getImagesApiProvider(model.api);
+			if (apiProvider) return apiProvider.generateImages(model, context, options);
 			return Promise.resolve(
 				imageErrorResult(model, new Error(`Provider ${providerId} has no image implementation for "${model.api}"`)),
 			);

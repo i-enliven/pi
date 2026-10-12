@@ -1,7 +1,7 @@
 /**
  * Jev router - a virtual model that plans on a strong model and implements on a cheap one.
  *
- * Registers `jev/auto`, which routes between three OpenAI Codex models:
+ * Registers `jev/auto`, which routes between three GitHub Copilot models:
  *
  * - Planning: GPT-5.6 Sol for complex work, GPT-5.6 Terra otherwise. The Jev classifier rates the
  *   first user message; planning stays on the chosen model.
@@ -15,14 +15,17 @@
  * and survives compaction. The selected thinking level passes through as the reasoning effort of
  * the chosen model. Requests outside the agent loop, such as compaction summaries, go to Luna.
  *
- * Requires TypeSafe credentials (TYPESAFE_API_KEY) and an OpenAI Codex login.
+ * Requires a GitHub Copilot login. Complexity triage additionally uses a local llama.cpp classifier
+ * model (see /llama); without one, planning starts on Terra.
  * Usage: pi -e ./jev-router.ts --model jev/auto
  */
 
 import type { Message } from "@i-enliven/pi-ai";
 import type { ExtensionAPI, ExtensionContext, ModelRoute, ModelRouteRequest } from "@i-enliven/pi-coding-agent";
 
-const PROVIDER = "openai-codex";
+const PROVIDER = "github-copilot";
+/** Provider id of the built-in llama.cpp extension; its models double as classifiers. */
+const CLASSIFIER_PROVIDER = "llama.cpp";
 const SOL = "gpt-5.6-sol";
 const TERRA = "gpt-5.6-terra";
 const LUNA = "gpt-5.6-luna";
@@ -32,7 +35,7 @@ const EDIT_TOOLS = new Set(["edit", "write"]);
 
 interface JevState {
 	phase: "planning" | "implementation";
-	/** OpenAI Codex model for this phase. */
+	/** Copilot model for this phase. */
 	model: string;
 }
 
@@ -64,7 +67,7 @@ async function choosePlanningModel(request: JevRequest, ctx: ExtensionContext): 
 	const previous = request.previous?.model;
 	if (previous?.provider === PROVIDER && (previous.id === SOL || previous.id === TERRA)) return previous.id;
 
-	const jev = ctx.modelRegistry.findOfType("classifier", "typesafe", "jev-latest");
+	const jev = ctx.modelRegistry.getModelsOfType("classifier", CLASSIFIER_PROVIDER)[0];
 	if (!jev) return TERRA;
 	const result = await ctx.modelRegistry.classify(
 		jev,
@@ -94,7 +97,7 @@ export default function (pi: ExtensionAPI) {
 		name: "Auto (Jev)",
 		thinkingLevels: ["low", "medium", "high", "xhigh"],
 		// Shared by all three models; shown before the first response.
-		contextWindow: 272_000,
+		contextWindow: 1_050_000,
 		maxTokens: 128_000,
 		async route(request, ctx) {
 			if (request.reason === "direct") return routeTo(request, ctx, LUNA);

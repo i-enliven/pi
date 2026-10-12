@@ -1,12 +1,15 @@
 import type { AssistantMessage } from "../types.ts";
 
 /**
- * Regex patterns to detect context overflow errors from different providers.
+ * Regex patterns to detect context overflow errors from the endpoints pi can reach.
  *
  * These patterns match error messages returned when the input exceeds
  * the model's context window.
  *
- * Provider-specific patterns (with example error messages):
+ * The names below document where each error-message shape was observed, not
+ * built-in support: pi ships GitHub Copilot plus generic OpenAI- and
+ * Anthropic-compatible endpoints, and a pattern fires for any endpoint that
+ * returns the same text. Shapes (with example error messages):
  *
  * - Anthropic: "prompt is too long: 213462 tokens > 200000 maximum"
  * - Anthropic: "413 {\"error\":{\"type\":\"request_too_large\",\"message\":\"Request exceeds the maximum size\"}}"
@@ -25,7 +28,6 @@ import type { AssistantMessage } from "../types.ts";
  * - MiniMax: "invalid params, context window exceeds limit"
  * - Kimi For Coding: "Your request exceeded model token limit: X (requested: Y)"
  * - DS4: "Prompt has X tokens, but the configured context size is Y tokens"
- * - Cerebras: "400/413 status code (no body)"
  * - Mistral: "Prompt contains X tokens ... too large for model with Y maximum context length"
  * - z.ai: `{"code":"1261","message":"Prompt too long"}`, `{"code":"1261","message":"Prompt exceeds max length"}` (CN endpoint), or silent overflow via usage.input > contextWindow
  * - Xiaomi MiMo: Truncates input to fill contextWindow exactly, then returns finish_reason "length"
@@ -62,8 +64,6 @@ const OVERFLOW_PATTERNS = [
 	/token limit exceeded/i, // Generic fallback
 ];
 
-const CEREBRAS_BODYLESS_OVERFLOW_PATTERN = /^4(?:00|13)\s*(?:status code)?\s*\(no body\)/i;
-
 /**
  * Patterns that indicate non-overflow errors (e.g. rate limiting, server errors).
  * Error messages matching any of these are excluded from overflow detection
@@ -74,7 +74,7 @@ const CEREBRAS_BODYLESS_OVERFLOW_PATTERN = /^4(?:00|13)\s*(?:status code)?\s*\(n
  * pattern without this exclusion.
  */
 const NON_OVERFLOW_PATTERNS = [
-	/^(Throttling error|Service unavailable):/i, // AWS Bedrock non-overflow errors (human-readable prefixes from formatBedrockError)
+	/^(Throttling error|Service unavailable):/i, // Throttling errors some servers prefix with a human-readable label
 	/rate limit/i, // Generic rate limiting
 	/too many requests/i, // Generic HTTP 429 style
 ];
@@ -90,7 +90,7 @@ const NON_OVERFLOW_PATTERNS = [
  * 3. Length-stop overflow: Xiaomi MiMo can return "length" with zero output when
  *    the input fills the context window.
  *
- * ## Reliability by Provider
+ * ## Reliability by Endpoint
  *
  * **Reliable detection (returns error with detectable message):**
  * - Anthropic: "prompt is too long: X tokens > Y maximum" or "request_too_large"
@@ -98,7 +98,6 @@ const NON_OVERFLOW_PATTERNS = [
  * - Google Gemini: "input token count exceeds the maximum"
  * - xAI (Grok): "maximum prompt length is X but request contains Y"
  * - Groq: "reduce the length of the messages"
- * - Cerebras: 400/413 status code (no body)
  * - Mistral: "Prompt contains X tokens ... too large for model with Y maximum context length"
  * - OpenRouter (most backends): "maximum context length is X tokens"
  * - OpenRouter/Poolside: "Input length X exceeds the maximum allowed input length of Y tokens."
@@ -139,13 +138,8 @@ export function isContextOverflow(message: AssistantMessage, contextWindow?: num
 	if (message.stopReason === "error" && message.errorMessage) {
 		// Skip messages matching known non-overflow patterns (e.g. throttling / rate-limit)
 		const isNonOverflow = NON_OVERFLOW_PATTERNS.some((p) => p.test(message.errorMessage!));
-		if (!isNonOverflow) {
-			if (OVERFLOW_PATTERNS.some((p) => p.test(message.errorMessage!))) {
-				return true;
-			}
-			if (message.provider === "cerebras" && CEREBRAS_BODYLESS_OVERFLOW_PATTERN.test(message.errorMessage)) {
-				return true;
-			}
+		if (!isNonOverflow && OVERFLOW_PATTERNS.some((p) => p.test(message.errorMessage!))) {
+			return true;
 		}
 	}
 
