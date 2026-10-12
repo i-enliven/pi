@@ -8,50 +8,6 @@ import { stripJsonComments } from "../utils/json.ts";
 import { normalizePath } from "../utils/paths.ts";
 import { stripBom } from "../utils/text.ts";
 
-const PercentileCutoffsSchema = Type.Object({
-	p50: Type.Optional(Type.Number()),
-	p75: Type.Optional(Type.Number()),
-	p90: Type.Optional(Type.Number()),
-	p99: Type.Optional(Type.Number()),
-});
-
-const OpenRouterRoutingSchema = Type.Object({
-	allow_fallbacks: Type.Optional(Type.Boolean()),
-	require_parameters: Type.Optional(Type.Boolean()),
-	data_collection: Type.Optional(Type.Union([Type.Literal("deny"), Type.Literal("allow")])),
-	zdr: Type.Optional(Type.Boolean()),
-	enforce_distillable_text: Type.Optional(Type.Boolean()),
-	order: Type.Optional(Type.Array(Type.String())),
-	only: Type.Optional(Type.Array(Type.String())),
-	ignore: Type.Optional(Type.Array(Type.String())),
-	quantizations: Type.Optional(Type.Array(Type.String())),
-	sort: Type.Optional(
-		Type.Union([
-			Type.String(),
-			Type.Object({
-				by: Type.Optional(Type.String()),
-				partition: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-			}),
-		]),
-	),
-	max_price: Type.Optional(
-		Type.Object({
-			prompt: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			completion: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			image: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			audio: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			request: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-		}),
-	),
-	preferred_min_throughput: Type.Optional(Type.Union([Type.Number(), PercentileCutoffsSchema])),
-	preferred_max_latency: Type.Optional(Type.Union([Type.Number(), PercentileCutoffsSchema])),
-});
-
-const VercelGatewayRoutingSchema = Type.Object({
-	only: Type.Optional(Type.Array(Type.String())),
-	order: Type.Optional(Type.Array(Type.String())),
-});
-
 const ThinkingLevelMapValueSchema = Type.Union([Type.String(), Type.Null()]);
 const ThinkingLevelMapSchema = Type.Object({
 	off: Type.Optional(ThinkingLevelMapValueSchema),
@@ -95,28 +51,26 @@ const OpenAICompletionsCompatSchema = Type.Object({
 	thinkingFormat: Type.Optional(
 		Type.Union([
 			Type.Literal("openai"),
-			Type.Literal("openrouter"),
-			Type.Literal("together"),
-			Type.Literal("baseten"),
-			Type.Literal("deepseek"),
-			Type.Literal("zai"),
-			Type.Literal("qwen"),
+			Type.Literal("nested-reasoning-effort"),
+			Type.Literal("thinking-type"),
+			Type.Literal("nested-reasoning-enabled"),
+			Type.Literal("chat-template-args"),
+			Type.Literal("thinking-type-clear-thinking"),
+			Type.Literal("enable-thinking"),
 			Type.Literal("chat-template"),
-			Type.Literal("qwen-chat-template"),
+			Type.Literal("chat-template-enable-thinking"),
 			Type.Literal("string-thinking"),
-			Type.Literal("ant-ling"),
+			Type.Literal("nested-reasoning-effort-if-mapped"),
 		]),
 	),
 	chatTemplateKwargs: Type.Optional(Type.Record(Type.String(), ChatTemplateKwargSchema)),
 	chatTemplateArgs: Type.Optional(Type.Record(Type.String(), ChatTemplateKwargSchema)),
-	cacheControlFormat: Type.Optional(Type.Literal("anthropic")),
-	openRouterRouting: Type.Optional(OpenRouterRoutingSchema),
-	vercelGatewayRouting: Type.Optional(VercelGatewayRoutingSchema),
+	cacheControlFormat: Type.Optional(Type.Literal("ephemeral-blocks")),
 	supportsOpenAIGrammarTools: Type.Optional(Type.Boolean()),
 	supportsStrictMode: Type.Optional(Type.Boolean()),
 	sendSessionAffinityHeaders: Type.Optional(Type.Boolean()),
 	sessionAffinityFormat: Type.Optional(
-		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("openrouter")]),
+		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("x-session-id")]),
 	),
 	supportsLongCacheRetention: Type.Optional(Type.Boolean()),
 	vllmPriority: Type.Optional(Type.Number()),
@@ -125,7 +79,7 @@ const OpenAICompletionsCompatSchema = Type.Object({
 const OpenAIResponsesCompatSchema = Type.Object({
 	supportsDeveloperRole: Type.Optional(Type.Boolean()),
 	sessionAffinityFormat: Type.Optional(
-		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("openrouter")]),
+		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("x-session-id")]),
 	),
 	supportsLongCacheRetention: Type.Optional(Type.Boolean()),
 	supportsStrictMode: Type.Optional(Type.Boolean()),

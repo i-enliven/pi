@@ -339,12 +339,12 @@ describe("openai-responses provider defaults", () => {
 		expect(captured.clientRequestId).toBe("session-123");
 	});
 
-	it("uses OpenRouter session-affinity header when configured", async () => {
+	it("uses the x-session-id session-affinity header when configured", async () => {
 		const proxyModel: Model<"openai-responses"> = {
 			...getModel("github-copilot", "gpt-5.4"),
 			provider: "proxy",
 			baseUrl: "https://proxy.example.com/v1",
-			compat: { sessionAffinityFormat: "openrouter" },
+			compat: { sessionAffinityFormat: "x-session-id" },
 		};
 		let capturedPayload: CapturedResponsesPayload | undefined;
 		const captured = await captureOpenAIResponseHeaders(

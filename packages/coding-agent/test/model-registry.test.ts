@@ -455,7 +455,7 @@ describe("ModelRegistry", () => {
 							},
 							compat: {
 								supportsStrictMode: false,
-								cacheControlFormat: "anthropic",
+								cacheControlFormat: "ephemeral-blocks",
 							},
 						},
 					],
@@ -469,7 +469,7 @@ describe("ModelRegistry", () => {
 			expect(registry.getError()).toBeUndefined();
 			expect(model?.thinkingLevelMap).toEqual({ minimal: null, high: "max" });
 			expect(compat?.supportsStrictMode).toBe(false);
-			expect(compat?.cacheControlFormat).toBe("anthropic");
+			expect(compat?.cacheControlFormat).toBe("ephemeral-blocks");
 		});
 
 		test("compat schema accepts chat template thinking configuration", async () => {
@@ -502,7 +502,7 @@ describe("ModelRegistry", () => {
 							contextWindow: 1000,
 							maxTokens: 100,
 							compat: {
-								thinkingFormat: "baseten",
+								thinkingFormat: "chat-template-args",
 								chatTemplateArgs: {
 									enable_thinking: { $var: "thinking.enabled" },
 								},
@@ -522,7 +522,7 @@ describe("ModelRegistry", () => {
 				preserve_thinking: true,
 				thinking: { $var: "thinking.enabled" },
 			});
-			expect(argsCompat?.thinkingFormat).toBe("baseten");
+			expect(argsCompat?.thinkingFormat).toBe("chat-template-args");
 			expect(argsCompat?.chatTemplateArgs).toEqual({
 				enable_thinking: { $var: "thinking.enabled" },
 			});
@@ -898,13 +898,13 @@ describe("ModelRegistry", () => {
 			});
 		});
 
-		test("model override with compat.openRouterRouting", async () => {
+		test("model override with compat.chatTemplateArgs", async () => {
 			writeRawModelsJson({
 				"github-copilot": {
 					modelOverrides: {
 						"claude-sonnet-4.6": {
 							compat: {
-								openRouterRouting: { only: ["amazon-bedrock"] },
+								chatTemplateArgs: { enable_thinking: { $var: "thinking.enabled" } },
 							},
 						},
 					},
@@ -916,7 +916,7 @@ describe("ModelRegistry", () => {
 
 			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 			const compat = sonnet?.compat as OpenAICompletionsCompat | undefined;
-			expect(compat?.openRouterRouting).toEqual({ only: ["amazon-bedrock"] });
+			expect(compat?.chatTemplateArgs).toEqual({ enable_thinking: { $var: "thinking.enabled" } });
 		});
 
 		test("supportsFinishReason can be configured at provider and model levels", async () => {
@@ -942,10 +942,13 @@ describe("ModelRegistry", () => {
 		test("model override deep merges compat settings", async () => {
 			writeRawModelsJson({
 				"github-copilot": {
+					compat: {
+						chatTemplateKwargs: { preserve_thinking: true },
+					},
 					modelOverrides: {
 						"claude-sonnet-4.6": {
 							compat: {
-								openRouterRouting: { order: ["anthropic", "together"] },
+								chatTemplateKwargs: { thinking: { $var: "thinking.enabled" } },
 							},
 						},
 					},
@@ -956,10 +959,11 @@ describe("ModelRegistry", () => {
 			const models = getModelsForProvider(registry, "github-copilot");
 			const sonnet = models.find((m) => m.id === "claude-sonnet-4.6");
 
-			// Should have both the new routing AND preserve other compat settings
+			// Should have both the new kwargs AND preserve the provider-level kwargs
 			const compat = sonnet?.compat as OpenAICompletionsCompat | undefined;
-			expect(compat?.openRouterRouting).toEqual({
-				order: ["anthropic", "together"],
+			expect(compat?.chatTemplateKwargs).toEqual({
+				preserve_thinking: true,
+				thinking: { $var: "thinking.enabled" },
 			});
 		});
 
@@ -968,10 +972,10 @@ describe("ModelRegistry", () => {
 				"github-copilot": {
 					modelOverrides: {
 						"claude-sonnet-4.6": {
-							compat: { openRouterRouting: { only: ["amazon-bedrock"] } },
+							compat: { chatTemplateArgs: { enable_thinking: { $var: "thinking.enabled" } } },
 						},
 						"claude-opus-4.7": {
-							compat: { openRouterRouting: { only: ["anthropic"] } },
+							compat: { chatTemplateArgs: { enable_thinking: true } },
 						},
 					},
 				},
@@ -985,10 +989,10 @@ describe("ModelRegistry", () => {
 
 			const sonnetCompat = sonnet?.compat as OpenAICompletionsCompat | undefined;
 			const opusCompat = opus?.compat as OpenAICompletionsCompat | undefined;
-			expect(sonnetCompat?.openRouterRouting).toEqual({
-				only: ["amazon-bedrock"],
+			expect(sonnetCompat?.chatTemplateArgs).toEqual({
+				enable_thinking: { $var: "thinking.enabled" },
 			});
-			expect(opusCompat?.openRouterRouting).toEqual({ only: ["anthropic"] });
+			expect(opusCompat?.chatTemplateArgs).toEqual({ enable_thinking: true });
 		});
 
 		test("model override combined with baseUrl override", async () => {

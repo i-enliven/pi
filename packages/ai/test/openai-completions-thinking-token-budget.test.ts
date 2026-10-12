@@ -51,7 +51,7 @@ type CapturedParams = {
 
 function vllmModel(
 	compat: Model<"openai-completions">["compat"] = {
-		thinkingFormat: "zai",
+		thinkingFormat: "thinking-type-clear-thinking",
 		supportsThinkingTokenBudget: true,
 	},
 ): Model<"openai-completions"> {
@@ -108,7 +108,7 @@ describe("openai-completions thinking token budget", () => {
 	});
 
 	it("omits the budget when neither the field nor the alias is set", async () => {
-		const params = await capture(vllmModel({ thinkingFormat: "zai" }), {
+		const params = await capture(vllmModel({ thinkingFormat: "thinking-type-clear-thinking" }), {
 			reasoning: "medium",
 			thinkingBudgets: { medium: 4096 },
 		});
@@ -146,10 +146,13 @@ describe("openai-completions thinking token budget", () => {
 	it.each(["thinking_budget", "thinking_budget_tokens"] as const)(
 		"sends %s when thinkingTokenBudgetField is set",
 		async (field) => {
-			const params = await capture(vllmModel({ thinkingFormat: "qwen", thinkingTokenBudgetField: field }), {
-				reasoning: "medium",
-				thinkingBudgets: { medium: 4096 },
-			});
+			const params = await capture(
+				vllmModel({ thinkingFormat: "enable-thinking", thinkingTokenBudgetField: field }),
+				{
+					reasoning: "medium",
+					thinkingBudgets: { medium: 4096 },
+				},
+			);
 			expect(params[field]).toBe(4096);
 			expect(params.thinking_token_budget).toBeUndefined();
 		},
@@ -158,7 +161,7 @@ describe("openai-completions thinking token budget", () => {
 	it("lets thinkingTokenBudgetField win over the boolean alias", async () => {
 		const params = await capture(
 			vllmModel({
-				thinkingFormat: "zai",
+				thinkingFormat: "thinking-type-clear-thinking",
 				supportsThinkingTokenBudget: true,
 				thinkingTokenBudgetField: "thinking_budget",
 			}),

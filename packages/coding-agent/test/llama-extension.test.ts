@@ -137,7 +137,7 @@ describe("llama.cpp extension", () => {
 					high: null,
 					xhigh: null,
 				},
-				compat: expect.objectContaining({ thinkingFormat: "qwen-chat-template" }),
+				compat: expect.objectContaining({ thinkingFormat: "chat-template-enable-thinking" }),
 			}),
 		]);
 	});

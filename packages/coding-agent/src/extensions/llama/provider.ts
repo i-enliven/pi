@@ -153,7 +153,7 @@ function toPiModel(
 			supportsUsageInStreaming: true,
 			supportsStrictMode: false,
 			maxTokensField: "max_tokens",
-			...(reasoning && { thinkingFormat: "qwen-chat-template" }),
+			...(reasoning && { thinkingFormat: "chat-template-enable-thinking" }),
 		},
 	};
 }

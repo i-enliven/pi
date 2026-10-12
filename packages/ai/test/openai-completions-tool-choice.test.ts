@@ -81,7 +81,7 @@ const localOpenAICompletionsModel = {
  */
 const zaiStyleModel = openAICompletionsModel("glm-5.2", {
 	baseUrl: "https://api.z.ai/api/paas/v4",
-	compat: { zaiToolStream: true, supportsReasoningEffort: true },
+	compat: { supportsToolStream: true, supportsReasoningEffort: true },
 	thinkingLevelMap: { off: "none", minimal: null, low: null, medium: null, high: "high", xhigh: null, max: "max" },
 });
 const deepSeekStyleModel = openAICompletionsModel("deepseek-v4-pro", {
@@ -364,7 +364,7 @@ describe("openai-completions tool_choice", () => {
 		expect(params.reasoning_effort).toBe("medium");
 	});
 
-	it("enables tool_stream for endpoints declaring zaiToolStream with tools", async () => {
+	it("enables tool_stream for endpoints declaring supportsToolStream with tools", async () => {
 		const model = zaiStyleModel;
 		const tools: Tool[] = [
 			{
@@ -530,7 +530,7 @@ describe("openai-completions tool_choice", () => {
 	it("respects explicit tool_stream compat override", async () => {
 		const model = openAICompletionsModel("glm-5.2", {
 			baseUrl: "https://api.z.ai/api/paas/v4",
-			compat: { zaiToolStream: true },
+			compat: { supportsToolStream: true },
 		});
 		const tools: Tool[] = [
 			{
@@ -1187,7 +1187,7 @@ describe("openai-completions tool_choice", () => {
 
 	it("replays assistant tool calls with empty reasoning_content when thinking is missing", async () => {
 		const model = openAICompletionsModel("mimo-v2.5-pro", {
-			compat: { requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "deepseek" },
+			compat: { requiresReasoningContentOnAssistantMessages: true, thinkingFormat: "thinking-type" },
 		});
 		const assistantMessage: AssistantMessage = {
 			role: "assistant",
@@ -1312,11 +1312,9 @@ describe("openai-completions tool_choice", () => {
 				requiresThinkingAsText: false,
 				requiresReasoningContentOnAssistantMessages: false,
 				thinkingFormat: "openai",
-				openRouterRouting: {},
-				vercelGatewayRouting: {},
 				chatTemplateKwargs: {},
 				chatTemplateArgs: {},
-				zaiToolStream: false,
+				supportsToolStream: false,
 				supportsStrictMode: true,
 				supportsOpenAIGrammarTools: false,
 				sendSessionAffinityHeaders: false,
@@ -1330,7 +1328,7 @@ describe("openai-completions tool_choice", () => {
 	});
 
 	it("sends thinking disabled for deepseek-format endpoints when thinking is off", async () => {
-		const model = openAICompletionsModel("kimi-k2.6", { compat: { thinkingFormat: "deepseek" } });
+		const model = openAICompletionsModel("kimi-k2.6", { compat: { thinkingFormat: "thinking-type" } });
 		let payload: unknown;
 
 		await streamSimple(
@@ -1353,7 +1351,7 @@ describe("openai-completions tool_choice", () => {
 
 	it("sends thinking enabled for deepseek-format endpoints when thinking is enabled", async () => {
 		const model = openAICompletionsModel("kimi-k2.6", {
-			compat: { thinkingFormat: "deepseek", supportsReasoningEffort: false },
+			compat: { thinkingFormat: "thinking-type", supportsReasoningEffort: false },
 		});
 		let payload: unknown;
 
@@ -1379,7 +1377,7 @@ describe("openai-completions tool_choice", () => {
 	it("omits disabled thinking when the thinking level map marks off as unsupported", async () => {
 		const cases = [
 			openAICompletionsModel("kimi-k2.7-code", {
-				compat: { thinkingFormat: "deepseek" },
+				compat: { thinkingFormat: "thinking-type" },
 				thinkingLevelMap: { off: null },
 			}),
 		];
@@ -1407,7 +1405,7 @@ describe("openai-completions tool_choice", () => {
 	});
 
 	it("keeps disabled thinking when the thinking level map leaves off unmapped", async () => {
-		const model = openAICompletionsModel("kimi-k2.6", { compat: { thinkingFormat: "deepseek" } });
+		const model = openAICompletionsModel("kimi-k2.6", { compat: { thinkingFormat: "thinking-type" } });
 		let payload: unknown;
 
 		await streamSimple(
@@ -1728,7 +1726,7 @@ describe("openai-completions tool_choice", () => {
 			id: "Qwen/Qwen3-Coder",
 			name: "Qwen3 Coder via vLLM",
 			compat: {
-				thinkingFormat: "qwen-chat-template",
+				thinkingFormat: "chat-template-enable-thinking",
 				supportsReasoningEffort: false,
 			},
 		} satisfies Model<"openai-completions">;

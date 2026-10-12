@@ -374,7 +374,7 @@ describe("prepareRequest (openai-completions)", () => {
 	});
 
 	it("applies anthropic cache control markers per compat and cacheRetention", () => {
-		const model = createModel({ cacheControlFormat: "anthropic" });
+		const model = createModel({ cacheControlFormat: "ephemeral-blocks" });
 		const context = normalizeContext({
 			systemPrompt: "base prompt",
 			messages: [{ role: "user", content: "hello", timestamp: 1 }],

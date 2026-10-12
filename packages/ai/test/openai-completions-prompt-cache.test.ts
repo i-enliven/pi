@@ -205,10 +205,10 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-id"]).toBeUndefined();
 	});
 
-	it("uses OpenRouter session-affinity header when configured", async () => {
+	it("uses the x-session-id session-affinity header when configured", async () => {
 		const model = createModel({
 			baseUrl: "https://proxy.example.com/v1",
-			compat: { sendSessionAffinityHeaders: true, sessionAffinityFormat: "openrouter" },
+			compat: { sendSessionAffinityHeaders: true, sessionAffinityFormat: "x-session-id" },
 		});
 		const { payload, headers } = await captureRequest({ sessionId: "session-proxy" }, model);
 
@@ -220,10 +220,10 @@ describe("openai-completions prompt caching", () => {
 		expect(headers["x-session-affinity"]).toBeUndefined();
 	});
 
-	it("sends the OpenRouter session-affinity header when the format is configured", async () => {
+	it("sends the x-session-id session-affinity header when the format is configured", async () => {
 		const model = createModel({
 			baseUrl: "https://proxy.example.com/v1",
-			compat: { sendSessionAffinityHeaders: true, sessionAffinityFormat: "openrouter" },
+			compat: { sendSessionAffinityHeaders: true, sessionAffinityFormat: "x-session-id" },
 		});
 		const { payload, headers } = await captureRequest({ sessionId: "session-openrouter" }, model);
 

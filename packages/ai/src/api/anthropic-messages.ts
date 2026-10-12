@@ -211,7 +211,7 @@ function getAnthropicCompat(model: Model<"anthropic-messages">) {
 		supportsEagerToolInputStreaming: model.compat?.supportsEagerToolInputStreaming ?? true,
 		supportsLongCacheRetention: model.compat?.supportsLongCacheRetention ?? true,
 		sendSessionAffinityHeaders: model.compat?.sendSessionAffinityHeaders ?? isOpenRouter,
-		sessionAffinityFormat: model.compat?.sessionAffinityFormat ?? (isOpenRouter ? "openrouter" : undefined),
+		sessionAffinityFormat: model.compat?.sessionAffinityFormat ?? (isOpenRouter ? "x-session-id" : undefined),
 		supportsCacheControlOnTools: model.compat?.supportsCacheControlOnTools ?? true,
 		supportsTemperature: model.compat?.supportsTemperature ?? true,
 		allowEmptySignature: model.compat?.allowEmptySignature ?? false,
@@ -998,7 +998,7 @@ function createClient(
 	const compat = getAnthropicCompat(model);
 	const sessionAffinityHeaders: ProviderHeaders = {};
 	if (sessionId && compat.sendSessionAffinityHeaders) {
-		const header = compat.sessionAffinityFormat === "openrouter" ? "x-session-id" : "x-session-affinity";
+		const header = compat.sessionAffinityFormat === "x-session-id" ? "x-session-id" : "x-session-affinity";
 		sessionAffinityHeaders[header] = sessionId;
 	}
 	const defaultHeaders = mergeClientHeaders(

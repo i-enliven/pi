@@ -320,11 +320,9 @@ const OPENAI_COMPLETIONS_DEFAULT_COMPAT = {
 	requiresThinkingAsText: false,
 	requiresReasoningContentOnAssistantMessages: false,
 	thinkingFormat: "openai",
-	openRouterRouting: {},
-	vercelGatewayRouting: {},
 	chatTemplateKwargs: {},
 	chatTemplateArgs: {},
-	zaiToolStream: false,
+	supportsToolStream: false,
 	supportsStrictMode: false,
 	supportsOpenAIGrammarTools: false,
 	supportsMidConvoSystemMessages: false,
@@ -399,7 +397,7 @@ function detectOpenAICompletionsCompat(model: Model<"openai-completions">): Open
 	const isOpenRouterDeveloperRoleModel =
 		isOpenRouter && (model.id.startsWith("anthropic/") || model.id.startsWith("openai/"));
 	const cacheControlFormat =
-		isOpenRouter && /^~?anthropic\//.test(model.id) ? "anthropic" : undefined;
+		isOpenRouter && /^~?anthropic\//.test(model.id) ? "ephemeral-blocks" : undefined;
 
 	return {
 		supportsStore: !isNonStandard,
@@ -414,21 +412,19 @@ function detectOpenAICompletionsCompat(model: Model<"openai-completions">): Open
 		requiresThinkingAsText: false,
 		requiresReasoningContentOnAssistantMessages: isDeepSeek,
 		thinkingFormat: isDeepSeek
-			? "deepseek"
+			? "thinking-type"
 			: isZai
-				? "zai"
+				? "thinking-type-clear-thinking"
 				: isTogether
-					? "together"
+					? "nested-reasoning-enabled"
 					: isAntLing
-						? "ant-ling"
+						? "nested-reasoning-effort-if-mapped"
 						: isOpenRouter
-							? "openrouter"
+							? "nested-reasoning-effort"
 							: "openai",
-		openRouterRouting: {},
-		vercelGatewayRouting: {},
 		chatTemplateKwargs: {},
 		chatTemplateArgs: {},
-		zaiToolStream: false,
+		supportsToolStream: false,
 		// Preserve built-in behavior as explicit metadata against the conservative runtime default.
 		supportsStrictMode: !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia && !isCerebras,
 		supportsOpenAIGrammarTools: false,
