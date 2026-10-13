@@ -6,7 +6,6 @@
 		"packages/*",
 		"packages/coding-agent/examples/extensions/with-deps",
 		"packages/coding-agent/examples/extensions/custom-provider-anthropic",
-		"packages/coding-agent/examples/extensions/custom-provider-gitlab-duo",
 		"packages/coding-agent/examples/extensions/sandbox",
 		"packages/coding-agent/examples/extensions/gondolin"
 	],
@@ -63,8 +62,5 @@
 	"engines": {
 		"node": ">=22.19.0"
 	},
-	"version": "0.0.3",
-	"overrides": {
-		"protobufjs": "7.6.6"
-	}
+	"version": "0.0.3"
 }

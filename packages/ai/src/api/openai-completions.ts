@@ -86,7 +86,7 @@ function hasHeader(headers: ProviderHeaders | undefined, name: string): boolean 
 
 function getClientApiKey(provider: string, apiKey: string | undefined, headers: ProviderHeaders | undefined): string {
 	if (apiKey) return apiKey;
-	if (hasHeader(headers, "authorization") || hasHeader(headers, "cf-aig-authorization")) return "unused";
+	if (hasHeader(headers, "authorization")) return "unused";
 	throw new Error(`No API key for provider: ${provider}`);
 }
 
@@ -188,7 +188,8 @@ type ResolvedChatTemplateKwargValue = string | number | boolean | null;
 
 type ChatCompletionInstructionMessageParam = ChatCompletionDeveloperMessageParam | ChatCompletionSystemMessageParam;
 
-type KimiToolSystemMessageParam = {
+/** System message carrying only tool additions, for endpoints with mid-conversation tool-additions compat. */
+type MidConvoToolAdditionsSystemMessageParam = {
 	role: "system";
 	tools: OpenAI.Chat.Completions.ChatCompletionTool[];
 };
@@ -562,7 +563,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 				const choice = Array.isArray(chunk.choices) ? chunk.choices[0] : undefined;
 				if (!choice) continue;
 
-				// Fallback: some providers (e.g., Moonshot) return usage
+				// Fallback: some providers return usage
 				// in choice.usage instead of the standard chunk.usage
 				if (!chunk.usage && (choice as any).usage) {
 					output.usage = parseChunkUsage((choice as any).usage, model);
@@ -594,10 +595,10 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 						});
 					}
 
-					// Some endpoints return reasoning in reasoning_content (llama.cpp),
-					// or reasoning (other openai compatible endpoints)
+					// Some endpoints return reasoning in reasoning_content,
+					// or reasoning (other OpenAI-compatible endpoints)
 					// Use the first non-empty reasoning field to avoid duplication
-					// (e.g., chutes.ai returns both reasoning_content and reasoning with same content)
+					// (some endpoints return both reasoning_content and reasoning with the same content)
 					const reasoningFields = ["reasoning_content", "reasoning", "reasoning_text"];
 					const deltaFields = choice.delta as Record<string, unknown>;
 					let foundReasoningField: string | null = null;
@@ -612,11 +613,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 					if (foundReasoningField) {
 						const delta = deltaFields[foundReasoningField];
 						if (typeof delta === "string" && delta.length > 0) {
-							const thinkingSignature =
-								model.provider === "opencode-go" && foundReasoningField === "reasoning"
-									? "reasoning_content"
-									: foundReasoningField;
-							const block = ensureThinkingBlock(thinkingSignature);
+							const block = ensureThinkingBlock(foundReasoningField);
 							block.thinking += delta;
 							stream.push({
 								type: "thinking_delta",
@@ -663,7 +660,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 							if (!isOpenAIReasoningDetail(detail)) continue;
 							ensureThinkingBlock("");
 							streamedReasoningDetails ??= [];
-							// Keep provider replay data in the existing signature slot. OpenRouter streams
+							// Keep provider replay data in the existing signature slot. Servers stream
 							// reasoning_details as deltas: consecutive text/summary deltas are merged into
 							// logical entries, while encrypted entries remain opaque and discrete.
 							appendOpenAIReasoningDetail(streamedReasoningDetails, detail);
@@ -707,7 +704,7 @@ export const stream: StreamFunction<"openai-completions", OpenAICompletionsOptio
 			}
 			output.stopReason = options?.signal?.aborted ? "aborted" : "error";
 			output.errorMessage = formatProviderError(normalizeProviderError(error));
-			// Some providers via OpenRouter give additional information in this field.
+			// Some providers give additional information in this field.
 			// normalizeProviderError already stringifies the parsed body (error.error)
 			// into errorMessage, so only append the raw metadata when it is not already
 			// present to avoid double-printing it.
@@ -764,15 +761,11 @@ function createClient(
 	}
 
 	if (sessionId && compat.sendSessionAffinityHeaders) {
-		if (compat.sessionAffinityFormat === "openrouter") {
-			headers["x-session-id"] = sessionId;
-		} else {
-			if (compat.sessionAffinityFormat === "openai") {
-				headers.session_id = sessionId;
-			}
-			headers["x-client-request-id"] = sessionId;
-			headers["x-session-affinity"] = sessionId;
+		if (compat.sessionAffinityFormat === "openai") {
+			headers.session_id = sessionId;
 		}
+		headers["x-client-request-id"] = sessionId;
+		headers["x-session-affinity"] = sessionId;
 	}
 
 	// Merge options headers last so they can override defaults
@@ -889,11 +882,9 @@ function buildParams(
 
 	if (transcriptTools.requestTools.length > 0) {
 		params.tools = convertTools(transcriptTools.requestTools, compat);
-		if (compat.zaiToolStream) {
-			(params as any).tool_stream = true;
-		}
 	} else if (hasToolHistory(context.messages)) {
-		// Anthropic (via LiteLLM/proxy) requires tools param when conversation has tool_calls/tool_results
+		// Anthropic models behind an OpenAI-compatible proxy require the tools param when the
+		// conversation has tool_calls/tool_results
 		params.tools = [];
 	}
 
@@ -912,87 +903,10 @@ function buildParams(
 	const thinkingTokenBudgetField = resolveThinkingTokenBudgetField(compat);
 	const thinkingBudget = resolveClampedThinkingBudget(model, options, params);
 
-	if (compat.thinkingFormat === "zai" && model.reasoning) {
-		const zaiParams = params as Omit<typeof params, "reasoning_effort"> & {
-			thinking?: { type: "enabled" | "disabled"; clear_thinking?: boolean };
-			reasoning_effort?: string;
-		};
-		zaiParams.thinking = options?.reasoningEffort ? { type: "enabled", clear_thinking: false } : { type: "disabled" };
-		if (options?.reasoningEffort && compat.supportsReasoningEffort) {
-			const mappedEffort = model.thinkingLevelMap?.[options.reasoningEffort];
-			const effort = mappedEffort === undefined ? options.reasoningEffort : mappedEffort;
-			if (typeof effort === "string") {
-				zaiParams.reasoning_effort = effort;
-			}
-		}
-	} else if (compat.thinkingFormat === "qwen" && model.reasoning) {
-		(params as any).enable_thinking = !!options?.reasoningEffort;
-		if (options?.reasoningEffort && compat.supportsReasoningEffort) {
-			const effort = model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort;
-			if (typeof effort === "string") {
-				(params as any).reasoning_effort = effort;
-			}
-		}
-	} else if (compat.thinkingFormat === "qwen-chat-template" && model.reasoning) {
-		(params as any).chat_template_kwargs = {
-			enable_thinking: !!options?.reasoningEffort,
-			preserve_thinking: true,
-		};
-	} else if (compat.thinkingFormat === "chat-template" && model.reasoning) {
+	if (compat.thinkingFormat === "chat-template" && model.reasoning) {
 		const chatTemplateKwargs = buildChatTemplateValues(model, options, compat.chatTemplateKwargs, thinkingBudget);
 		if (chatTemplateKwargs) {
 			(params as any).chat_template_kwargs = chatTemplateKwargs;
-		}
-	} else if (compat.thinkingFormat === "baseten" && model.reasoning) {
-		const basetenParams = params as Omit<typeof params, "reasoning_effort"> & {
-			chat_template_args?: Record<string, ResolvedChatTemplateKwargValue>;
-			reasoning_effort?: string;
-		};
-		const chatTemplateArgs = buildChatTemplateValues(model, options, compat.chatTemplateArgs, thinkingBudget);
-		if (chatTemplateArgs) {
-			basetenParams.chat_template_args = chatTemplateArgs;
-		}
-		if (compat.supportsReasoningEffort) {
-			const requestedEffort = options?.reasoningEffort;
-			const mappedEffort = requestedEffort ? model.thinkingLevelMap?.[requestedEffort] : model.thinkingLevelMap?.off;
-			const effort = mappedEffort === undefined ? requestedEffort : mappedEffort;
-			if (typeof effort === "string") {
-				basetenParams.reasoning_effort = effort;
-			}
-		}
-	} else if (compat.thinkingFormat === "deepseek" && model.reasoning) {
-		if (options?.reasoningEffort) {
-			(params as any).thinking = { type: "enabled" };
-		} else if (model.thinkingLevelMap?.off !== null) {
-			(params as any).thinking = { type: "disabled" };
-		}
-		if (options?.reasoningEffort && compat.supportsReasoningEffort) {
-			(params as any).reasoning_effort =
-				model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort;
-		}
-	} else if (compat.thinkingFormat === "openrouter" && model.reasoning) {
-		// OpenRouter normalizes reasoning across providers via a nested reasoning object.
-		const openRouterParams = params as typeof params & { reasoning?: { effort?: string } };
-		if (options?.reasoningEffort) {
-			openRouterParams.reasoning = {
-				effort: model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort,
-			};
-		} else if (model.thinkingLevelMap?.off !== null) {
-			openRouterParams.reasoning = { effort: model.thinkingLevelMap?.off ?? "none" };
-		}
-	} else if (compat.thinkingFormat === "ant-ling" && model.reasoning && options?.reasoningEffort) {
-		const effort = model.thinkingLevelMap?.[options.reasoningEffort];
-		if (typeof effort === "string") {
-			(params as typeof params & { reasoning?: { effort: string } }).reasoning = { effort };
-		}
-	} else if (compat.thinkingFormat === "together" && model.reasoning) {
-		const togetherParams = params as Omit<typeof params, "reasoning_effort"> & {
-			reasoning?: { enabled: boolean };
-			reasoning_effort?: string;
-		};
-		togetherParams.reasoning = { enabled: !!options?.reasoningEffort };
-		if (options?.reasoningEffort && compat.supportsReasoningEffort) {
-			togetherParams.reasoning_effort = model.thinkingLevelMap?.[options.reasoningEffort] ?? options.reasoningEffort;
 		}
 	} else if (compat.thinkingFormat === "string-thinking" && model.reasoning) {
 		const stringThinkingParams = params as typeof params & { thinking?: string };
@@ -1012,27 +926,11 @@ function buildParams(
 	}
 
 	// Cap reasoning with a top-level budget field. Independent of thinkingFormat: the
-	// same server can serve zai, qwen or chat-template models. Reasoning and the answer
+	// same server can serve models with different thinking formats. Reasoning and the answer
 	// share max_tokens here, so an uncapped reasoning phase can consume the whole
 	// response and leave no answer and no tool call.
 	if (thinkingTokenBudgetField && thinkingBudget !== undefined) {
 		Object.assign(params, { [thinkingTokenBudgetField]: thinkingBudget });
-	}
-
-	// OpenRouter provider routing preferences
-	if (model.compat?.openRouterRouting) {
-		(params as any).provider = model.compat.openRouterRouting;
-	}
-
-	// Vercel AI Gateway provider routing preferences
-	if (model.compat?.vercelGatewayRouting) {
-		const routing = model.compat.vercelGatewayRouting;
-		if (routing.only || routing.order) {
-			const gatewayOptions: Record<string, string[]> = {};
-			if (routing.only) gatewayOptions.only = routing.only;
-			if (routing.order) gatewayOptions.order = routing.order;
-			(params as any).providerOptions = { gateway: gatewayOptions };
-		}
 	}
 
 	// Last so model and request sampling parameters override named request fields.
@@ -1237,7 +1135,7 @@ export function convertMessages(
 	const normalizeToolCallId = (id: string): string => {
 		// Handle pipe-separated IDs from OpenAI Responses API
 		// Format: {call_id}|{id} where {id} can be 400+ chars with special chars (+, /, =)
-		// These come from providers like github-copilot, openai-codex, opencode
+		// These come from providers replaying Responses-API tool call ids
 		// Extract just the call_id part and normalize it
 		// Multiple tool calls in the same turn can share call_id but differ by item_id.
 		// Preserve item-level uniqueness when replaying into Chat Completions, which
@@ -1256,7 +1154,6 @@ export function convertMessages(
 			return `${prefix}_${hash}`;
 		}
 
-		if (model.provider === "openai") return id.length > 40 ? id.slice(0, 40) : id;
 		return id;
 	};
 
@@ -1283,11 +1180,11 @@ export function convertMessages(
 		if (msg.role === "system") {
 			const addedTools = i > 0 && transcriptTools.anchorsAdditions ? (msg.toolsAdded ?? []) : [];
 			if (addedTools.length > 0) {
-				const kimiToolMessage: KimiToolSystemMessageParam = {
+				const toolAdditionsMessage: MidConvoToolAdditionsSystemMessageParam = {
 					role: "system",
 					tools: convertTools(addedTools, compat),
 				};
-				params.push(kimiToolMessage as unknown as ChatCompletionMessageParam);
+				params.push(toolAdditionsMessage as unknown as ChatCompletionMessageParam);
 			}
 			const text = i === 0 ? getSystemMessageText(msg) : renderSystemMessageUpdate(msg);
 			if (text.length > 0) {
@@ -1364,8 +1261,8 @@ export function convertMessages(
 				} else {
 					// Always send assistant content as a plain string (OpenAI Chat Completions
 					// API standard format). Sending as an array of {type:"text", text:"..."}
-					// objects is non-standard and causes some models (e.g. DeepSeek V3.2 via
-					// NVIDIA NIM) to mirror the content-block structure literally in their
+					// objects is non-standard and causes some models to mirror the content-block
+					// structure literally in their
 					// output, producing recursive nesting like [{'type':'text','text':'[{...}]'}].
 					if (assistantText.length > 0) {
 						assistantMsg.content = assistantText;
@@ -1373,11 +1270,9 @@ export function convertMessages(
 
 					// reasoning_details is the structured alternative to a raw reasoning field.
 					if (!preservedReasoningDetails) {
-						// Use the signature from the first thinking block if available (for llama.cpp server + gpt-oss)
-						let signature = nonEmptyThinkingBlocks[0].thinkingSignature;
-						if (model.provider === "opencode-go" && signature === "reasoning") {
-							signature = "reasoning_content";
-						}
+						// Use the signature from the first thinking block if available: some OpenAI-compatible
+						// servers expect reasoning replayed under the field they streamed it in
+						const signature = nonEmptyThinkingBlocks[0].thinkingSignature;
 						if (signature && isOpenAICompletionsReasoningField(signature)) {
 							assistantMsg[signature] = nonEmptyThinkingBlocks.map((block) => block.thinking).join("\n");
 						}
@@ -1386,8 +1281,8 @@ export function convertMessages(
 			} else if (assistantText.length > 0) {
 				// Always send assistant content as a plain string (OpenAI Chat Completions
 				// API standard format). Sending as an array of {type:"text", text:"..."}
-				// objects is non-standard and causes some models (e.g. DeepSeek V3.2 via
-				// NVIDIA NIM) to mirror the content-block structure literally in their
+				// objects is non-standard and causes some models to mirror the content-block
+				// structure literally in their
 				// output, producing recursive nesting like [{'type':'text','text':'[{...}]'}].
 				assistantMsg.content = assistantText;
 			}
@@ -1567,14 +1462,12 @@ function parseChunkUsage(
 		rawUsage.prompt_tokens_details?.cached_tokens ?? rawUsage.prompt_cache_hit_tokens ?? rawUsage.cached_tokens ?? 0;
 	const cacheWriteTokens = rawUsage.prompt_tokens_details?.cache_write_tokens || 0;
 
-	// Follow documented OpenAI/OpenRouter semantics: cached_tokens is cache-read
-	// tokens (hits). Providers disagree on placement: OpenAI/OpenRouter use
-	// prompt_tokens_details.cached_tokens, DeepSeek uses prompt_cache_hit_tokens,
-	// and Kimi documents top-level usage.cached_tokens on the final usage chunk.
-	// OpenAI does not document or emit cache_write_tokens, but
-	// OpenRouter-compatible providers can include it as a separate write count.
-	// OpenRouter's own provider/tests affirm the separate mapping:
-	// https://github.com/OpenRouterTeam/ai-sdk-provider/pull/409
+	// Follow documented OpenAI semantics: cached_tokens is cache-read tokens (hits).
+	// Providers disagree on placement: spec-compliant ones use
+	// prompt_tokens_details.cached_tokens, others use prompt_cache_hit_tokens or a
+	// top-level usage.cached_tokens on the final usage chunk.
+	// OpenAI does not document or emit cache_write_tokens, but some
+	// OpenAI-compatible providers include it as a separate write count.
 	// Do not subtract writes from cached_tokens, otherwise spec-compliant
 	// providers are under-reported. DS4 mirrors this contract too:
 	// https://github.com/antirez/ds4/pull/29
@@ -1621,149 +1514,69 @@ function mapStopReason(reason: ChatCompletionChunk.Choice["finish_reason"] | str
 }
 
 /**
- * Auto-detect compatibility settings from provider name and baseUrl.
- * Used as the base when model.compat is not set; explicit model.compat
- * entries override these detected values.
+ * Compatibility defaults for OpenAI-compatible endpoints. Used as the base when
+ * `model.compat` is not set; explicit `model.compat` entries override them.
  */
-function detectCompat(model: Model<"openai-completions">): ResolvedOpenAICompletionsCompat {
-	const provider = model.provider;
-	const baseUrl = model.baseUrl;
-
-	const isZai =
-		provider === "zai" ||
-		provider === "zai-coding-cn" ||
-		baseUrl.includes("api.z.ai") ||
-		baseUrl.includes("open.bigmodel.cn");
-	const isTogether =
-		provider === "together" || baseUrl.includes("api.together.ai") || baseUrl.includes("api.together.xyz");
-	const isMoonshot = provider === "moonshotai" || provider === "moonshotai-cn" || baseUrl.includes("api.moonshot.");
-	const isOpenRouter = provider === "openrouter" || baseUrl.includes("openrouter.ai");
-	const isCloudflareWorkersAI = provider === "cloudflare-workers-ai" || baseUrl.includes("api.cloudflare.com");
-	const isCloudflareAiGateway = provider === "cloudflare-ai-gateway" || baseUrl.includes("gateway.ai.cloudflare.com");
-	const isNvidia = provider === "nvidia" || baseUrl.includes("integrate.api.nvidia.com");
-	const isAntLing = provider === "ant-ling" || baseUrl.includes("api.ant-ling.com");
-	const isCerebras = provider === "cerebras" || baseUrl.includes("cerebras.ai");
-	const isDeepSeek = provider === "deepseek" || baseUrl.toLowerCase().includes("deepseek.com");
-
-	const isNonStandard =
-		isNvidia ||
-		isCerebras ||
-		provider === "xai" ||
-		baseUrl.includes("api.x.ai") ||
-		isTogether ||
-		baseUrl.includes("chutes.ai") ||
-		isDeepSeek ||
-		isZai ||
-		isMoonshot ||
-		provider === "opencode" ||
-		baseUrl.includes("opencode.ai") ||
-		isCloudflareWorkersAI ||
-		isCloudflareAiGateway ||
-		isAntLing;
-
-	const useMaxTokens =
-		baseUrl.includes("chutes.ai") ||
-		isDeepSeek ||
-		isMoonshot ||
-		isCloudflareAiGateway ||
-		isTogether ||
-		isNvidia ||
-		isAntLing ||
-		isZai;
-
-	const isGrok = provider === "xai" || baseUrl.includes("api.x.ai");
-	const isOpenRouterDeveloperRoleModel =
-		isOpenRouter && (model.id.startsWith("anthropic/") || model.id.startsWith("openai/"));
-	const cacheControlFormat = provider === "openrouter" && model.id.startsWith("anthropic/") ? "anthropic" : undefined;
-
-	return {
-		supportsStore: !isNonStandard,
-		supportsDeveloperRole: isOpenRouterDeveloperRoleModel || (!isNonStandard && !isOpenRouter),
-		supportsReasoningEffort:
-			!isGrok && !isZai && !isMoonshot && !isTogether && !isCloudflareAiGateway && !isNvidia && !isAntLing,
-		supportsUsageInStreaming: true,
-		supportsFinishReason: true,
-		maxTokensField: useMaxTokens ? "max_tokens" : "max_completion_tokens",
-		requiresToolResultName: false,
-		requiresAssistantAfterToolResult: false,
-		requiresThinkingAsText: false,
-		requiresReasoningContentOnAssistantMessages: isDeepSeek,
-		thinkingFormat: isDeepSeek
-			? "deepseek"
-			: isZai
-				? "zai"
-				: isTogether
-					? "together"
-					: isAntLing
-						? "ant-ling"
-						: isOpenRouter
-							? "openrouter"
-							: "openai",
-		openRouterRouting: {},
-		vercelGatewayRouting: {},
-		chatTemplateKwargs: {},
-		chatTemplateArgs: {},
-		zaiToolStream: false,
-		supportsThinkingTokenBudget: false,
-		thinkingTokenBudgetField: undefined,
-		// OpenAI compatibility alone does not imply strict JSON-schema tool support.
-		supportsStrictMode: false,
-		supportsOpenAIGrammarTools: false,
-		supportsMidConvoSystemMessages: false,
-		supportsMidConvoToolAdditions: false,
-		cacheControlFormat,
-		sendSessionAffinityHeaders: isOpenRouter,
-		sessionAffinityFormat: isOpenRouter ? "openrouter" : "openai",
-		supportsLongCacheRetention: !(
-			isTogether ||
-			isCloudflareWorkersAI ||
-			isCloudflareAiGateway ||
-			isNvidia ||
-			isAntLing
-		),
-	};
-}
+const COMPAT_DEFAULTS: ResolvedOpenAICompletionsCompat = {
+	supportsStore: true,
+	supportsDeveloperRole: true,
+	supportsReasoningEffort: true,
+	supportsUsageInStreaming: true,
+	supportsFinishReason: true,
+	maxTokensField: "max_completion_tokens",
+	requiresToolResultName: false,
+	requiresAssistantAfterToolResult: false,
+	requiresThinkingAsText: false,
+	requiresReasoningContentOnAssistantMessages: false,
+	thinkingFormat: "openai",
+	chatTemplateKwargs: {},
+	supportsThinkingTokenBudget: false,
+	thinkingTokenBudgetField: undefined,
+	// OpenAI compatibility alone does not imply strict JSON-schema tool support.
+	supportsStrictMode: false,
+	supportsOpenAIGrammarTools: false,
+	supportsMidConvoSystemMessages: false,
+	supportsMidConvoToolAdditions: false,
+	sendSessionAffinityHeaders: false,
+	sessionAffinityFormat: "openai",
+	supportsLongCacheRetention: true,
+};
 
 /**
- * Get resolved compatibility settings for a model.
- * Auto-detects from provider/URL then overrides with explicit model.compat.
+ * Get resolved compatibility settings for a model: defaults overridden by explicit model.compat.
  */
 function getCompat(model: Model<"openai-completions">): ResolvedOpenAICompletionsCompat {
-	const detected = detectCompat(model);
-	if (!model.compat) return detected;
+	if (!model.compat) return COMPAT_DEFAULTS;
 
 	return {
-		supportsStore: model.compat.supportsStore ?? detected.supportsStore,
-		supportsDeveloperRole: model.compat.supportsDeveloperRole ?? detected.supportsDeveloperRole,
-		supportsReasoningEffort: model.compat.supportsReasoningEffort ?? detected.supportsReasoningEffort,
-		supportsUsageInStreaming: model.compat.supportsUsageInStreaming ?? detected.supportsUsageInStreaming,
-		supportsFinishReason: model.compat.supportsFinishReason ?? detected.supportsFinishReason,
-		maxTokensField: model.compat.maxTokensField ?? detected.maxTokensField,
-		requiresToolResultName: model.compat.requiresToolResultName ?? detected.requiresToolResultName,
+		supportsStore: model.compat.supportsStore ?? COMPAT_DEFAULTS.supportsStore,
+		supportsDeveloperRole: model.compat.supportsDeveloperRole ?? COMPAT_DEFAULTS.supportsDeveloperRole,
+		supportsReasoningEffort: model.compat.supportsReasoningEffort ?? COMPAT_DEFAULTS.supportsReasoningEffort,
+		supportsUsageInStreaming: model.compat.supportsUsageInStreaming ?? COMPAT_DEFAULTS.supportsUsageInStreaming,
+		supportsFinishReason: model.compat.supportsFinishReason ?? COMPAT_DEFAULTS.supportsFinishReason,
+		maxTokensField: model.compat.maxTokensField ?? COMPAT_DEFAULTS.maxTokensField,
+		requiresToolResultName: model.compat.requiresToolResultName ?? COMPAT_DEFAULTS.requiresToolResultName,
 		requiresAssistantAfterToolResult:
-			model.compat.requiresAssistantAfterToolResult ?? detected.requiresAssistantAfterToolResult,
-		requiresThinkingAsText: model.compat.requiresThinkingAsText ?? detected.requiresThinkingAsText,
+			model.compat.requiresAssistantAfterToolResult ?? COMPAT_DEFAULTS.requiresAssistantAfterToolResult,
+		requiresThinkingAsText: model.compat.requiresThinkingAsText ?? COMPAT_DEFAULTS.requiresThinkingAsText,
 		requiresReasoningContentOnAssistantMessages:
 			model.compat.requiresReasoningContentOnAssistantMessages ??
-			detected.requiresReasoningContentOnAssistantMessages,
-		thinkingFormat: model.compat.thinkingFormat ?? detected.thinkingFormat,
-		openRouterRouting: model.compat.openRouterRouting ?? {},
-		vercelGatewayRouting: model.compat.vercelGatewayRouting ?? detected.vercelGatewayRouting,
-		chatTemplateKwargs: model.compat.chatTemplateKwargs ?? detected.chatTemplateKwargs,
-		chatTemplateArgs: model.compat.chatTemplateArgs ?? detected.chatTemplateArgs,
-		zaiToolStream: model.compat.zaiToolStream ?? detected.zaiToolStream,
-		supportsThinkingTokenBudget: model.compat.supportsThinkingTokenBudget ?? detected.supportsThinkingTokenBudget,
-		thinkingTokenBudgetField: model.compat.thinkingTokenBudgetField ?? detected.thinkingTokenBudgetField,
-		supportsStrictMode: model.compat.supportsStrictMode ?? detected.supportsStrictMode,
-		supportsOpenAIGrammarTools: model.compat.supportsOpenAIGrammarTools ?? detected.supportsOpenAIGrammarTools,
+			COMPAT_DEFAULTS.requiresReasoningContentOnAssistantMessages,
+		thinkingFormat: model.compat.thinkingFormat ?? COMPAT_DEFAULTS.thinkingFormat,
+		chatTemplateKwargs: model.compat.chatTemplateKwargs ?? COMPAT_DEFAULTS.chatTemplateKwargs,
+		supportsThinkingTokenBudget:
+			model.compat.supportsThinkingTokenBudget ?? COMPAT_DEFAULTS.supportsThinkingTokenBudget,
+		thinkingTokenBudgetField: model.compat.thinkingTokenBudgetField ?? COMPAT_DEFAULTS.thinkingTokenBudgetField,
+		supportsStrictMode: model.compat.supportsStrictMode ?? COMPAT_DEFAULTS.supportsStrictMode,
+		supportsOpenAIGrammarTools: model.compat.supportsOpenAIGrammarTools ?? COMPAT_DEFAULTS.supportsOpenAIGrammarTools,
 		supportsMidConvoSystemMessages:
-			model.compat.supportsMidConvoSystemMessages ?? detected.supportsMidConvoSystemMessages,
+			model.compat.supportsMidConvoSystemMessages ?? COMPAT_DEFAULTS.supportsMidConvoSystemMessages,
 		supportsMidConvoToolAdditions:
-			model.compat.supportsMidConvoToolAdditions ?? detected.supportsMidConvoToolAdditions,
-		cacheControlFormat: model.compat.cacheControlFormat ?? detected.cacheControlFormat,
-		sendSessionAffinityHeaders: model.compat.sendSessionAffinityHeaders ?? detected.sendSessionAffinityHeaders,
-		sessionAffinityFormat: model.compat.sessionAffinityFormat ?? detected.sessionAffinityFormat,
-		supportsLongCacheRetention: model.compat.supportsLongCacheRetention ?? detected.supportsLongCacheRetention,
+			model.compat.supportsMidConvoToolAdditions ?? COMPAT_DEFAULTS.supportsMidConvoToolAdditions,
+		cacheControlFormat: model.compat.cacheControlFormat,
+		sendSessionAffinityHeaders: model.compat.sendSessionAffinityHeaders ?? COMPAT_DEFAULTS.sendSessionAffinityHeaders,
+		sessionAffinityFormat: model.compat.sessionAffinityFormat ?? COMPAT_DEFAULTS.sessionAffinityFormat,
+		supportsLongCacheRetention: model.compat.supportsLongCacheRetention ?? COMPAT_DEFAULTS.supportsLongCacheRetention,
 		vllmPriority: model.compat.vllmPriority,
 	};
 }

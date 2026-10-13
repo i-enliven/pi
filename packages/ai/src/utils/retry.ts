@@ -5,12 +5,12 @@ function buildProviderErrorPattern(patterns: readonly string[]): RegExp {
 }
 
 const NON_RETRYABLE_PROVIDER_LIMIT_ERROR_PATTERN = buildProviderErrorPattern([
-	// OpenCode Go/free-tier limits returned as 429 JSON error types by OpenCode's
-	// Zen API. These are subscription/account limits, not transient throttles.
+	// A gateway's free-tier and subscription-limit codes, returned as 429 JSON error
+	// types. These are subscription/account limits, not transient throttles.
 	"GoUsageLimitError",
 	"FreeUsageLimitError",
 
-	// OpenCode Go subscription-limit text asks users to enable available-balance
+	// A balance-exhausted subscription message that asks users to enable available-balance
 	// usage after rolling/weekly/monthly limits are reached.
 	"Monthly usage limit reached",
 	"available balance",
@@ -47,14 +47,14 @@ const RETRYABLE_PROVIDER_ERROR_PATTERN = buildProviderErrorPattern([
 	"server.?error",
 	"internal.?error",
 
-	// Wrapper/provider text for transient upstream failures, including OpenRouter
-	// "Provider returned error" responses (#2264).
+	// Wrapper text for transient upstream failures reported by gateways that wrap
+	// the upstream error in their own response (#2264).
 	"provider.?returned.?error",
 	"exceeded request buffer limit while retrying upstream",
 
-	// Network, proxy, and fetch transport failures. This includes OpenAI Codex
-	// raw-fetch failures such as "upstream connect", "connection refused", and
-	// "reset before headers" (#733), plus OpenRouter connection drops (#3317).
+	// Network, proxy, and fetch transport failures. Raw-fetch transports and
+	// gateways report these as plain text such as "upstream connect", "connection
+	// refused", and "reset before headers" (#733, #3317).
 	"network.?error",
 	"connection.?error",
 	"connection.?refused",
@@ -76,28 +76,29 @@ const RETRYABLE_PROVIDER_ERROR_PATTERN = buildProviderErrorPattern([
 	"websocket.?closed",
 	"websocket.?error",
 
-	// Premature stream endings from SDKs and transports. Anthropic can throw
-	// "stream ended without ..." and "Anthropic stream ended before message_stop"
-	// (#4433); Bedrock/Smithy can throw an HTTP/2 no-response error (#3594).
+	// Premature stream endings from SDKs and transports. Anthropic-compatible
+	// servers can throw "stream ended without ..." and "Anthropic stream ended
+	// before message_stop" (#4433); SDK HTTP/2 transports can throw a
+	// no-response error (#3594).
 	"ended without",
 	"stream ended before message_stop",
 	"stream ended before a terminal response event",
 	"http2 request did not get a response",
 	// Node ERR_HTTP2_STREAM_CANCEL: the HTTP/2 session died before the request was
-	// sent, e.g. after the Bedrock SDK's 5-minute session timeout (#10379).
+	// sent, e.g. after an SDK's idle session timeout (#10379).
 	"pending stream has been canceled",
 
 	// Provider-requested retry delay cap failures should flow through the outer
 	// retry policy so callers can surface/abort the backoff (#1123).
 	"retry delay",
 
-	// Explicit retry guidance emitted mid-stream by OpenAI Responses and Bedrock
-	// stream exceptions (#6019).
+	// Explicit retry guidance emitted mid-stream by OpenAI Responses-compatible
+	// servers and SDK stream exceptions (#6019).
 	"you can retry your request",
 	"try your request again",
 	"please retry your request",
 
-	// gRPC based providers (e.g. NVIDIA NIM)
+	// gRPC based transports report resource exhaustion as a status name
 	"ResourceExhausted",
 
 	// Sign in with ChatGPT: usage or user data temporarily unavailable. Usage
@@ -110,7 +111,7 @@ const RETRYABLE_PROVIDER_ERROR_PATTERN = buildProviderErrorPattern([
  * Retry policy: bounded attempts with exponential backoff (`baseDelayMs * 2^(attempt-1)`).
  * `maxAgentDelayMs` caps each computed delay and defaults to 60 seconds.
  * Matches `settings.retry` (`enabled`, `maxRetries`, `baseDelayMs`, `maxAgentDelayMs`) in coding-agent; kept
- * here so the classifier and the policy-driven retry loop live together and stay reusable
+ * here so the classifier and the policy-driven retry loop live in one module and stay reusable
  * by the SDK and other callers.
  */
 export interface RetryPolicy {

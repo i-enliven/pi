@@ -1,11 +1,11 @@
 import { Agent } from "@i-enliven/pi-agent-core";
 import { createModels } from "@i-enliven/pi-ai";
-import { anthropicProvider } from "@i-enliven/pi-ai/providers/anthropic";
+import { githubCopilotProvider } from "@i-enliven/pi-ai/providers/github-copilot";
 
 const models = createModels();
-models.setProvider(anthropicProvider());
-const model = models.getModel("anthropic", "claude-sonnet-4-5");
-if (!model) throw new Error("Anthropic smoke-test model not found");
+models.setProvider(githubCopilotProvider());
+const model = models.getModel("github-copilot", "claude-sonnet-5");
+if (!model) throw new Error("GitHub Copilot smoke-test model not found");
 
 export const agent = new Agent({
 	initialState: { model },

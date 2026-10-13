@@ -12,7 +12,7 @@ export interface ModelAuth {
 
 /**
  * Stored api-key credential. `env` holds provider-scoped environment/config
- * values such as Cloudflare account/gateway ids.
+ * values such as account ids and gateway identifiers.
  */
 export interface ApiKeyCredential {
 	type: "api_key";
@@ -105,7 +105,7 @@ export interface AuthResult {
 	auth: ModelAuth;
 	/** Provider-scoped environment/config values resolved from credentials and ambient context. */
 	env?: ProviderEnv;
-	/** Human-readable label for status UI: "ANTHROPIC_API_KEY", "OAuth", "~/.aws/credentials". */
+	/** Human-readable label for status UI: "COPILOT_GITHUB_TOKEN", "OAuth", "gh auth token". */
 	source?: string;
 }
 
@@ -164,11 +164,11 @@ export interface AuthInteraction {
 export type ProviderAuthInteraction = AuthInteraction & { signal: AbortSignal };
 
 /**
- * Api-key auth: stored key/provider env plus ambient sources (env vars, AWS
- * profiles, ADC files). Ambient-only providers omit `login`.
+ * Api-key auth: stored key/provider env plus ambient sources (environment
+ * variables, CLI-managed credential files). Ambient-only providers omit `login`.
  */
 export interface ApiKeyAuth {
-	/** Display name, e.g. "Anthropic API key". */
+	/** Display name, e.g. "GitHub Copilot API key". */
 	name: string;
 
 	/** Interactive setup (prompt for key/provider env). Absent = ambient-only. */
@@ -198,37 +198,22 @@ export interface ApiKeyAuth {
 	}): Promise<AuthResult | undefined>;
 }
 
-/** App-supplied context for `Models.login`. */
-export interface LoginOptions {
-	/**
-	 * Returns the stable ID of this app installation, e.g. sent to OpenAI as its
-	 * agent host ID. Called only by login flows that need it, so apps can create
-	 * the ID on first use and must return the same ID on every later call.
-	 */
-	getDeviceId?: () => string;
-	/**
-	 * Name this app introduces itself with during login, e.g. OpenAI's agent name hint and
-	 * Codex originator. Defaults to pi's own name.
-	 */
-	agentName?: string;
-}
-
 /**
  * OAuth auth. The `refresh`/`toAuth` split lets `Models` own the locked
  * refresh pattern: `refresh` produces a credential, `toAuth` derives request
  * auth from whatever credential ends up stored.
  */
 export interface OAuthAuth {
-	/** Display name, e.g. "Anthropic (Claude Pro/Max)". */
+	/** Display name, e.g. "GitHub Copilot (Copilot plan)". */
 	name: string;
 
 	/** Whether access through this auth method is backed by a provider subscription. */
 	isSubscription?: boolean;
 
-	/** Selector label for the OAuth login option, e.g. "Sign in with SuperGrok or X Premium". */
+	/** Selector label for the OAuth login option, e.g. "Sign in with GitHub". */
 	loginLabel?: string;
 
-	login(interaction: ProviderAuthInteraction, options?: LoginOptions): Promise<OAuthCredential>;
+	login(interaction: ProviderAuthInteraction): Promise<OAuthCredential>;
 
 	/**
 	 * Exchange the refresh token. Network call; throws on failure

@@ -73,26 +73,18 @@ try {
 	const catalogInputs = Array.from(contributingInputs).filter((input) =>
 		normalizePath(input).includes("packages/ai/src/providers/data/"),
 	);
-	if (catalogInputs.length !== 1 || !normalizePath(catalogInputs[0]).endsWith("/anthropic.json")) {
+	if (catalogInputs.length !== 1 || !normalizePath(catalogInputs[0]).endsWith("/github-copilot.json")) {
 		throw new Error(
-			`Agent selective-provider bundle catalogs: expected only anthropic.json, found ${catalogInputs.join(", ") || "none"}`,
+			`Agent selective-provider bundle catalogs: expected only github-copilot.json, found ${catalogInputs.join(", ") || "none"}`,
 		);
 	}
 
-	const aiSdkPackages = [
-		"@anthropic-ai/sdk",
-		"@aws-sdk/client-bedrock-runtime",
-		"@google/genai",
-		"@mistralai/mistralai",
-		"openai",
-	];
+	// The Copilot provider serves all three surviving APIs, so both SDK packages are reachable.
+	const aiSdkPackages = ["@anthropic-ai/sdk", "openai"];
 	const includedAiSdkPackages = aiSdkPackages.filter((packageName) => includesNodePackage(inputs, packageName));
-	if (
-		includedAiSdkPackages.length !== 1 ||
-		includedAiSdkPackages[0] !== "@anthropic-ai/sdk"
-	) {
+	if (includedAiSdkPackages.length !== aiSdkPackages.length) {
 		throw new Error(
-			`Agent selective-provider bundle SDKs: expected only @anthropic-ai/sdk, found ${includedAiSdkPackages.join(", ") || "none"}`,
+			`Agent selective-provider bundle SDKs: expected ${aiSdkPackages.join(" and ")}, found ${includedAiSdkPackages.join(", ") || "none"}`,
 		);
 	}
 

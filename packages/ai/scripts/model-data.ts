@@ -16,8 +16,7 @@ export interface ModelDataManifest {
 	files: Record<string, string>;
 }
 
-const MODEL_DATA_IMPORT_PATTERN =
-	/^import \{ [A-Z][A-Z0-9_]*_CLASSIFIER_MODELS, [A-Z][A-Z0-9_]*_IMAGE_MODELS, [A-Z][A-Z0-9_]*_MODELS \} from "\.\/providers\/([^"/]+)\.models\.ts";$/gm;
+const MODEL_DATA_IMPORT_PATTERN = /^import \{ [A-Z][A-Z0-9_]*_MODELS \} from "\.\/providers\/([^"/]+)\.models\.ts";$/gm;
 
 function sha256(value: string): string {
 	return createHash("sha256").update(value).digest("hex");
@@ -39,13 +38,6 @@ function describeSetDifference(expected: readonly string[], actual: readonly str
 	return [missing.length > 0 ? `missing: ${missing.join(", ")}` : "", extra.length > 0 ? `extra: ${extra.join(", ")}` : ""]
 		.filter(Boolean)
 		.join("; ");
-}
-
-export function assertExactModelIds(label: string, expected: Iterable<string>, actual: Iterable<string>): void {
-	const expectedIds = Array.from(new Set(expected)).sort();
-	const actualIds = Array.from(new Set(actual)).sort();
-	if (sameStrings(expectedIds, actualIds)) return;
-	throw new Error(`${label} model IDs do not match (${describeSetDifference(expectedIds, actualIds)})`);
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
@@ -165,13 +157,7 @@ function validateModelValue(
 	if (typeof value.name !== "string" || value.name.length === 0) errors.push(`${label} has no model name`);
 	if (typeof value.baseUrl !== "string") errors.push(`${label} has no baseUrl string`);
 	if (!isModalityList(value.input)) errors.push(`${label} has invalid input modalities`);
-	if (value.type === "image") {
-		if (!isModalityList(value.output) || !value.output.includes("image")) {
-			errors.push(`${label} has invalid output modalities`);
-		}
-	} else if (value.output !== undefined) {
-		errors.push(`${label} has unsupported output modalities`);
-	}
+	if (value.output !== undefined) errors.push(`${label} has unsupported output modalities`);
 	if (value.type === "chat") {
 		if (typeof value.reasoning !== "boolean") errors.push(`${label} has no reasoning boolean`);
 		if (
@@ -184,16 +170,8 @@ function validateModelValue(
 		if (typeof value.maxTokens !== "number" || !Number.isFinite(value.maxTokens) || value.maxTokens <= 0) {
 			errors.push(`${label} has invalid maxTokens`);
 		}
-	} else if (value.type === "classifier") {
-		if (
-			typeof value.contextWindow !== "number" ||
-			!Number.isFinite(value.contextWindow) ||
-			value.contextWindow <= 0
-		) {
-			errors.push(`${label} has invalid contextWindow`);
-		}
-	} else if (value.type !== "image") {
-		errors.push(`${label} has type ${JSON.stringify(value.type)}, expected "chat", "image", or "classifier"`);
+	} else {
+		errors.push(`${label} has type ${JSON.stringify(value.type)}, expected "chat"`);
 	}
 	if (!isRecord(value.cost)) {
 		errors.push(`${label} has invalid cost metadata`);

@@ -1,11 +1,5 @@
 import type { TelemetryContext } from "@i-enliven/pi-telemetry";
 import type { AnthropicOptions } from "./api/anthropic-messages.ts";
-import type { AzureOpenAIResponsesOptions } from "./api/azure-openai-responses.ts";
-import type { BedrockOptions } from "./api/bedrock-converse-stream.ts";
-import type { GoogleOptions } from "./api/google-generative-ai.ts";
-import type { GoogleVertexOptions } from "./api/google-vertex.ts";
-import type { MistralOptions } from "./api/mistral-conversations.ts";
-import type { OpenAICodexResponsesOptions } from "./api/openai-codex-responses.ts";
 import type { OpenAICompletionsOptions } from "./api/openai-completions.ts";
 import type { OpenAIResponsesOptions } from "./api/openai-responses.ts";
 import type { AssistantMessageDiagnostic } from "./utils/diagnostics.ts";
@@ -13,73 +7,11 @@ import type { AssistantMessageEventStream } from "./utils/event-stream.ts";
 
 export type { AssistantMessageEventStream } from "./utils/event-stream.ts";
 
-export type KnownApi =
-	| "openai-completions"
-	| "mistral-conversations"
-	| "openai-responses"
-	| "azure-openai-responses"
-	| "openai-codex-responses"
-	| "anthropic-messages"
-	| "bedrock-converse-stream"
-	| "google-generative-ai"
-	| "google-vertex";
+export type KnownApi = "anthropic-messages" | "openai-completions" | "openai-responses";
 
 export type Api = KnownApi | (string & {});
 
-export type KnownImageApi = "openrouter-images";
-
-export type ImageApi = KnownImageApi | (string & {});
-
-export type KnownClassifierApi =
-	| "typesafe-system-one"
-	| "cloudflare-workers-ai-system-one"
-	| "llama-cpp-classify"
-	| "openai-decisions";
-
-export type ClassifierApi = KnownClassifierApi | (string & {});
-
-export type KnownProvider =
-	| "amazon-bedrock"
-	| "ant-ling"
-	| "anthropic"
-	| "google"
-	| "google-vertex"
-	| "openai"
-	| "azure"
-	| "openai-codex"
-	| "typesafe"
-	| "nvidia"
-	| "deepseek"
-	| "github-copilot"
-	| "xai"
-	| "groq"
-	| "cerebras"
-	| "openrouter"
-	| "vercel-ai-gateway"
-	| "zai"
-	| "zai-coding-cn"
-	| "mistral"
-	| "minimax"
-	| "minimax-cn"
-	| "moonshotai"
-	| "moonshotai-cn"
-	| "huggingface"
-	| "fireworks"
-	| "together"
-	| "baseten"
-	| "opencode"
-	| "opencode-go"
-	| "kimi-coding"
-	| "meta"
-	| "cloudflare-workers-ai"
-	| "cloudflare-ai-gateway"
-	| "qwen-token-plan"
-	| "qwen-token-plan-cn"
-	| "qwen-token-plan-individual"
-	| "xiaomi"
-	| "xiaomi-token-plan-cn"
-	| "xiaomi-token-plan-ams"
-	| "xiaomi-token-plan-sgp";
+export type KnownProvider = "github-copilot";
 export type ProviderId = KnownProvider | string;
 
 export type ToolChoice = "auto" | "none";
@@ -124,7 +56,7 @@ export type Transport = "sse" | "websocket" | "websocket-cached" | "auto";
 export type ProviderEnv = Record<string, string>;
 export type ProviderHeaders = Record<string, string | null>;
 export type FetchFunction = typeof globalThis.fetch;
-export type SessionAffinityFormat = "openai" | "openai-nosession" | "openrouter";
+export type SessionAffinityFormat = "openai" | "openai-nosession";
 
 export interface ProviderResponse {
 	status: number;
@@ -161,9 +93,6 @@ export interface ProviderRequestOptions<TModel = Model<Api>> {
 	/**
 	 * Optional custom HTTP headers to include in API requests.
 	 * Merged with provider defaults; caller values override default headers.
-	 * On AWS Bedrock these are injected via a Smithy `build`-step middleware so
-	 * they are covered by SigV4 signing; reserved headers (`x-amz-*`,
-	 * `authorization`, `host`) are silently ignored to preserve SigV4 / bearer auth.
 	 * A null value suppresses a provider/API default header with the same name.
 	 */
 	headers?: ProviderHeaders;
@@ -202,10 +131,10 @@ export interface StreamOptions extends ProviderRequestOptions<Model<Api>> {
 	temperature?: number;
 	/**
 	 * Arbitrary sampling parameters merged into the request body as-is, after the named request
-	 * fields, so keys here override them. Lets custom OpenAI-compatible servers (llama.cpp, vLLM,
-	 * SGLang, ...) receive parameters pi does not model, e.g. `top_p`, `top_k`, `min_p`,
-	 * `repetition_penalty`. Merged over `Model.samplingParams` per key. Only applied by
-	 * OpenAI-compatible adapters (completions, responses, Azure responses); other APIs ignore it.
+	 * fields, so keys here override them. Lets custom OpenAI-compatible servers receive
+	 * parameters pi does not model, e.g. `top_p`, `top_k`, `min_p`, `repetition_penalty`.
+	 * Merged over `Model.samplingParams` per key. Only applied by
+	 * OpenAI-compatible adapters (completions, responses); other APIs ignore it.
 	 */
 	samplingParams?: SamplingParams;
 	maxTokens?: number;
@@ -261,12 +190,6 @@ export interface ApiOptionsMap {
 	"anthropic-messages": AnthropicOptions;
 	"openai-completions": OpenAICompletionsOptions;
 	"openai-responses": OpenAIResponsesOptions;
-	"openai-codex-responses": OpenAICodexResponsesOptions;
-	"azure-openai-responses": AzureOpenAIResponsesOptions;
-	"google-generative-ai": GoogleOptions;
-	"google-vertex": GoogleVertexOptions;
-	"mistral-conversations": MistralOptions;
-	"bedrock-converse-stream": BedrockOptions;
 }
 
 /**
@@ -299,48 +222,6 @@ export interface ProviderStreams {
 	): AssistantMessageEventStream;
 	cancelDeferred?(model: Model<Api>, handle: DeferredHandle, options?: DeferredCancelOptions): Promise<void>;
 }
-
-/**
- * The uniform contract of an image-generation API implementation module:
- * every image API module under `src/api/` exports exactly `generateImages`,
- * so the module itself satisfies this interface. Lazy wrappers and
- * `createProvider({ images })` pass these around as values.
- */
-export interface ProviderImages {
-	generateImages(
-		model: ImageModel<ImageApi>,
-		context: ImagesContext,
-		options?: ImagesOptions,
-	): Promise<AssistantImages>;
-}
-
-/** The uniform contract implemented by classifier API modules. */
-export interface ProviderClassifier {
-	classify(
-		model: ClassifierModel<ClassifierApi>,
-		context: ClassifierContext,
-		options?: ClassifierOptions,
-	): Promise<ClassifierResult>;
-}
-
-export interface ClassifierOptions extends ProviderRequestOptions<ClassifierModel<ClassifierApi>> {
-	/**
-	 * Divides the answer logits by this value before they are normalized into probabilities.
-	 * Values above 1 soften the distribution; values below 1 sharpen it. Must be positive.
-	 * APIs that cannot apply it ignore it.
-	 */
-	temperature?: number;
-}
-
-export interface ImagesOptions extends ProviderRequestOptions<ImageModel<ImageApi>> {
-	/**
-	 * Optional metadata to include in API requests.
-	 * Providers extract the fields they understand and ignore the rest.
-	 */
-	metadata?: Record<string, unknown>;
-}
-
-export type ProviderImagesOptions = ImagesOptions & Record<string, unknown>;
 
 export interface AnthropicAllowedFallbackModel {
 	provider: ProviderId;
@@ -376,18 +257,6 @@ export type StreamFunction<TApi extends Api = Api, TOptions extends StreamOption
 	options?: TOptions,
 ) => AssistantMessageEventStream;
 
-export type ImagesFunction<TOptions extends ImagesOptions = ImagesOptions> = (
-	model: ImageModel<ImageApi>,
-	context: ImagesContext,
-	options?: TOptions,
-) => Promise<AssistantImages>;
-
-export type ClassifierFunction<TOptions extends ClassifierOptions = ClassifierOptions> = (
-	model: ClassifierModel<ClassifierApi>,
-	context: ClassifierContext,
-	options?: TOptions,
-) => Promise<ClassifierResult>;
-
 export interface TextSignatureV1 {
 	v: 1;
 	id: string;
@@ -421,7 +290,7 @@ export interface ToolCall {
 	id: string;
 	name: string;
 	arguments: JsonObject;
-	thoughtSignature?: string; // Google-specific: opaque signature for reusing thought context
+	thoughtSignature?: string; // Opaque per-tool-call reasoning replay signature carried by some endpoints and older stored sessions
 	/** OpenAI Responses namespace for calls to dynamically loaded or namespaced tools. */
 	namespace?: string;
 }
@@ -621,90 +490,6 @@ export type ToolResultMessage<TDetails = JsonValue> = IsJsonCompatible<TDetails>
 
 export type Message = SystemMessage | UserMessage | AssistantMessage | ToolResultMessage;
 
-export type ImagesInputContent = TextContent | ImageContent;
-export type ImagesOutputContent = TextContent | ImageContent;
-
-export interface ImagesContext {
-	input: ImagesInputContent[];
-}
-
-export type ImagesStopReason = "stop" | "error" | "aborted";
-
-export interface AssistantImages {
-	api: ImageApi;
-	provider: ProviderId;
-	model: string;
-	output: ImagesOutputContent[];
-	responseId?: string;
-	usage?: Usage;
-	stopReason: ImagesStopReason;
-	errorMessage?: string;
-	timestamp: number; // Unix timestamp in milliseconds
-}
-
-export interface ClassifierChoiceQuestion {
-	type: "choice";
-	instructions: string;
-	criteria: Record<string, string>;
-}
-
-export interface ClassifierScoreQuestion {
-	type: "score";
-	instructions: string;
-	criteria: string[];
-}
-
-export interface ClassifierBoolQuestion {
-	type: "bool";
-	instructions: string;
-	criteria: { true: string; false: string };
-}
-
-export type ClassifierQuestion = ClassifierChoiceQuestion | ClassifierScoreQuestion | ClassifierBoolQuestion;
-
-export interface ClassifierContext {
-	state: JsonObject;
-	/**
-	 * Images judged together with `state`. Only models whose `input` includes `"image"` accept them;
-	 * other models return an error result.
-	 */
-	images?: ImageContent[];
-	questions: Record<string, ClassifierQuestion>;
-}
-
-export interface ClassifierChoiceAnswer {
-	type: "choice";
-	choice: string;
-	probabilities: Record<string, number>;
-	confidence: number;
-}
-
-export interface ClassifierScoreAnswer {
-	type: "score";
-	score: number;
-	confidence: number;
-}
-
-export interface ClassifierBoolAnswer {
-	type: "bool";
-	probability: number;
-}
-
-export type ClassifierAnswer = ClassifierChoiceAnswer | ClassifierScoreAnswer | ClassifierBoolAnswer;
-export type ClassifierStopReason = "stop" | "error" | "aborted";
-
-export interface ClassifierResult {
-	api: ClassifierApi;
-	provider: ProviderId;
-	model: string;
-	answers: Record<string, ClassifierAnswer>;
-	/** Token usage and its cost at the model's catalog price, when the service reports token counts. */
-	usage?: Usage;
-	stopReason: ClassifierStopReason;
-	errorMessage?: string;
-	timestamp: number; // Unix timestamp in milliseconds
-}
-
 import type { TSchema } from "typebox";
 
 /** OpenAI grammar variants for constrained sampling. */
@@ -801,58 +586,41 @@ export type AssistantMessageEvent =
 
 /**
  * Compatibility settings for OpenAI-compatible completions APIs.
- * Use this to override URL-based auto-detection for custom providers.
+ * Unset fields use fixed OpenAI-spec defaults; there is no URL-based detection, so an
+ * endpoint that deviates from the spec must declare the difference here.
  */
 export interface OpenAICompletionsCompat {
-	/** Whether the provider supports the `store` field. Default: auto-detected from URL. */
+	/** Whether the provider supports the `store` field. Default: true (OpenAI spec). */
 	supportsStore?: boolean;
-	/** Whether the provider supports the `developer` role (vs `system`). Default: auto-detected from URL. */
+	/** Whether the provider supports the `developer` role (vs `system`). Default: true (OpenAI spec). */
 	supportsDeveloperRole?: boolean;
-	/** Whether the provider supports `reasoning_effort`. Default: auto-detected from URL. */
+	/** Whether the provider supports `reasoning_effort`. Default: true (OpenAI spec). */
 	supportsReasoningEffort?: boolean;
 	/** Whether the provider supports `stream_options: { include_usage: true }` for token usage in streaming responses. Default: true. */
 	supportsUsageInStreaming?: boolean;
 	/** Whether streamed responses include `finish_reason`. When false, pi infers `stop` or `toolUse` when the stream ends. Default: true. */
 	supportsFinishReason?: boolean;
-	/** Which field to use for max tokens. Default: auto-detected from URL. */
+	/** Which field to use for max tokens. Default: `max_completion_tokens` (OpenAI spec). */
 	maxTokensField?: "max_completion_tokens" | "max_tokens";
-	/** Whether tool results require the `name` field. Default: auto-detected from URL. */
+	/** Whether tool results require the `name` field. Default: false. */
 	requiresToolResultName?: boolean;
-	/** Whether a user message after tool results requires an assistant message in between. Default: auto-detected from URL. */
+	/** Whether a user message after tool results requires an assistant message in between. Default: false. */
 	requiresAssistantAfterToolResult?: boolean;
-	/** Whether thinking blocks must be converted to text blocks with <thinking> delimiters. Default: auto-detected from URL. */
+	/** Whether thinking blocks must be converted to text blocks with <thinking> delimiters. Default: false. */
 	requiresThinkingAsText?: boolean;
-	/** Whether all replayed assistant messages must include an empty reasoning_content field when reasoning is enabled. Default: auto-detected from URL. */
+	/** Whether all replayed assistant messages must include an empty reasoning_content field when reasoning is enabled. Default: false. */
 	requiresReasoningContentOnAssistantMessages?: boolean;
-	/** Format for reasoning/thinking parameter. "openai" uses reasoning_effort, "openrouter" uses reasoning: { effort }, "deepseek" uses thinking: { type } plus reasoning_effort when supported, "together" uses reasoning: { enabled } plus reasoning_effort when supported, "baseten" uses configurable chat_template_args plus reasoning_effort when supported, "zai" uses thinking: { type }, "qwen" uses top-level enable_thinking: boolean, "qwen-chat-template" uses chat_template_kwargs.enable_thinking and preserve_thinking, "chat-template" uses configurable chat_template_kwargs, "string-thinking" uses top-level thinking: string, and "ant-ling" uses reasoning: { effort } only when the mapped effort is non-null. Default: "openai". */
-	thinkingFormat?:
-		| "openai"
-		| "openrouter"
-		| "deepseek"
-		| "together"
-		| "baseten"
-		| "zai"
-		| "qwen"
-		| "chat-template"
-		| "qwen-chat-template"
-		| "string-thinking"
-		| "ant-ling";
+	/** Format for reasoning/thinking parameter. "openai" uses reasoning_effort, "chat-template" uses configurable chat_template_kwargs, and "string-thinking" uses top-level thinking: string. Default: "openai". */
+	thinkingFormat?: "openai" | "chat-template" | "string-thinking";
 	/** Kwargs to send as `chat_template_kwargs` when `thinkingFormat` is `chat-template`. Use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for pi-controlled thinking values. */
 	chatTemplateKwargs?: Record<string, ChatTemplateKwargValue>;
-	/** Arguments to send as `chat_template_args` when `thinkingFormat` is `baseten`. Use `{ "$var": "thinking.enabled" }`, `{ "$var": "thinking.effort" }`, or `{ "$var": "thinking.budget" }` for pi-controlled thinking values. */
-	chatTemplateArgs?: Record<string, ChatTemplateKwargValue>;
-	/** OpenRouter-compatible routing preferences sent as the `provider` request field. */
-	openRouterRouting?: OpenRouterRouting;
-	/** Vercel AI Gateway routing preferences. Only used when baseUrl points to Vercel AI Gateway. */
-	vercelGatewayRouting?: VercelGatewayRouting;
-	/** Whether z.ai supports top-level `tool_stream: true` for streaming tool call deltas. Default: false. */
-	zaiToolStream?: boolean;
 	/**
 	 * Top-level request field used to cap reasoning tokens from `thinkingBudgets`.
 	 * Reasoning and the answer share `max_tokens` on these endpoints, so without a budget a
 	 * reasoning-heavy turn can consume the whole response and emit no answer.
-	 * `"thinking_token_budget"` is vLLM, `"thinking_budget"` is Qwen/DashScope/SGLang,
-	 * `"thinking_budget_tokens"` is llama.cpp. Off by default; not set on the generated catalog.
+	 * The three values are the field spellings different OpenAI-compatible servers accept:
+	 * `"thinking_token_budget"`, `"thinking_budget"`, and `"thinking_budget_tokens"`.
+	 * Off by default; not set on the generated catalog.
 	 */
 	thinkingTokenBudgetField?: ThinkingTokenBudgetField;
 	/** Alias for `thinkingTokenBudgetField: "thinking_token_budget"` (vLLM). Prefer `thinkingTokenBudgetField`. Default: false. */
@@ -867,9 +635,9 @@ export interface OpenAICompletionsCompat {
 	supportsStrictMode?: boolean;
 	/** Cache control convention for prompt caching. "anthropic" applies Anthropic-style `cache_control` markers to the system prompt, last tool definition, and last user, assistant, or tool-result text content. */
 	cacheControlFormat?: "anthropic";
-	/** Whether to send session-affinity data from `options.sessionId`. Default: true for OpenRouter endpoints, false otherwise. */
+	/** Whether to send session-affinity data from `options.sessionId`. Default: false. */
 	sendSessionAffinityHeaders?: boolean;
-	/** Session-affinity header format: `openai` sends `session_id`, `x-client-request-id`, and `x-session-affinity`; `openai-nosession` sends `x-client-request-id` and `x-session-affinity`; `openrouter` sends `x-session-id`. Does not affect the `prompt_cache_key` body param, which is governed by cache retention. Default: auto-detected. */
+	/** Session-affinity header format: `openai` sends `session_id`, `x-client-request-id`, and `x-session-affinity`; `openai-nosession` sends `x-client-request-id` and `x-session-affinity`. Does not affect the `prompt_cache_key` body param, which is governed by cache retention. Default: `openai`. */
 	sessionAffinityFormat?: SessionAffinityFormat;
 	/** Whether the provider supports long prompt cache retention (`prompt_cache_retention: "24h"` or Anthropic-style `cache_control.ttl: "1h"`, depending on format). Default: true. */
 	supportsLongCacheRetention?: boolean;
@@ -888,7 +656,7 @@ export interface OpenAIResponsesCompat {
 	supportsDeveloperRole?: boolean;
 	/** Whether the exact model accepts developer or system messages after the conversation has started. When false, later system messages are folded into the leading system message. Default: false; the generated model catalog enables it for verified models. */
 	supportsMidConvoSystemMessages?: boolean;
-	/** Session-affinity header format: `openai` sends `session_id` and `x-client-request-id`; `openai-nosession` sends `x-client-request-id`; `openrouter` sends `x-session-id`. Does not affect the `prompt_cache_key` body param, which is governed by cache retention. Default: auto-detected. */
+	/** Session-affinity header format: `openai` sends `session_id` and `x-client-request-id`; `openai-nosession` sends `x-client-request-id`. Does not affect the `prompt_cache_key` body param, which is governed by cache retention. Default: `openai`. */
 	sessionAffinityFormat?: SessionAffinityFormat;
 	/** Whether the provider supports long prompt cache retention. This uses `prompt_cache_options.ttl: "30m"` on GPT-5.6+ and `prompt_cache_retention: "24h"` on earlier models. Default: true. */
 	supportsLongCacheRetention?: boolean;
@@ -902,7 +670,7 @@ export interface OpenAIResponsesCompat {
 	supportsToolSearch?: boolean;
 	/** Whether the model accepts `prompt_cache_options` (OpenAI GPT-5.6+ prompt caching). Older OpenAI models reject the parameter. Default: false. */
 	supportsExplicitPromptCacheMode?: boolean;
-	/** Whether the provider accepts the `max_output_tokens` parameter. Some Codex-protocol gateways reject it. Default: true. */
+	/** Whether the provider accepts the `max_output_tokens` parameter. Some OpenAI-compatible gateways reject it. Default: true. */
 	supportsMaxOutputTokens?: boolean;
 }
 
@@ -920,19 +688,17 @@ export interface AnthropicMessagesCompat {
 	supportsLongCacheRetention?: boolean;
 	/**
 	 * Whether to send the `x-session-affinity` header from `options.sessionId`
-	 * when caching is enabled. Required for providers like Fireworks that use
+	 * when caching is enabled. Required by some Anthropic-compatible servers that use
 	 * session affinity for prompt cache routing (requests to the same replica
 	 * maximize cache hits).
 	 * Default: false.
 	 */
 	sendSessionAffinityHeaders?: boolean;
-	/** Session-affinity format. `"openrouter"` sends `x-session-id`; when unset, sends `x-session-affinity`. */
-	sessionAffinityFormat?: "openrouter";
 	/**
 	 * Whether the provider supports Anthropic-style `cache_control` markers on
 	 * tool definitions. When false, `cache_control` is omitted from tool params.
-	 * Some Anthropic-compatible providers (e.g., Fireworks) do not support this
-	 * field on tools and may reject or ignore it.
+	 * Some Anthropic-compatible servers do not support this field on tools and
+	 * may reject or ignore it.
 	 * Default: true.
 	 */
 	supportsCacheControlOnTools?: boolean;
@@ -969,105 +735,6 @@ export interface AnthropicMessagesCompat {
 	 * with no permitted fallback targets.
 	 */
 	allowedFallbackModels?: AnthropicAllowedFallbackModel[];
-}
-
-/** Compatibility settings for Amazon Bedrock models. */
-export interface BedrockCompat {
-	/** Whether the model supports Bedrock strict tool schemas. Default: false. */
-	supportsStrictMode?: boolean;
-}
-
-/** Compatibility settings for the Mistral chat API. */
-export interface MistralConversationsCompat {
-	/** Whether the exact model accepts system messages after the conversation has started. When false, later system messages are folded into the leading system message. Default: false. */
-	supportsMidConvoSystemMessages?: boolean;
-}
-
-/**
- * OpenRouter provider routing preferences.
- * Controls which upstream providers OpenRouter routes requests to.
- * Sent as the `provider` field in the OpenRouter API request body.
- * @see https://openrouter.ai/docs/guides/routing/provider-selection
- */
-export interface OpenRouterRouting {
-	/** Whether to allow backup providers to serve requests. Default: true. */
-	allow_fallbacks?: boolean;
-	/** Whether to filter providers to only those that support all parameters in the request. Default: false. */
-	require_parameters?: boolean;
-	/** Data collection setting. "allow" (default): allow providers that may store/train on data. "deny": only use providers that don't collect user data. */
-	data_collection?: "deny" | "allow";
-	/** Whether to restrict routing to only ZDR (Zero Data Retention) endpoints. */
-	zdr?: boolean;
-	/** Whether to restrict routing to only models that allow text distillation. */
-	enforce_distillable_text?: boolean;
-	/** An ordered list of provider names/slugs to try in sequence, falling back to the next if unavailable. */
-	order?: string[];
-	/** List of provider names/slugs to exclusively allow for this request. */
-	only?: string[];
-	/** List of provider names/slugs to skip for this request. */
-	ignore?: string[];
-	/** A list of quantization levels to filter providers by (e.g., ["fp16", "bf16", "fp8", "fp6", "int8", "int4", "fp4", "fp32"]). */
-	quantizations?: string[];
-	/** Sorting strategy. Can be a string (e.g., "price", "throughput", "latency") or an object with `by` and `partition`. */
-	sort?:
-		| string
-		| {
-				/** The sorting metric: "price", "throughput", "latency". */
-				by?: string;
-				/** Partitioning strategy: "model" (default) or "none". */
-				partition?: string | null;
-		  };
-	/** Maximum price per million tokens (USD). */
-	max_price?: {
-		/** Price per million prompt tokens. */
-		prompt?: number | string;
-		/** Price per million completion tokens. */
-		completion?: number | string;
-		/** Price per image. */
-		image?: number | string;
-		/** Price per audio unit. */
-		audio?: number | string;
-		/** Price per request. */
-		request?: number | string;
-	};
-	/** Preferred minimum throughput (tokens/second). Can be a number (applies to p50) or an object with percentile-specific cutoffs. */
-	preferred_min_throughput?:
-		| number
-		| {
-				/** Minimum tokens/second at the 50th percentile. */
-				p50?: number;
-				/** Minimum tokens/second at the 75th percentile. */
-				p75?: number;
-				/** Minimum tokens/second at the 90th percentile. */
-				p90?: number;
-				/** Minimum tokens/second at the 99th percentile. */
-				p99?: number;
-		  };
-	/** Preferred maximum latency (seconds). Can be a number (applies to p50) or an object with percentile-specific cutoffs. */
-	preferred_max_latency?:
-		| number
-		| {
-				/** Maximum latency in seconds at the 50th percentile. */
-				p50?: number;
-				/** Maximum latency in seconds at the 75th percentile. */
-				p75?: number;
-				/** Maximum latency in seconds at the 90th percentile. */
-				p90?: number;
-				/** Maximum latency in seconds at the 99th percentile. */
-				p99?: number;
-		  };
-}
-
-/**
- * Vercel AI Gateway routing preferences.
- * Controls which upstream providers the gateway routes requests to.
- * @see https://vercel.com/docs/ai-gateway/models-and-providers/provider-options
- */
-export interface VercelGatewayRouting {
-	/** List of provider slugs to exclusively use for this request (e.g., ["bedrock", "anthropic"]). */
-	only?: string[];
-	/** List of provider slugs to try in order (e.g., ["anthropic", "openai"]). */
-	order?: string[];
 }
 
 export interface ModelCostRates {
@@ -1127,8 +794,8 @@ export interface BaseModel<TApi extends string> {
 /** Chat model: usable with `stream()` and friends. */
 export interface Model<TApi extends Api> extends BaseModel<TApi> {
 	/**
-	 * Optional: chat is the default model type, so models without `type` are chat
-	 * models. Narrow mixed model lists with `isModelType()` instead of comparing
+	 * Optional: chat is the only model type, so models without `type` are chat
+	 * models. Narrow looked-up models with `isModelType()` instead of comparing
 	 * `type` directly.
 	 */
 	type?: "chat";
@@ -1146,38 +813,19 @@ export interface Model<TApi extends Api> extends BaseModel<TApi> {
 	samplingParams?: SamplingParams;
 	/** Sampling parameter overrides selected by the effective pi thinking level. */
 	samplingParamsByThinkingLevel?: SamplingParamsByThinkingLevel;
-	/** Compatibility overrides for OpenAI-compatible APIs. If not set, auto-detected from baseUrl. */
+	/** Compatibility overrides for OpenAI-compatible APIs. If not set, uses the API defaults. */
 	compat?: TApi extends "openai-completions"
 		? OpenAICompletionsCompat
-		: TApi extends "openai-responses" | "azure-openai-responses" | "openai-codex-responses"
+		: TApi extends "openai-responses"
 			? OpenAIResponsesCompat
 			: TApi extends "anthropic-messages"
 				? AnthropicMessagesCompat
-				: TApi extends "bedrock-converse-stream"
-					? BedrockCompat
-					: TApi extends "mistral-conversations"
-						? MistralConversationsCompat
-						: never;
-}
-
-/** Image-generation model: usable with `generateImages()` only. */
-export interface ImageModel<TApi extends ImageApi> extends BaseModel<TApi> {
-	type: "image";
-	/** Output modalities. Always includes `"image"`; `"text"` means the model can also return text blocks. */
-	output: ("text" | "image")[];
-}
-
-/** Structured classifier model: usable with `classify()` only. */
-export interface ClassifierModel<TApi extends ClassifierApi> extends BaseModel<TApi> {
-	type: "classifier";
-	contextWindow: number;
+				: never;
 }
 
 /** Model shape for each model type. */
 export interface ModelTypeMap {
 	chat: Model<Api>;
-	image: ImageModel<ImageApi>;
-	classifier: ClassifierModel<ClassifierApi>;
 }
 
 /** What a catalog entry is for. Decides which `Models` operation accepts it. */

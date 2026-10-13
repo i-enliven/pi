@@ -57,9 +57,6 @@
 		"undici": "8.10.2",
 		"yaml": "2.9.0"
 	},
-	"overrides": {
-		"protobufjs": "7.6.6"
-	},
 	"devDependencies": {
 		"@types/cross-spawn": "6.0.6",
 		"@types/hosted-git-info": "3.0.5",

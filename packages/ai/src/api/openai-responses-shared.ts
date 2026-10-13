@@ -145,7 +145,6 @@ export interface ConvertResponsesToolsOptions {
 export function convertResponsesMessages<TApi extends Api>(
 	model: Model<TApi>,
 	context: TranscriptContext,
-	allowedToolCallProviders: ReadonlySet<string>,
 	options?: ConvertResponsesMessagesOptions,
 ): ResponseInput {
 	const normalizedContext = resolveTranscript(context, options?.supportsMidConvoSystemMessages);
@@ -157,24 +156,7 @@ export function convertResponsesMessages<TApi extends Api>(
 		return normalized.replace(/_+$/, "");
 	};
 
-	const buildForeignResponsesItemId = (itemId: string): string => {
-		const normalized = `fc_${shortHash(itemId)}`;
-		return normalized.length > 64 ? normalized.slice(0, 64) : normalized;
-	};
-
-	const normalizeToolCallId = (id: string, _targetModel: Model<TApi>, source: AssistantMessage): string => {
-		if (!allowedToolCallProviders.has(model.provider)) return normalizeIdPart(id);
-		if (!id.includes("|")) return normalizeIdPart(id);
-		const [callId, itemId] = id.split("|");
-		const normalizedCallId = normalizeIdPart(callId);
-		const isForeignToolCall = source.provider !== model.provider || source.api !== model.api;
-		let normalizedItemId = isForeignToolCall ? buildForeignResponsesItemId(itemId) : normalizeIdPart(itemId);
-		// OpenAI Responses API requires item id to start with "fc"
-		if (!normalizedItemId.startsWith("fc_")) {
-			normalizedItemId = normalizeIdPart(`fc_${normalizedItemId}`);
-		}
-		return `${normalizedCallId}|${normalizedItemId}`;
-	};
+	const normalizeToolCallId = (id: string): string => normalizeIdPart(id);
 
 	const transformedMessages = transformMessages(normalizedContext.messages, model, normalizeToolCallId);
 	const transcriptTools = resolveTranscriptTools(
@@ -531,8 +513,9 @@ export async function processResponsesStream<TApi extends Api>(
 	const getOrCreateSlot = (outputIndex: number, item: ResponseOutputItem): ResponsesOutputSlot | undefined => {
 		return outputSlots.get(outputIndex) ?? createSlot(outputIndex, item);
 	};
-	// Azure OpenAI can omit reasoning.encrypted_content from response.output_item.done
-	// and provide it only in response.completed.response.output. Backfill the
+	// Some Responses-compatible servers omit reasoning.encrypted_content from
+	// response.output_item.done and provide it only in
+	// response.completed.response.output. Backfill the
 	// persisted reasoning signature from the terminal response to keep store:false
 	// multi-turn replay stateless. See https://github.com/earendil-works/pi/issues/6409.
 	const backfillReasoningSignatures = (responseOutput: ResponseOutputItem[]): void => {

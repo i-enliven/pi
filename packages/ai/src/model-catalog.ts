@@ -1,13 +1,4 @@
-import type {
-	Api,
-	ClassifierApi,
-	ClassifierModel,
-	ImageApi,
-	ImageModel,
-	Model,
-	ModelType,
-	ProviderId,
-} from "./types.ts";
+import type { Api, Model, ModelType, ProviderId } from "./types.ts";
 
 export type ModelGroups = Record<string, Record<string, object>>;
 
@@ -34,48 +25,13 @@ export type ChatModelCatalog<TGroups extends ModelGroups, TProvider extends Prov
 	};
 };
 
-export type ImageModelCatalog<TGroups extends ModelGroups, TProvider extends ProviderId> = {
-	[TKey in KeyForType<TGroups, "image"> as ModelId<TKey>]: ImageModel<ApiForKey<TGroups, TKey> & ImageApi> & {
-		id: ModelId<TKey>;
-		provider: TProvider;
-	};
-};
-
-export type ClassifierModelCatalog<TGroups extends ModelGroups, TProvider extends ProviderId> = {
-	[TKey in KeyForType<TGroups, "classifier"> as ModelId<TKey>]: ClassifierModel<
-		ApiForKey<TGroups, TKey> & ClassifierApi
-	> & {
-		id: ModelId<TKey>;
-		provider: TProvider;
-	};
-};
-
-function flattenModelCatalog(groups: ModelGroups, type: ModelType): Record<string, object> {
-	return Object.fromEntries(
-		Object.values(groups)
-			.flatMap((models) => Object.values(models))
-			.filter((model) => (model as { type?: unknown }).type === type)
-			.map((model) => [(model as { id: string }).id, model]),
-	);
-}
-
 export function flattenChatModelCatalog<const TProvider extends ProviderId, const TGroups extends ModelGroups>(
 	_provider: TProvider,
 	groups: TGroups,
 ): ChatModelCatalog<TGroups, TProvider> {
-	return flattenModelCatalog(groups, "chat") as ChatModelCatalog<TGroups, TProvider>;
-}
-
-export function flattenImageModelCatalog<const TProvider extends ProviderId, const TGroups extends ModelGroups>(
-	_provider: TProvider,
-	groups: TGroups,
-): ImageModelCatalog<TGroups, TProvider> {
-	return flattenModelCatalog(groups, "image") as ImageModelCatalog<TGroups, TProvider>;
-}
-
-export function flattenClassifierModelCatalog<const TProvider extends ProviderId, const TGroups extends ModelGroups>(
-	_provider: TProvider,
-	groups: TGroups,
-): ClassifierModelCatalog<TGroups, TProvider> {
-	return flattenModelCatalog(groups, "classifier") as ClassifierModelCatalog<TGroups, TProvider>;
+	return Object.fromEntries(
+		Object.values(groups)
+			.flatMap((models) => Object.values(models))
+			.map((model) => [(model as { id: string }).id, model]),
+	) as ChatModelCatalog<TGroups, TProvider>;
 }

@@ -35,7 +35,7 @@ export function envApiKeyAuth(name: string, envVars: readonly string[]): ApiKeyA
  * advertise OAuth without importing the implementation. The flow loads on
  * first `login`/`refresh`/`toAuth` call; callers keep Node-only flow code out
  * of bundles by loading through a bundler-opaque dynamic import (variable
- * specifier, see the bedrock lazy wrapper).
+ * specifier, see the Copilot lazy loader).
  */
 export function lazyOAuth(input: {
 	name: string;
@@ -52,7 +52,7 @@ export function lazyOAuth(input: {
 		name: input.name,
 		isSubscription: input.isSubscription,
 		loginLabel: input.loginLabel,
-		login: async (interaction, options) => (await loaded()).login(interaction, options),
+		login: async (interaction) => (await loaded()).login(interaction),
 		refresh: async (credential, signal) => (await loaded()).refresh(credential, signal),
 		toAuth: async (credential) => (await loaded()).toAuth(credential),
 	};

@@ -1,4 +1,4 @@
-import Anthropic, { type ClientOptions } from "@anthropic-ai/sdk";
+import Anthropic from "@anthropic-ai/sdk";
 import type {
 	BetaInputTransformation,
 	BetaStopReason,
@@ -10,13 +10,6 @@ import type {
 	BetaRawMessageStreamEvent as RawMessageStreamEvent,
 	BetaRefusalStopDetails as RefusalStopDetails,
 } from "@anthropic-ai/sdk/resources/beta/messages/messages.js";
-import {
-	ANTHROPIC_FEDERATION_RULE_ID_ENV,
-	ANTHROPIC_IDENTITY_TOKEN_FILE_ENV,
-	ANTHROPIC_ORGANIZATION_ID_ENV,
-	ANTHROPIC_SERVICE_ACCOUNT_ID_ENV,
-	ANTHROPIC_WORKSPACE_ID_ENV,
-} from "../env-api-keys.ts";
 import { calculateCost } from "../models.ts";
 import type {
 	Api,
@@ -213,12 +206,10 @@ function shouldUseServerSideFallbackBeta(model: Model<"anthropic-messages">): bo
 }
 
 function getAnthropicCompat(model: Model<"anthropic-messages">) {
-	const isOpenRouter = model.provider === "openrouter" || model.baseUrl.includes("openrouter.ai");
 	return {
 		supportsEagerToolInputStreaming: model.compat?.supportsEagerToolInputStreaming ?? true,
 		supportsLongCacheRetention: model.compat?.supportsLongCacheRetention ?? true,
-		sendSessionAffinityHeaders: model.compat?.sendSessionAffinityHeaders ?? isOpenRouter,
-		sessionAffinityFormat: model.compat?.sessionAffinityFormat ?? (isOpenRouter ? "openrouter" : undefined),
+		sendSessionAffinityHeaders: model.compat?.sendSessionAffinityHeaders ?? false,
 		supportsCacheControlOnTools: model.compat?.supportsCacheControlOnTools ?? true,
 		supportsTemperature: model.compat?.supportsTemperature ?? true,
 		allowEmptySignature: model.compat?.allowEmptySignature ?? false,
@@ -284,8 +275,8 @@ export interface AnthropicOptions extends StreamOptions {
 	toolChoice?: "auto" | "any" | "none" | { type: "tool"; name: string };
 	/**
 	 * Pre-built Anthropic client instance. When provided, skips internal client
-	 * construction entirely. Use this to inject alternative SDK clients such as
-	 * `AnthropicVertex` that shares the same messaging API.
+	 * construction entirely. Use this to inject alternative SDK clients that
+	 * share the same messaging API.
 	 */
 	client?: Anthropic;
 }
@@ -314,12 +305,7 @@ function hasHeader(headers: ProviderHeaders | undefined, name: string): boolean 
 }
 
 function hasRequestAuth(apiKey: string | undefined, headers: ProviderHeaders | undefined): boolean {
-	return (
-		!!apiKey ||
-		hasHeader(headers, "authorization") ||
-		hasHeader(headers, "x-api-key") ||
-		hasHeader(headers, "cf-aig-authorization")
-	);
+	return !!apiKey || hasHeader(headers, "authorization") || hasHeader(headers, "x-api-key");
 }
 
 function assertRequestAuth(provider: string, apiKey: string | undefined, headers: ProviderHeaders | undefined): void {
@@ -337,44 +323,6 @@ class PiAnthropic extends Anthropic {
 		return false;
 	}
 }
-
-type AnthropicFederationConfig = NonNullable<ClientOptions["config"]>;
-
-/**
- * Workload identity federation config from the ANTHROPIC_* variables the
- * Anthropic SDK documents; the SDK performs the token exchange and refresh.
- * Only for the anthropic provider, since the exchange is an Anthropic API
- * endpoint, and only when no key or auth header was resolved.
- */
-function getAnthropicFederation(
-	model: Model<"anthropic-messages">,
-	apiKey: string | undefined,
-	headers: ProviderHeaders | undefined,
-	env: ProviderEnv | undefined,
-): AnthropicFederationConfig | undefined {
-	if (model.provider !== "anthropic" || hasRequestAuth(apiKey, headers)) return undefined;
-	const federationRuleId = getProviderEnvValue(ANTHROPIC_FEDERATION_RULE_ID_ENV, env);
-	const organizationId = getProviderEnvValue(ANTHROPIC_ORGANIZATION_ID_ENV, env);
-	const identityTokenFile = getProviderEnvValue(ANTHROPIC_IDENTITY_TOKEN_FILE_ENV, env);
-	if (!federationRuleId || !organizationId || !identityTokenFile) return undefined;
-	return {
-		organization_id: organizationId,
-		workspace_id: getProviderEnvValue(ANTHROPIC_WORKSPACE_ID_ENV, env),
-		authentication: {
-			type: "oidc_federation",
-			federation_rule_id: federationRuleId,
-			service_account_id: getProviderEnvValue(ANTHROPIC_SERVICE_ACCOUNT_ID_ENV, env),
-			identity_token: { source: "file", path: identityTokenFile },
-		},
-	};
-}
-
-/**
- * The SDK caches the federated access token per client, but pi creates a client
- * per request. Keep one client for the current federation config and fetch, and
- * clone it per request with `withOptions()`, which shares the token cache.
- */
-let federationClient: { key: string; fetch: typeof globalThis.fetch | undefined; client: Anthropic } | undefined;
 
 interface ServerSentEvent {
 	event: string | null;
@@ -609,8 +557,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
 				isOAuth = false;
 			} else {
 				const apiKey = options?.apiKey;
-				const federation = getAnthropicFederation(model, apiKey, options?.headers, options?.env);
-				if (!federation) assertRequestAuth(model.provider, apiKey, options?.headers);
+				assertRequestAuth(model.provider, apiKey, options?.headers);
 
 				let copilotDynamicHeaders: Record<string, string> | undefined;
 				if (model.provider === "github-copilot") {
@@ -631,7 +578,6 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
 					options?.fetch,
 					copilotDynamicHeaders,
 					cacheSessionId,
-					federation,
 				);
 				client = created.client;
 				isOAuth = created.isOAuthToken;
@@ -838,7 +784,7 @@ export const stream: StreamFunction<"anthropic-messages", AnthropicOptions> = (
 						if (event.usage.cache_creation_input_tokens != null) {
 							output.usage.cacheWrite = event.usage.cache_creation_input_tokens;
 						}
-						// Vercel AI Gateway includes the TTL breakdown in deltas, though the SDK only types it on message_start.
+						// Some gateways include the TTL breakdown in deltas, though the SDK only types it on message_start.
 						const cacheCreation = (
 							event.usage as typeof event.usage & { cache_creation?: { ephemeral_1h_input_tokens?: number } }
 						).cache_creation;
@@ -930,9 +876,7 @@ export const streamSimple: StreamFunction<"anthropic-messages", SimpleStreamOpti
 	context: TranscriptContext,
 	options?: SimpleStreamOptions,
 ): AssistantMessageEventStream => {
-	if (!getAnthropicFederation(model, options?.apiKey, options?.headers, options?.env)) {
-		assertRequestAuth(model.provider, options?.apiKey, options?.headers);
-	}
+	assertRequestAuth(model.provider, options?.apiKey, options?.headers);
 
 	const base = {
 		...buildBaseOptions(model, context, options, options?.apiKey),
@@ -997,7 +941,6 @@ function createClient(
 	fetch?: typeof globalThis.fetch,
 	dynamicHeaders?: Record<string, string>,
 	sessionId?: string,
-	federation?: AnthropicFederationConfig,
 ): { client: Anthropic; isOAuthToken: boolean } {
 	// Copilot: Bearer auth.
 	if (model.provider === "github-copilot") {
@@ -1044,12 +987,11 @@ function createClient(
 		return { client, isOAuthToken: true };
 	}
 
-	// API key, header-owned auth, or workload identity federation.
+	// API key or header-owned auth.
 	const compat = getAnthropicCompat(model);
 	const sessionAffinityHeaders: ProviderHeaders = {};
 	if (sessionId && compat.sendSessionAffinityHeaders) {
-		const header = compat.sessionAffinityFormat === "openrouter" ? "x-session-id" : "x-session-affinity";
-		sessionAffinityHeaders[header] = sessionId;
+		sessionAffinityHeaders["x-session-affinity"] = sessionId;
 	}
 	const defaultHeaders = mergeClientHeaders(
 		{
@@ -1060,21 +1002,6 @@ function createClient(
 		model.headers,
 		optionsHeaders,
 	);
-	if (federation) {
-		const key = JSON.stringify([model.baseUrl, federation]);
-		if (federationClient?.key !== key || federationClient.fetch !== fetch) {
-			const client = new PiAnthropic({
-				apiKey: null,
-				authToken: null,
-				config: federation,
-				baseURL: model.baseUrl,
-				dangerouslyAllowBrowser: true,
-				fetch,
-			});
-			federationClient = { key, fetch, client };
-		}
-		return { client: federationClient.client.withOptions({ defaultHeaders }), isOAuthToken: false };
-	}
 
 	const client = new PiAnthropic({
 		apiKey: apiKey ?? null,
@@ -1500,7 +1427,8 @@ function convertMessages(
 				assistantLevels.set(messageIndex, msg.providerThinkingLevel);
 			}
 		} else if (msg.role === "toolResult") {
-			// Collect all consecutive toolResult messages, needed for z.ai Anthropic endpoint.
+			// Collect all consecutive toolResult messages into one user message, which some
+			// Anthropic-compatible servers require for parallel tool calls.
 			const toolResults: ContentBlockParam[] = [];
 			let j = i;
 			while (j < transformedMessages.length && transformedMessages[j].role === "toolResult") {

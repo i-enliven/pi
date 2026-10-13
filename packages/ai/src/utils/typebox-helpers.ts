@@ -1,8 +1,9 @@
 import { type TUnsafe, Type } from "typebox";
 
 /**
- * Creates a string enum schema compatible with Google's API and other providers
- * that don't support anyOf/const patterns.
+ * Creates a string enum schema compatible with endpoints that don't support the
+ * anyOf/const patterns `Type.Enum` generates. Those servers require
+ * `{ type: "string", enum: [...] }` instead.
  *
  * @example
  * const OperationSchema = StringEnum(["add", "subtract", "multiply", "divide"], {
