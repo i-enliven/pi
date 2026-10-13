@@ -31,15 +31,15 @@ import type { CacheWarmingMode } from "../src/core/settings-manager.ts";
 import { createInMemoryModelRegistry } from "./model-runtime-test-utils.ts";
 
 const adaptiveModel: Model<Api> = {
-	...getBuiltinModel("anthropic", "claude-opus-4-6"),
+	...getBuiltinModel("github-copilot", "claude-opus-5"),
 	promptCache: { short: 300, long: 3600 },
 };
 const budgetModel: Model<Api> = {
-	...getBuiltinModel("anthropic", "claude-sonnet-4-5"),
+	...getBuiltinModel("github-copilot", "claude-haiku-4.5"),
 	promptCache: { short: 300, long: 3600 },
 };
-const openaiModel: Model<Api> = {
-	...getBuiltinModel("openai", "gpt-5"),
+const responsesModel: Model<Api> = {
+	...getBuiltinModel("github-copilot", "gpt-5.4"),
 	promptCache: { short: 300, long: 86_400 },
 };
 const unknownModel: Model<Api> = { ...adaptiveModel, promptCache: undefined };
@@ -130,7 +130,7 @@ describe("cache warming", () => {
 			getPromptCacheTtlMs(adaptiveModel, { cacheRetention: "long" }),
 			getPromptCacheTtlMs(adaptiveModel, { cacheRetention: "none" }),
 			getPromptCacheTtlMs(adaptiveModel, { env: { PI_CACHE_RETENTION: "long" } }),
-			getPromptCacheTtlMs(openaiModel, { cacheRetention: "long" }),
+			getPromptCacheTtlMs(responsesModel, { cacheRetention: "long" }),
 			getPromptCacheTtlMs(unknownModel, undefined),
 		]).toEqual([300_000, 3_600_000, undefined, 3_600_000, 86_400_000, undefined]);
 		expect([getCacheWarmingDelayMs(300_000), getCacheWarmingDelayMs(60_000), getCacheWarmingDelayMs(10_000)]).toEqual(
@@ -140,7 +140,7 @@ describe("cache warming", () => {
 			isReplayable(budgetModel, { reasoning: "medium" }),
 			isReplayable(budgetModel, undefined),
 			isReplayable(adaptiveModel, { reasoning: "medium" }),
-			isReplayable(openaiModel, { reasoning: "medium" }),
+			isReplayable(responsesModel, { reasoning: "medium" }),
 		]).toEqual([false, true, true, true]);
 	});
 

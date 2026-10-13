@@ -27,12 +27,12 @@ describe("issue #7269 CLI end-of-options delimiter", () => {
 	);
 
 	it("stops parsing options while retaining @file handling", () => {
-		const parsed = parseArgs(["--unknown-flag", "value", "--", "--provider", "openai", "-c", "@prompt.md"]);
+		const parsed = parseArgs(["--unknown-flag", "value", "--", "--provider", "github-copilot", "-c", "@prompt.md"]);
 
 		expect(parsed.unknownFlags.get("unknown-flag")).toBe("value");
 		expect(parsed.provider).toBeUndefined();
 		expect(parsed.continue).toBeUndefined();
-		expect(parsed.messages).toEqual(["--provider", "openai", "-c"]);
+		expect(parsed.messages).toEqual(["--provider", "github-copilot", "-c"]);
 		expect(parsed.fileArgs).toEqual(["prompt.md"]);
 		expect(parsed.diagnostics).toEqual([]);
 	});

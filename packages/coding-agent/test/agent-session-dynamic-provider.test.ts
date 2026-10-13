@@ -12,11 +12,11 @@ import { createAgentSession } from "../src/core/sdk.ts";
 import { SessionManager } from "../src/core/session-manager.ts";
 import { SettingsManager } from "../src/core/settings-manager.ts";
 
-function nativeAnthropicProvider(baseUrl: string): Provider {
-	const model = { ...getModel("anthropic", "claude-sonnet-4-5")!, baseUrl };
+function nativeCopilotProvider(baseUrl: string): Provider {
+	const model = { ...getModel("github-copilot", "claude-sonnet-5")!, baseUrl };
 	return {
-		id: "anthropic",
-		name: "Native Anthropic",
+		id: "github-copilot",
+		name: "Native GitHub Copilot",
 		baseUrl,
 		auth: {
 			apiKey: {
@@ -54,7 +54,7 @@ describe("AgentSession dynamic provider registration", () => {
 		const settingsManager = SettingsManager.create(tempDir, agentDir);
 		const sessionManager = SessionManager.inMemory();
 		const authStorage = AuthStorage.create(join(agentDir, "auth.json"));
-		await authStorage.modify("anthropic", async () => ({ type: "api_key", key: "test-key" }));
+		await authStorage.modify("github-copilot", async () => ({ type: "api_key", key: "test-key" }));
 		const modelRuntime = await ModelRuntime.create({
 			credentials: authStorage,
 			modelsPath: join(agentDir, "models.json"),
@@ -70,7 +70,7 @@ describe("AgentSession dynamic provider registration", () => {
 		const { session } = await createAgentSession({
 			cwd: tempDir,
 			agentDir,
-			model: getModel("anthropic", "claude-sonnet-4-5")!,
+			model: getModel("github-copilot", "claude-sonnet-5")!,
 			settingsManager,
 			sessionManager,
 			modelRuntime,
@@ -95,7 +95,7 @@ describe("AgentSession dynamic provider registration", () => {
 	it("applies top-level registerProvider overrides to the active model", async () => {
 		const session = await createSession([
 			(pi) => {
-				pi.registerProvider("anthropic", { baseUrl: "http://localhost:8080/top-level" });
+				pi.registerProvider("github-copilot", { baseUrl: "http://localhost:8080/top-level" });
 			},
 		]);
 
@@ -109,7 +109,7 @@ describe("AgentSession dynamic provider registration", () => {
 		const session = await createSession([
 			(pi) => {
 				pi.on("session_start", () => {
-					pi.registerProvider("anthropic", { baseUrl: "http://localhost:8080/session-start" });
+					pi.registerProvider("github-copilot", { baseUrl: "http://localhost:8080/session-start" });
 				});
 			},
 		]);
@@ -125,7 +125,7 @@ describe("AgentSession dynamic provider registration", () => {
 	it("registers native pi-ai providers during extension loading", async () => {
 		const session = await createSession([
 			(pi) => {
-				pi.registerProvider(nativeAnthropicProvider("http://localhost:8080/native-top-level"));
+				pi.registerProvider(nativeCopilotProvider("http://localhost:8080/native-top-level"));
 			},
 		]);
 
@@ -141,7 +141,7 @@ describe("AgentSession dynamic provider registration", () => {
 				pi.registerCommand("use-proxy", {
 					description: "Use proxy",
 					handler: async () => {
-						pi.registerProvider("anthropic", { baseUrl: "http://localhost:8080/command" });
+						pi.registerProvider("github-copilot", { baseUrl: "http://localhost:8080/command" });
 					},
 				});
 			},
@@ -162,7 +162,7 @@ describe("AgentSession dynamic provider registration", () => {
 				pi.registerCommand("use-native", {
 					description: "Use native provider",
 					handler: async () => {
-						pi.registerProvider(nativeAnthropicProvider("http://localhost:8080/native-command"));
+						pi.registerProvider(nativeCopilotProvider("http://localhost:8080/native-command"));
 					},
 				});
 			},

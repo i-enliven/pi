@@ -22,7 +22,7 @@ function msg(id: string, parentId: string | null, role: "user" | "assistant", te
 			role,
 			content: [{ type: "text", text }],
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "github-copilot",
 			model: "claude-test",
 			usage: {
 				input: 1,
@@ -108,18 +108,18 @@ describe("buildSessionContext", () => {
 		it("tracks model from assistant message", () => {
 			const entries: SessionEntry[] = [msg("1", null, "user", "hello"), msg("2", "1", "assistant", "hi")];
 			const ctx = buildSessionContext(entries);
-			expect(ctx.model).toEqual({ provider: "anthropic", modelId: "claude-test" });
+			expect(ctx.model).toEqual({ provider: "github-copilot", modelId: "claude-test" });
 		});
 
 		it("tracks model from model change entry", () => {
 			const entries: SessionEntry[] = [
 				msg("1", null, "user", "hello"),
-				modelChange("2", "1", "openai", "gpt-4"),
+				modelChange("2", "1", "github-copilot", "gpt-5.4"),
 				msg("3", "2", "assistant", "hi"),
 			];
 			const ctx = buildSessionContext(entries);
 			// Assistant message overwrites model change
-			expect(ctx.model).toEqual({ provider: "anthropic", modelId: "claude-test" });
+			expect(ctx.model).toEqual({ provider: "github-copilot", modelId: "claude-test" });
 		});
 	});
 

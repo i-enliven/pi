@@ -13,7 +13,6 @@
 import { createHash } from "node:crypto";
 import { mkdirSync } from "node:fs";
 import { join } from "node:path";
-import { oauthErrorHtml, oauthSuccessHtml } from "@i-enliven/pi-ai/utils/oauth-page";
 import type { AuthProvider, McpFetch } from "@i-enliven/pi-mcp";
 import {
 	authorizeMcp,
@@ -33,6 +32,7 @@ import lockfile from "proper-lockfile";
 import { APP_NAME, getAgentDir } from "../../config.ts";
 import { type AuthStorageBackend, FileAuthStorageBackend } from "../../core/auth-storage.ts";
 import { mcpNamespace } from "../../core/mcp-servers.ts";
+import { oauthErrorHtml, oauthSuccessHtml } from "./oauth-page.ts";
 
 const CALLBACK_HOST = "127.0.0.1";
 const CALLBACK_PATH = "/callback";

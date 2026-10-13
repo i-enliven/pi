@@ -50,7 +50,7 @@ describe("SessionManager append and tree traversal", () => {
 			const session = SessionManager.inMemory();
 
 			const msgId = session.appendMessage(userMsg("hello"));
-			const modelId = session.appendModelChange("openai", "gpt-4");
+			const modelId = session.appendModelChange("github-copilot", "gpt-5.4");
 			const _msg2Id = session.appendMessage(assistantMsg("response"));
 
 			const entries = session.getEntries();
@@ -59,8 +59,8 @@ describe("SessionManager append and tree traversal", () => {
 			expect(modelEntry?.id).toBe(modelId);
 			expect(modelEntry?.parentId).toBe(msgId);
 			if (modelEntry?.type === "model_change") {
-				expect(modelEntry.provider).toBe("openai");
-				expect(modelEntry.modelId).toBe("gpt-4");
+				expect(modelEntry.provider).toBe("github-copilot");
+				expect(modelEntry.modelId).toBe("gpt-5.4");
 			}
 
 			expect(entries[2].parentId).toBe(modelId);
@@ -487,7 +487,7 @@ describe("createBranchedSession", () => {
 		try {
 			// Create a persisted session with a couple of turns
 			const session = SessionManager.create(tempDir, tempDir);
-			const modelChangeId = session.appendModelChange("anthropic", "claude-sonnet-4-5");
+			const modelChangeId = session.appendModelChange("github-copilot", "claude-sonnet-5");
 			session.appendMessage(userMsg("first question"));
 			session.appendMessage(assistantMsg("first answer"));
 

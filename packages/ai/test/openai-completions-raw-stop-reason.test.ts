@@ -40,7 +40,7 @@ const model: Model<"openai-completions"> = {
 	id: "test-model",
 	name: "Test Model",
 	api: "openai-completions",
-	provider: "openai",
+	provider: "custom-openai",
 	baseUrl: "https://api.openai.com/v1",
 	reasoning: false,
 	input: ["text"],

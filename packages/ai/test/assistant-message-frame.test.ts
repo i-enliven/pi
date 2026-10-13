@@ -147,12 +147,12 @@ describe("assistant message frames", () => {
 	it("round-trips OpenAI Responses content supplied only by authoritative end events", async () => {
 		const output = seed();
 		output.api = "openai-responses";
-		output.provider = "openai";
+		output.provider = "custom-openai";
 		const model: Model<"openai-responses"> = {
 			id: output.model,
 			name: "Test",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			baseUrl: "https://api.openai.com/v1",
 			reasoning: false,
 			input: ["text"],

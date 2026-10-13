@@ -107,8 +107,8 @@ describe("Documentation example", () => {
 			},
 			{
 				ui: { notify: vi.fn() },
+				model,
 				modelRegistry: {
-					find: vi.fn(() => model),
 					complete,
 				},
 			},

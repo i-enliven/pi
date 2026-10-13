@@ -3,7 +3,6 @@ import {
 	type AnyModel,
 	type Api,
 	type ApiStreamOptions,
-	type AssistantImages,
 	type AssistantMessage,
 	type AssistantMessageEventStream,
 	type AuthCheck,
@@ -11,11 +10,6 @@ import {
 	type AuthOperationOptions,
 	type AuthResult,
 	type AuthType,
-	type ClassifierApi,
-	type ClassifierContext,
-	type ClassifierModel,
-	type ClassifierOptions,
-	type ClassifierResult,
 	type Context,
 	type Credential,
 	type CredentialInfo,
@@ -25,21 +19,14 @@ import {
 	type DeferredCancelOptions,
 	type DeferredFetchOptions,
 	type DeferredHandle,
-	type ImageApi,
-	type ImageModel,
-	type ImagesContext,
-	type ImagesOptions,
-	type LoginOptions,
 	lazyStream,
 	type Message,
 	type Model,
 	type Models,
 	type ModelsApiStreamOptions,
-	type ModelsClassifierOptions,
 	type ModelsDeferredCancelOptions,
 	type ModelsDeferredFetchOptions,
 	ModelsError,
-	type ModelsImagesOptions,
 	type ModelsRefreshOptions,
 	type ModelsRefreshResult,
 	type ModelsRequestTransforms,
@@ -57,14 +44,7 @@ import {
 	type StreamOptions,
 } from "@i-enliven/pi-ai";
 import * as builtinProviderCatalog from "@i-enliven/pi-ai/providers/all";
-import {
-	assertChatModel,
-	assertClassifierInputSupported,
-	assertClassifierModel,
-	assertImageModel,
-	classifierErrorResult,
-	imageErrorResult,
-} from "@i-enliven/pi-ai/utils/model-operations";
+import { assertChatModel } from "@i-enliven/pi-ai/utils/model-operations";
 import { getAgentDir } from "../config.ts";
 import { operationSignal, raceWithAbortSignal } from "../utils/abort.ts";
 import { AuthStorage as DefaultAuthStorage } from "./auth-storage.ts";
@@ -756,50 +736,10 @@ export class ModelRuntime implements Models {
 		await prepared.provider.cancelDeferred(prepared.model, handle, prepared.options as DeferredCancelOptions);
 	}
 
-	async generateImages(
-		model: ImageModel<ImageApi>,
-		context: ImagesContext,
-		options?: ModelsImagesOptions,
-	): Promise<AssistantImages> {
-		try {
-			assertImageModel(model);
-			const prepared = await this.prepareRequest(model, options);
-			if (!prepared.provider.generateImages) {
-				throw new ModelsError("provider", `Provider ${model.provider} does not support image generation`);
-			}
-			return await prepared.provider.generateImages(prepared.model, context, prepared.options as ImagesOptions);
-		} catch (error) {
-			return imageErrorResult(model, error, options?.signal?.aborted);
-		}
-	}
-
-	async classify(
-		model: ClassifierModel<ClassifierApi>,
-		context: ClassifierContext,
-		options?: ModelsClassifierOptions,
-	): Promise<ClassifierResult> {
-		try {
-			assertClassifierModel(model);
-			assertClassifierInputSupported(model, context);
-			const prepared = await this.prepareRequest(model, options);
-			if (!prepared.provider.classify) {
-				throw new ModelsError("provider", `Provider ${model.provider} does not support classification`);
-			}
-			return await prepared.provider.classify(prepared.model, context, prepared.options as ClassifierOptions);
-		} catch (error) {
-			return classifierErrorResult(model, error, options?.signal?.aborted);
-		}
-	}
-
-	login(
-		providerId: string,
-		type: AuthType,
-		interaction: AuthInteraction,
-		options?: LoginOptions,
-	): Promise<Credential> {
+	login(providerId: string, type: AuthType, interaction: AuthInteraction): Promise<Credential> {
 		const signal = operationSignal(interaction.signal);
 		return this.enqueueCredentialOperation(providerId, signal, async () => {
-			const credential = await this.models.login(providerId, type, { ...interaction, signal }, options);
+			const credential = await this.models.login(providerId, type, { ...interaction, signal });
 			await this.synchronizeCredentialState(providerId, "login", credential, signal);
 			return credential;
 		});

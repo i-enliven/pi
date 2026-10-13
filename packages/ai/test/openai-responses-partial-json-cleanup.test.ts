@@ -70,7 +70,7 @@ describe("openai responses partialJson cleanup", () => {
 			id: "gpt-5-mini",
 			name: "GPT-5 Mini",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			baseUrl: "https://api.openai.com/v1",
 			reasoning: true,
 			input: ["text"],

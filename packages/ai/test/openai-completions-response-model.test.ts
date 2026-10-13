@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { complete } from "../src/compat.ts";
 import type { Model } from "../src/types.ts";
 
-// Router/virtual ids (e.g. OpenRouter `auto`) keep `model` pinned to the
+// Router/virtual ids (e.g. gateway `auto`) keep `model` pinned to the
 // requested id and surface the routed concrete id on `responseModel`.
 
 const mockState = vi.hoisted(() => ({
@@ -38,13 +38,13 @@ vi.mock("openai", () => {
 	return { default: FakeOpenAI };
 });
 
-function openRouterAuto(): Model<"openai-completions"> {
+function gatewayAuto(): Model<"openai-completions"> {
 	return {
-		id: "openrouter/auto",
-		name: "OpenRouter Auto",
+		id: "gateway/auto",
+		name: "Gateway Auto",
 		api: "openai-completions",
-		provider: "openrouter",
-		baseUrl: "https://openrouter.ai/api/v1",
+		provider: "custom-openai-compatible",
+		baseUrl: "https://gateway.example.com/v1",
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -75,23 +75,23 @@ describe("openai-completions responseModel", () => {
 		];
 
 		const message = await complete(
-			openRouterAuto(),
+			gatewayAuto(),
 			{ messages: [{ role: "user", content: "hi", timestamp: Date.now() }] },
 			{ apiKey: "test" },
 		);
 
-		expect(message.model).toBe("openrouter/auto");
+		expect(message.model).toBe("gateway/auto");
 		expect(message.responseModel).toBe("anthropic/claude-opus-4.8");
-		expect(message.provider).toBe("openrouter");
+		expect(message.provider).toBe("custom-openai-compatible");
 		expect(message.stopReason).toBe("stop");
 	});
 
 	it("leaves responseModel undefined when chunks echo the requested id", async () => {
 		mockState.chunks = [
-			{ id: "chatcmpl-2", model: "openrouter/auto", choices: [{ index: 0, delta: { content: "hi" } }] },
+			{ id: "chatcmpl-2", model: "gateway/auto", choices: [{ index: 0, delta: { content: "hi" } }] },
 			{
 				id: "chatcmpl-2",
-				model: "openrouter/auto",
+				model: "gateway/auto",
 				choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 				usage: {
 					prompt_tokens: 1,
@@ -103,12 +103,12 @@ describe("openai-completions responseModel", () => {
 		];
 
 		const message = await complete(
-			openRouterAuto(),
+			gatewayAuto(),
 			{ messages: [{ role: "user", content: "hi", timestamp: Date.now() }] },
 			{ apiKey: "test" },
 		);
 
-		expect(message.model).toBe("openrouter/auto");
+		expect(message.model).toBe("gateway/auto");
 		expect(message.responseModel).toBeUndefined();
 	});
 
@@ -129,12 +129,12 @@ describe("openai-completions responseModel", () => {
 		];
 
 		const message = await complete(
-			openRouterAuto(),
+			gatewayAuto(),
 			{ messages: [{ role: "user", content: "hi", timestamp: Date.now() }] },
 			{ apiKey: "test" },
 		);
 
-		expect(message.model).toBe("openrouter/auto");
+		expect(message.model).toBe("gateway/auto");
 		expect(message.responseModel).toBeUndefined();
 	});
 });

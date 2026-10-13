@@ -1,7 +1,6 @@
 import type { Api, Model, Provider } from "@i-enliven/pi-ai";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { AuthStorage } from "../../../src/core/auth-storage.ts";
-import { defaultModelPerProvider } from "../../../src/core/model-resolver.ts";
 import { ModelRuntime } from "../../../src/core/model-runtime.ts";
 import { InteractiveMode } from "../../../src/modes/interactive/interactive-mode.ts";
 import { createHarness, type Harness } from "../harness.ts";
@@ -107,7 +106,6 @@ describe("issues #7027 and #7113 credential refresh hang", () => {
 			showStatus: vi.fn(),
 			showError: vi.fn(),
 			showWarning,
-			maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
 			ui: { requestRender: vi.fn() },
 		};
 		await complete.call(context, dynamicModel.provider, "Stalled Login", "api_key", harness.getModel());
@@ -132,7 +130,7 @@ describe("post-login model discovery", () => {
 		vi.restoreAllMocks();
 	});
 
-	const defaultId = defaultModelPerProvider.openrouter!;
+	const defaultId = "fast";
 
 	async function startLogin() {
 		harness = await createHarness();
@@ -161,10 +159,9 @@ describe("post-login model discovery", () => {
 			showStatus: vi.fn(),
 			showError: vi.fn(),
 			showWarning: vi.fn(),
-			maybeWarnAboutAnthropicSubscriptionAuth: vi.fn(),
 			ui: { requestRender: vi.fn() },
 		};
-		await complete.call(context, "openrouter", "OpenRouter", "oauth", unknownModel);
+		await complete.call(context, "gateway", "Gateway", "oauth", unknownModel);
 		expect(context.showStatus).toHaveBeenCalledWith(expect.stringContaining("Credentials saved"));
 		expect(context.showError).not.toHaveBeenCalled();
 		expect(setModel).not.toHaveBeenCalled();
@@ -174,27 +171,20 @@ describe("post-login model discovery", () => {
 			setModel,
 			currentModel,
 			async discover(ids: string[]) {
-				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "openrouter", id })));
+				availableModels.mockReturnValue(ids.map((id) => ({ ...model, provider: "gateway", id })));
 				finishRefresh();
 				await vi.advanceTimersByTimeAsync(0);
 			},
 		};
 	}
 
-	it("selects the default model from the refreshed catalog", async () => {
+	it("selects the first model from the refreshed catalog", async () => {
 		const login = await startLogin();
-		await login.discover(["fast", defaultId]);
-		expect(login.setModel).toHaveBeenCalledWith(expect.objectContaining({ provider: "openrouter", id: defaultId }), {
+		await login.discover([defaultId, "powerful"]);
+		expect(login.setModel).toHaveBeenCalledWith(expect.objectContaining({ provider: "gateway", id: defaultId }), {
 			persist: true,
 		});
 		expect(login.showError).not.toHaveBeenCalled();
-	});
-
-	it("reports a missing default model after refresh", async () => {
-		const login = await startLogin();
-		await login.discover(["fast", "powerful"]);
-		expect(login.setModel).not.toHaveBeenCalled();
-		expect(login.showError).toHaveBeenCalledWith(expect.stringContaining("is not available"));
 	});
 
 	it("reports an empty catalog only after refresh", async () => {
@@ -207,7 +197,7 @@ describe("post-login model discovery", () => {
 	it("preserves a model selected during refresh", async () => {
 		const login = await startLogin();
 		login.currentModel.mockReturnValue(harness!.getModel());
-		await login.discover(["fast", defaultId]);
+		await login.discover([defaultId, "powerful"]);
 		expect(login.setModel).not.toHaveBeenCalled();
 		expect(login.showError).not.toHaveBeenCalled();
 	});

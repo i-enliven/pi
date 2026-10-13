@@ -18,7 +18,7 @@ describe("SessionManager.inMemory with preloaded entries", () => {
 	it("adopts entries verbatim", () => {
 		const entries = storedEntries((source) => {
 			source.appendMessage(userMessage("hello"));
-			source.appendModelChange("anthropic", "claude-opus-4-5");
+			source.appendModelChange("github-copilot", "claude-opus-5");
 			source.appendMessage(userMessage("again"));
 		});
 

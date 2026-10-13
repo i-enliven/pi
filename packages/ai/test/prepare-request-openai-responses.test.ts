@@ -45,7 +45,7 @@ function assistantToolCall(name: string, args: ToolCall["arguments"], timestamp:
 		role: "assistant",
 		content: [{ type: "toolCall", id: "call-1", name, arguments: args }],
 		api: "openai-responses",
-		provider: "openai",
+		provider: "custom-openai",
 		model: "gpt-5.4",
 		usage: emptyUsage,
 		stopReason: "toolUse",
@@ -88,7 +88,7 @@ describe("openai-responses prepareRequest", () => {
 		vi.restoreAllMocks();
 	});
 	it("sends max_output_tokens only when compat allows it", () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = normalizeContext({ messages: [userTurn] });
 
 		expect(prepareRequest(model, context, { maxTokens: 1024 }).max_output_tokens).toBe(1024);
@@ -99,16 +99,20 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("clamps max_output_tokens to the provider minimum", () => {
-		const payload = prepareRequest(getModel("openai", "gpt-5.4"), normalizeContext({ messages: [userTurn] }), {
-			maxTokens: 8,
-		});
+		const payload = prepareRequest(
+			getModel("github-copilot", "gpt-5.4"),
+			normalizeContext({ messages: [userTurn] }),
+			{
+				maxTokens: 8,
+			},
+		);
 
 		expect(payload.max_output_tokens).toBe(16);
 	});
 
 	it("forwards options into the payload", () => {
 		const payload = prepareRequest(
-			getModel("openai", "gpt-5.4"),
+			getModel("github-copilot", "gpt-5.4"),
 			normalizeContext({
 				messages: [userTurn],
 				tools: [{ name: "ping", description: "Ping", parameters: Type.Object({ value: Type.String() }) }],
@@ -123,10 +127,14 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("omits cache fields when cacheRetention is none", () => {
-		const payload = prepareRequest(getModel("openai", "gpt-5.6-sol"), normalizeContext({ messages: [userTurn] }), {
-			cacheRetention: "none",
-			sessionId: "session-1",
-		});
+		const payload = prepareRequest(
+			withCompat(getModel("github-copilot", "gpt-5.6-sol"), { supportsExplicitPromptCacheMode: true }),
+			normalizeContext({ messages: [userTurn] }),
+			{
+				cacheRetention: "none",
+				sessionId: "session-1",
+			},
+		);
 
 		expect(payload.prompt_cache_key).toBeUndefined();
 		expect(payload.prompt_cache_retention).toBeUndefined();
@@ -134,7 +142,7 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("collapses the mid-conversation system message when compat rejects it", () => {
-		const model = withCompat(getModel("openai", "gpt-5.4"), { supportsMidConvoSystemMessages: false });
+		const model = withCompat(getModel("github-copilot", "gpt-5.4"), { supportsMidConvoSystemMessages: false });
 
 		expect(instructions(prepareRequest(model, transcriptWithMidConversationSystemPrompt(), {}))).toEqual([
 			{ role: "developer", content: "base prompt\n\nlater instruction" },
@@ -142,7 +150,7 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("keeps the mid-conversation system message in place when compat allows it", () => {
-		const model = withCompat(getModel("openai", "gpt-5.4"), { supportsMidConvoSystemMessages: true });
+		const model = withCompat(getModel("github-copilot", "gpt-5.4"), { supportsMidConvoSystemMessages: true });
 
 		expect(instructions(prepareRequest(model, transcriptWithMidConversationSystemPrompt(), {}))).toEqual([
 			{ role: "developer", content: "base prompt" },
@@ -151,7 +159,7 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("sends grammar tools as custom tools only when compat enables them", () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = grammarTranscript();
 
 		// The OpenAI catalog sets supportsOpenAIGrammarTools, so the call replays as a custom tool call.
@@ -187,7 +195,7 @@ describe("openai-responses prepareRequest", () => {
 	});
 
 	it("hands onPayload exactly the object prepareRequest returns", async () => {
-		const model = getModel("openai", "gpt-5.4");
+		const model = getModel("github-copilot", "gpt-5.4");
 		const context = normalizeContext({
 			systemPrompt: "base prompt",
 			messages: [userTurn],

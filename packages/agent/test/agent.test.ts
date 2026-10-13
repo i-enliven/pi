@@ -2,7 +2,7 @@ import {
 	type AssistantMessage,
 	createAssistantMessageEventStream,
 	getCurrentSystemMessage,
-	getModel,
+	type Model,
 	toToolDeclaration,
 	type UserMessage,
 } from "@i-enliven/pi-ai/compat";
@@ -21,12 +21,27 @@ function createUserMessage(text: string): UserMessage {
 	return { role: "user", content: text, timestamp: Date.now() };
 }
 
+function createModel(): Model<"openai-responses"> {
+	return {
+		id: "mock",
+		name: "mock",
+		api: "openai-responses",
+		provider: "github-copilot",
+		baseUrl: "https://example.invalid",
+		reasoning: false,
+		input: ["text"],
+		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
+		contextWindow: 8192,
+		maxTokens: 2048,
+	};
+}
+
 function createAssistantMessage(text: string): AssistantMessage {
 	return {
 		role: "assistant",
 		content: [{ type: "text", text }],
 		api: "openai-responses",
-		provider: "openai",
+		provider: "github-copilot",
 		model: "mock",
 		usage: {
 			input: 0,
@@ -58,7 +73,7 @@ function createAssistantToolUseMessage(content: ToolCallContent[]): AssistantMes
 		role: "assistant",
 		content,
 		api: "openai-responses",
-		provider: "openai",
+		provider: "github-copilot",
 		model: "mock",
 		usage: {
 			input: 0,
@@ -125,7 +140,7 @@ describe("Agent", () => {
 	});
 
 	it("should create an agent instance with custom initial state", () => {
-		const customModel = getModel("openai", "gpt-4o-mini");
+		const customModel = createModel();
 		const agent = new Agent({
 			streamFn: unusedStreamFunction,
 			initialState: {
@@ -614,7 +629,7 @@ describe("Agent", () => {
 		const agent = new Agent({ streamFn: unusedStreamFunction });
 
 		// Test setModel
-		const newModel = getModel("google", "gemini-2.5-flash");
+		const newModel = createModel();
 		agent.state.model = newModel;
 		expect(agent.state.model).toBe(newModel);
 

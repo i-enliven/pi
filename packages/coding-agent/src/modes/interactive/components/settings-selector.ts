@@ -21,7 +21,6 @@ import {
 	type MermaidRenderingMode,
 	type QuietStartup,
 	type TuiMode,
-	type WarningSettings,
 } from "../../../core/settings-manager.ts";
 import {
 	getSettingsListTheme,
@@ -80,7 +79,6 @@ export interface SettingsConfig {
 	hideThinkingBlock: boolean;
 	mermaidRenderingMode: MermaidRenderingMode;
 	showCacheMissNotices: boolean;
-	enableInstallTelemetry: boolean;
 	doubleEscapeAction: "fork" | "tree" | "none";
 	treeFilterMode: "default" | "no-tools" | "user-only" | "labeled-only" | "all";
 	showHardwareCursor: boolean;
@@ -96,7 +94,6 @@ export interface SettingsConfig {
 	fullscreenScrollbar: ScrollViewScrollbar;
 	fullscreenCopyOnSelect: boolean;
 	fullscreenWheelScrollLines: WheelScrollLines;
-	warnings: WarningSettings;
 }
 
 export interface SettingsCallbacks {
@@ -118,7 +115,6 @@ export interface SettingsCallbacks {
 	onHideThinkingBlockChange: (hidden: boolean) => void;
 	onMermaidRenderingModeChange: (mode: MermaidRenderingMode) => void;
 	onShowCacheMissNoticesChange: (shown: boolean) => void;
-	onEnableInstallTelemetryChange: (enabled: boolean) => void;
 	onDoubleEscapeActionChange: (action: "fork" | "tree" | "none") => void;
 	onTreeFilterModeChange: (mode: "default" | "no-tools" | "user-only" | "labeled-only" | "all") => void;
 	onShowHardwareCursorChange: (enabled: boolean) => void;
@@ -134,53 +130,7 @@ export interface SettingsCallbacks {
 	onFullscreenScrollbarChange: (mode: ScrollViewScrollbar) => void;
 	onFullscreenCopyOnSelectChange: (enabled: boolean) => void;
 	onFullscreenWheelScrollLinesChange: (lines: WheelScrollLines) => void;
-	onWarningsChange: (warnings: WarningSettings) => void;
 	onCancel: () => void;
-}
-
-/**
- * A submenu component for selecting from a list of options.
- */
-class WarningSettingsSubmenu extends Container {
-	private settingsList: SettingsList;
-	private state: WarningSettings;
-
-	constructor(warnings: WarningSettings, onChange: (warnings: WarningSettings) => void, onCancel: () => void) {
-		super();
-
-		this.state = { ...warnings };
-
-		const items: SettingItem[] = [
-			{
-				id: "anthropic-extra-usage",
-				label: "Anthropic extra usage",
-				description: "Warn when Anthropic subscription auth may use paid extra usage",
-				currentValue: (this.state.anthropicExtraUsage ?? true) ? "true" : "false",
-				values: ["true", "false"],
-			},
-		];
-
-		this.settingsList = new SettingsList(
-			items,
-			Math.min(items.length, 10),
-			getSettingsListTheme(),
-			(id, newValue) => {
-				switch (id) {
-					case "anthropic-extra-usage":
-						this.state = { ...this.state, anthropicExtraUsage: newValue === "true" };
-						onChange({ ...this.state });
-						break;
-				}
-			},
-			onCancel,
-		);
-
-		this.addChild(this.settingsList);
-	}
-
-	handleInput(data: string): void {
-		this.settingsList.handleInput(data);
-	}
 }
 
 const CLEAR_OVERRIDE_VALUE = "__clear__";
@@ -467,7 +417,6 @@ export class SettingsSelectorComponent extends Container {
 		const supportsImages = getCapabilities().images;
 		const followUpKey = keyDisplayText("app.message.followUp");
 		const cycleThinkingKey = keyDisplayText("app.thinking.cycle");
-		let currentWarnings = { ...config.warnings };
 		const currentModelThinkingLevels = { ...config.modelThinkingLevels };
 		const defaultModelByValue = new Map(
 			config.availableDefaultModels.map((model) => [modelSettingKey(model), model]),
@@ -550,13 +499,6 @@ export class SettingsSelectorComponent extends Container {
 				values: ["true", "header", "false"],
 			},
 			{
-				id: "install-telemetry",
-				label: "Install telemetry",
-				description: "Send an anonymous version/update ping after detected updates",
-				currentValue: config.enableInstallTelemetry ? "true" : "false",
-				values: ["true", "false"],
-			},
-			{
 				id: "default-project-trust",
 				label: "Default project trust",
 				description: "Fallback behavior when no extension or saved trust decision decides project trust",
@@ -576,21 +518,6 @@ export class SettingsSelectorComponent extends Container {
 				description: "Default filter when opening /tree",
 				currentValue: config.treeFilterMode,
 				values: ["default", "no-tools", "user-only", "labeled-only", "all"],
-			},
-			{
-				id: "warnings",
-				label: "Warnings",
-				description: "Enable or disable individual warnings",
-				currentValue: "configure",
-				submenu: (_currentValue, done) =>
-					new WarningSettingsSubmenu(
-						currentWarnings,
-						(warnings) => {
-							currentWarnings = warnings;
-							callbacks.onWarningsChange(warnings);
-						},
-						() => done(),
-					),
 			},
 			{
 				id: "model-thinking",
@@ -910,9 +837,6 @@ export class SettingsSelectorComponent extends Container {
 						break;
 					case "quiet-startup":
 						callbacks.onQuietStartupChange(newValue === "header" ? "header" : newValue === "true");
-						break;
-					case "install-telemetry":
-						callbacks.onEnableInstallTelemetryChange(newValue === "true");
 						break;
 					case "default-project-trust": {
 						const defaultProjectTrust = DEFAULT_PROJECT_TRUST_BY_LABEL.get(newValue);

@@ -4,15 +4,14 @@ import { isRetryableAssistantError, type RetryPolicy, retryAssistantCall, retryD
 
 const openAIExplicitRetryMessage =
 	"An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_******** in your message.";
-const bedrockExplicitRetryMessage =
+const gatewayServerErrorRetryMessage =
 	'{"message":"The system encountered an unexpected error during processing. Try your request again."}';
-const nvidiaNIMResourceExhaustedMessage = "ResourceExhausted: Worker local total request limit reached (288/48)";
+const resourceExhaustedLimitMessage = "ResourceExhausted: Worker local total request limit reached (288/48)";
 const bunFetchSocketClosedMessage =
 	"The socket connection was closed unexpectedly. For more information, pass `verbose: true` in the second argument to fetch()";
 const openAIResponsesEarlyEofMessage = "OpenAI Responses stream ended before a terminal response event";
-const wrappedDnsLookupError =
-	"The pending stream has been canceled (caused by: getaddrinfo ENOTFOUND bedrock-runtime.us-east-1.amazonaws.com)";
-const azurePeakLoadError =
+const wrappedDnsLookupError = "The pending stream has been canceled (caused by: getaddrinfo ENOTFOUND api.example.com)";
+const gatewayPeakLoadError =
 	"The system is currently experiencing high demand and cannot process your request. Your request exceeds the maximum usage size allowed during peak load. For improved capacity reliability, consider switching to Provisioned Throughput.";
 
 describe("provider retry classification", () => {
@@ -24,12 +23,12 @@ describe("provider retry classification", () => {
 		).toBe(true);
 		expect(
 			isRetryableAssistantError(
-				fauxAssistantMessage("", { stopReason: "error", errorMessage: bedrockExplicitRetryMessage }),
+				fauxAssistantMessage("", { stopReason: "error", errorMessage: gatewayServerErrorRetryMessage }),
 			),
 		).toBe(true);
 		expect(
 			isRetryableAssistantError(
-				fauxAssistantMessage("", { stopReason: "error", errorMessage: nvidiaNIMResourceExhaustedMessage }),
+				fauxAssistantMessage("", { stopReason: "error", errorMessage: resourceExhaustedLimitMessage }),
 			),
 		).toBe(true);
 	});
@@ -78,10 +77,12 @@ describe("provider retry classification", () => {
 		).toBe(true);
 	});
 
-	it("matches Azure peak-load capacity errors", () => {
+	it("matches gateway peak-load capacity errors", () => {
 		// Regression for #9669.
 		expect(
-			isRetryableAssistantError(fauxAssistantMessage("", { stopReason: "error", errorMessage: azurePeakLoadError })),
+			isRetryableAssistantError(
+				fauxAssistantMessage("", { stopReason: "error", errorMessage: gatewayPeakLoadError }),
+			),
 		).toBe(true);
 	});
 

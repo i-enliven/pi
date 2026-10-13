@@ -67,7 +67,7 @@ const anthropicNativeModel: Model<"anthropic-messages"> = {
 	id: "claude-opus-5",
 	name: "Claude Opus 5",
 	api: "anthropic-messages",
-	provider: "anthropic",
+	provider: "custom-anthropic",
 	compat: { supportsMidConvoSystemMessages: true, supportsMidConvoToolChanges: true },
 };
 
@@ -195,7 +195,7 @@ describe("transcript system messages", () => {
 			id: "claude-sonnet-4-5",
 			name: "Claude Sonnet 4.5",
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "custom-anthropic",
 		};
 		const payload = await capturePayload<{
 			betas?: string[];
@@ -218,7 +218,7 @@ describe("transcript system messages", () => {
 			id: "claude-opus-5",
 			name: "Claude Opus 5",
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "custom-anthropic",
 			compat: { supportsMidConvoToolChanges: true },
 		};
 		const payload = await capturePayload<{
@@ -238,7 +238,7 @@ describe("transcript system messages", () => {
 			id: "gpt-5.4",
 			name: "GPT-5.4",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			compat: { supportsMidConvoSystemMessages: true, supportsAdditionalTools: true },
 		};
 		const payload = await capturePayload<{
@@ -263,7 +263,7 @@ describe("transcript system messages", () => {
 			id: "gpt-5.4",
 			name: "GPT-5.4",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			compat: { supportsMidConvoSystemMessages: true, supportsToolSearch: true },
 		};
 		const payload = await capturePayload<{
@@ -284,7 +284,7 @@ describe("transcript system messages", () => {
 			id: "gpt-4.1",
 			name: "GPT-4.1",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			compat: { supportsAdditionalTools: true },
 		};
 		const payload = await capturePayload<{
@@ -303,7 +303,7 @@ describe("transcript system messages", () => {
 			id: "gpt-5.4",
 			name: "GPT-5.4",
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			compat: { supportsMidConvoSystemMessages: true, supportsAdditionalTools: true },
 		};
 		const payload = await capturePayload<{
@@ -316,14 +316,18 @@ describe("transcript system messages", () => {
 		expect(payload.input.filter((item) => item.role === "developer")).toHaveLength(2);
 	});
 
-	test("anchors Kimi additions in tool-bearing system messages", async () => {
+	test("anchors additions in tool-bearing system messages", async () => {
 		const model: Model<"openai-completions"> = {
 			...modelBase,
-			id: "kimi-k3",
-			name: "Kimi K3",
+			id: "tool-additions-model",
+			name: "Tool Additions Model",
 			api: "openai-completions",
-			provider: "moonshotai",
-			compat: { supportsMidConvoSystemMessages: true, supportsMidConvoToolAdditions: true },
+			provider: "custom-openai-completions",
+			compat: {
+				supportsDeveloperRole: false,
+				supportsMidConvoSystemMessages: true,
+				supportsMidConvoToolAdditions: true,
+			},
 		};
 		const payload = await capturePayload<{
 			tools?: Array<{ function?: { name: string } }>;
@@ -339,14 +343,14 @@ describe("transcript system messages", () => {
 		);
 	});
 
-	test("keeps Kimi K2 system text inline without dynamic tool messages", async () => {
+	test("keeps system text inline without dynamic tool messages", async () => {
 		const model: Model<"openai-completions"> = {
 			...modelBase,
-			id: "kimi-k2.7-code",
-			name: "Kimi K2.7 Code",
+			id: "inline-system-model",
+			name: "Inline System Model",
 			api: "openai-completions",
-			provider: "moonshotai",
-			compat: { supportsMidConvoSystemMessages: true },
+			provider: "custom-openai-completions",
+			compat: { supportsDeveloperRole: false, supportsMidConvoSystemMessages: true },
 		};
 		const payload = await capturePayload<{
 			tools?: Array<{ function?: { name: string } }>;

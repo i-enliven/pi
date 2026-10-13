@@ -9,7 +9,6 @@ import { afterEach, describe, expect, test, vi } from "vitest";
 import { AgentSession } from "../src/core/agent-session.ts";
 import { AuthStorage } from "../src/core/auth-storage.ts";
 import {
-	defaultModelPerProvider,
 	findInitialModel,
 	parseModelPattern,
 	resolveCliModel,
@@ -27,8 +26,8 @@ const mockModels: Model<"anthropic-messages">[] = [
 		id: "claude-sonnet-4-5",
 		name: "Claude Sonnet 4.5",
 		api: "anthropic-messages",
-		provider: "anthropic",
-		baseUrl: "https://api.anthropic.com",
+		provider: "alpha",
+		baseUrl: "https://alpha.test",
 		reasoning: true,
 		input: ["text", "image"],
 		cost: { input: 3, output: 15, cacheRead: 0.3, cacheWrite: 3.75 },
@@ -39,8 +38,8 @@ const mockModels: Model<"anthropic-messages">[] = [
 		id: "gpt-4o",
 		name: "GPT-4o",
 		api: "anthropic-messages", // Using same type for simplicity
-		provider: "openai",
-		baseUrl: "https://api.openai.com",
+		provider: "beta",
+		baseUrl: "https://beta.test",
 		reasoning: false,
 		input: ["text", "image"],
 		cost: { input: 5, output: 15, cacheRead: 0.5, cacheWrite: 5 },
@@ -49,14 +48,14 @@ const mockModels: Model<"anthropic-messages">[] = [
 	},
 ];
 
-// Mock OpenRouter models with colons in IDs
-const mockOpenRouterModels: Model<"anthropic-messages">[] = [
+// Mock gateway models with colons and slashes in model ids
+const mockGatewayModels: Model<"anthropic-messages">[] = [
 	{
 		id: "qwen/qwen3-coder:exacto",
 		name: "Qwen3 Coder Exacto",
 		api: "anthropic-messages",
-		provider: "openrouter",
-		baseUrl: "https://openrouter.ai/api/v1",
+		provider: "gateway",
+		baseUrl: "https://gateway.test/v1",
 		reasoning: true,
 		input: ["text"],
 		cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1 },
@@ -64,11 +63,11 @@ const mockOpenRouterModels: Model<"anthropic-messages">[] = [
 		maxTokens: 8192,
 	},
 	{
-		id: "openai/gpt-4o:extended",
+		id: "beta/gpt-4o:extended",
 		name: "GPT-4o Extended",
 		api: "anthropic-messages",
-		provider: "openrouter",
-		baseUrl: "https://openrouter.ai/api/v1",
+		provider: "gateway",
+		baseUrl: "https://gateway.test/v1",
 		reasoning: false,
 		input: ["text", "image"],
 		cost: { input: 5, output: 15, cacheRead: 0.5, cacheWrite: 5 },
@@ -77,7 +76,7 @@ const mockOpenRouterModels: Model<"anthropic-messages">[] = [
 	},
 ];
 
-const allModels = [...mockModels, ...mockOpenRouterModels];
+const allModels = [...mockModels, ...mockGatewayModels];
 
 describe("parseModelPattern", () => {
 	describe("simple patterns without colons", () => {
@@ -145,7 +144,7 @@ describe("parseModelPattern", () => {
 		});
 	});
 
-	describe("OpenRouter models with colons in IDs", () => {
+	describe("gateway models with colons in model ids", () => {
 		test("qwen3-coder:exacto matches the model with undefined thinking level", () => {
 			const result = parseModelPattern("qwen/qwen3-coder:exacto", allModels);
 			expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
@@ -153,10 +152,10 @@ describe("parseModelPattern", () => {
 			expect(result.warning).toBeUndefined();
 		});
 
-		test("openrouter/qwen/qwen3-coder:exacto matches with provider prefix", () => {
-			const result = parseModelPattern("openrouter/qwen/qwen3-coder:exacto", allModels);
+		test("gateway/qwen/qwen3-coder:exacto matches with provider prefix", () => {
+			const result = parseModelPattern("gateway/qwen/qwen3-coder:exacto", allModels);
 			expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
-			expect(result.model?.provider).toBe("openrouter");
+			expect(result.model?.provider).toBe("gateway");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.warning).toBeUndefined();
 		});
@@ -168,23 +167,23 @@ describe("parseModelPattern", () => {
 			expect(result.warning).toBeUndefined();
 		});
 
-		test("openrouter/qwen/qwen3-coder:exacto:high matches with provider and thinking level", () => {
-			const result = parseModelPattern("openrouter/qwen/qwen3-coder:exacto:high", allModels);
+		test("gateway/qwen/qwen3-coder:exacto:high matches with provider and thinking level", () => {
+			const result = parseModelPattern("gateway/qwen/qwen3-coder:exacto:high", allModels);
 			expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
-			expect(result.model?.provider).toBe("openrouter");
+			expect(result.model?.provider).toBe("gateway");
 			expect(result.thinkingLevel).toBe("high");
 			expect(result.warning).toBeUndefined();
 		});
 
 		test("gpt-4o:extended matches the extended model with undefined thinking level", () => {
-			const result = parseModelPattern("openai/gpt-4o:extended", allModels);
-			expect(result.model?.id).toBe("openai/gpt-4o:extended");
+			const result = parseModelPattern("beta/gpt-4o:extended", allModels);
+			expect(result.model?.id).toBe("beta/gpt-4o:extended");
 			expect(result.thinkingLevel).toBeUndefined();
 			expect(result.warning).toBeUndefined();
 		});
 	});
 
-	describe("invalid thinking levels with OpenRouter models", () => {
+	describe("invalid thinking levels with gateway models", () => {
 		test("qwen3-coder:exacto:random returns model with undefined thinking level and warning", () => {
 			const result = parseModelPattern("qwen/qwen3-coder:exacto:random", allModels);
 			expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
@@ -325,12 +324,12 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliModel: "openai/gpt-4o",
+			cliModel: "beta/gpt-4o",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openai");
+		expect(result.model?.provider).toBe("beta");
 		expect(result.model?.id).toBe("gpt-4o");
 	});
 
@@ -340,13 +339,13 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliProvider: "openai",
+			cliProvider: "beta",
 			cliModel: "4o",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openai");
+		expect(result.model?.provider).toBe("beta");
 		expect(result.model?.id).toBe("gpt-4o");
 	});
 
@@ -365,19 +364,19 @@ describe("resolveCliModel", () => {
 		expect(result.thinkingLevel).toBe("high");
 	});
 
-	test("prefers exact model id match over provider inference (OpenRouter-style ids)", () => {
+	test("prefers exact model id match over provider inference (gateway-style ids with embedded slashes)", () => {
 		const registry = {
 			getModels: () => allModels,
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliModel: "openai/gpt-4o:extended",
+			cliModel: "beta/gpt-4o:extended",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openrouter");
-		expect(result.model?.id).toBe("openai/gpt-4o:extended");
+		expect(result.model?.provider).toBe("gateway");
+		expect(result.model?.id).toBe("beta/gpt-4o:extended");
 	});
 
 	test("does not strip invalid :suffix as thinking level in --model (treat as raw id)", () => {
@@ -386,13 +385,13 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliProvider: "openai",
+			cliProvider: "beta",
 			cliModel: "gpt-4o:extended",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openai");
+		expect(result.model?.provider).toBe("beta");
 		expect(result.model?.id).toBe("gpt-4o:extended");
 	});
 
@@ -402,14 +401,14 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliProvider: "openrouter",
-			cliModel: "openrouter/openai/ghost-model",
+			cliProvider: "gateway",
+			cliModel: "gateway/vendor/ghost-model",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openrouter");
-		expect(result.model?.id).toBe("openai/ghost-model");
+		expect(result.model?.provider).toBe("gateway");
+		expect(result.model?.id).toBe("vendor/ghost-model");
 	});
 
 	test("returns a clear error when there are no models", () => {
@@ -418,7 +417,7 @@ describe("resolveCliModel", () => {
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliProvider: "openai",
+			cliProvider: "beta",
 			cliModel: "gpt-4o",
 			modelRuntime: registry,
 		});
@@ -428,21 +427,21 @@ describe("resolveCliModel", () => {
 	});
 
 	test("prefers the sole authenticated provider for an ambiguous bare exact model id", () => {
-		const azureModel: Model<"anthropic-messages"> = {
+		const hostAModel: Model<"anthropic-messages"> = {
 			...mockModels[1],
 			id: "gpt-5.6-sol",
 			name: "GPT 5.6 Sol",
-			provider: "azure",
+			provider: "host-a",
 		};
-		const codexModel: Model<"anthropic-messages"> = {
+		const hostBModel: Model<"anthropic-messages"> = {
 			...mockModels[1],
 			id: "gpt-5.6-sol",
 			name: "GPT 5.6 Sol",
-			provider: "openai-codex",
+			provider: "host-b",
 		};
 		const registry = {
-			getModels: () => [azureModel, codexModel],
-			hasConfiguredAuth: (provider: string) => provider === "openai-codex",
+			getModels: () => [hostAModel, hostBModel],
+			hasConfiguredAuth: (provider: string) => provider === "host-b",
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
@@ -451,25 +450,25 @@ describe("resolveCliModel", () => {
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openai-codex");
+		expect(result.model?.provider).toBe("host-b");
 		expect(result.model?.id).toBe("gpt-5.6-sol");
 	});
 
 	test("requires an explicit provider for an ambiguous bare exact model id without a unique authenticated provider", () => {
-		const azureModel: Model<"anthropic-messages"> = {
+		const hostAModel: Model<"anthropic-messages"> = {
 			...mockModels[1],
 			id: "gpt-5.6-sol",
 			name: "GPT 5.6 Sol",
-			provider: "azure",
+			provider: "host-a",
 		};
-		const codexModel: Model<"anthropic-messages"> = {
+		const hostBModel: Model<"anthropic-messages"> = {
 			...mockModels[1],
 			id: "gpt-5.6-sol",
 			name: "GPT 5.6 Sol",
-			provider: "openai-codex",
+			provider: "host-b",
 		};
 		const registry = {
-			getModels: () => [azureModel, codexModel],
+			getModels: () => [hostAModel, hostBModel],
 			hasConfiguredAuth: () => false,
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
@@ -480,32 +479,32 @@ describe("resolveCliModel", () => {
 
 		expect(result.model).toBeUndefined();
 		expect(result.error).toContain('Model "gpt-5.6-sol" is ambiguous across providers');
-		expect(result.error).toContain("azure/gpt-5.6-sol");
-		expect(result.error).toContain("openai-codex/gpt-5.6-sol");
+		expect(result.error).toContain("host-a/gpt-5.6-sol");
+		expect(result.error).toContain("host-b/gpt-5.6-sol");
 		expect(result.error).toContain("Use --provider or provider/model");
 	});
 
-	test("prefers provider/model split over gateway model with matching id", () => {
-		// When a user writes "zai/glm-5", and both a zai provider model (id: "glm-5")
-		// and a gateway model (id: "zai/glm-5") exist, prefer the zai provider model.
-		const zaiModel: Model<"anthropic-messages"> = {
+	test("prefers provider/model split over aggregator model with matching id", () => {
+		// When a user writes "vendor-x/glm-5", and both a vendor-x provider model (id: "glm-5")
+		// and an aggregator model (id: "vendor-x/glm-5") exist, prefer the vendor-x provider model.
+		const vendorModel: Model<"anthropic-messages"> = {
 			id: "glm-5",
 			name: "GLM-5",
 			api: "anthropic-messages",
-			provider: "zai",
-			baseUrl: "https://open.bigmodel.cn/api/paas/v4",
+			provider: "vendor-x",
+			baseUrl: "https://vendor-x.test",
 			reasoning: true,
 			input: ["text"],
 			cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1 },
 			contextWindow: 128000,
 			maxTokens: 8192,
 		};
-		const gatewayModel: Model<"anthropic-messages"> = {
-			id: "zai/glm-5",
+		const aggregatorModel: Model<"anthropic-messages"> = {
+			id: "vendor-x/glm-5",
 			name: "GLM-5",
 			api: "anthropic-messages",
-			provider: "vercel-ai-gateway",
-			baseUrl: "https://ai-gateway.vercel.sh",
+			provider: "aggregator",
+			baseUrl: "https://aggregator.test",
 			reasoning: true,
 			input: ["text"],
 			cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1 },
@@ -513,26 +512,26 @@ describe("resolveCliModel", () => {
 			maxTokens: 8192,
 		};
 		const registry = {
-			getModels: () => [...allModels, zaiModel, gatewayModel],
+			getModels: () => [...allModels, vendorModel, aggregatorModel],
 			hasConfiguredAuth: () => true,
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliModel: "zai/glm-5",
+			cliModel: "vendor-x/glm-5",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("zai");
+		expect(result.model?.provider).toBe("vendor-x");
 		expect(result.model?.id).toBe("glm-5");
 	});
 
 	test("prefers an authenticated exact raw model id over an unauthenticated inferred provider", () => {
-		const commandcodeModel: Model<"anthropic-messages"> = {
-			id: "xiaomi/mimo-v2.5-pro",
-			name: "Xiaomi MiMo via Commandcode",
+		const resellerModel: Model<"anthropic-messages"> = {
+			id: "vendor-y/model-y",
+			name: "Vendor Y via Reseller",
 			api: "anthropic-messages",
-			provider: "commandcode",
+			provider: "reseller",
 			baseUrl: "https://example.invalid",
 			reasoning: false,
 			input: ["text"],
@@ -540,12 +539,12 @@ describe("resolveCliModel", () => {
 			contextWindow: 128000,
 			maxTokens: 8192,
 		};
-		const xiaomiModel: Model<"anthropic-messages"> = {
-			id: "mimo-v2.5-pro",
-			name: "Xiaomi MiMo",
+		const vendorYModel: Model<"anthropic-messages"> = {
+			id: "model-y",
+			name: "Vendor Y",
 			api: "anthropic-messages",
-			provider: "xiaomi",
-			baseUrl: "https://api.xiaomimimo.com",
+			provider: "vendor-y",
+			baseUrl: "https://vendor-y.test",
 			reasoning: false,
 			input: ["text"],
 			cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1 },
@@ -553,32 +552,32 @@ describe("resolveCliModel", () => {
 			maxTokens: 8192,
 		};
 		const registry = {
-			getModels: () => [...allModels, commandcodeModel, xiaomiModel],
-			hasConfiguredAuth: (provider: string) => provider === "commandcode",
+			getModels: () => [...allModels, resellerModel, vendorYModel],
+			hasConfiguredAuth: (provider: string) => provider === "reseller",
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliModel: "xiaomi/mimo-v2.5-pro",
+			cliModel: "vendor-y/model-y",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("commandcode");
-		expect(result.model?.id).toBe("xiaomi/mimo-v2.5-pro");
+		expect(result.model?.provider).toBe("reseller");
+		expect(result.model?.id).toBe("vendor-y/model-y");
 	});
 
-	test("resolves provider-prefixed fuzzy patterns (openrouter/qwen -> openrouter model)", () => {
+	test("resolves provider-prefixed fuzzy patterns (gateway/qwen -> gateway model)", () => {
 		const registry = {
 			getModels: () => allModels,
 		} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 		const result = resolveCliModel({
-			cliModel: "openrouter/qwen",
+			cliModel: "gateway/qwen",
 			modelRuntime: registry,
 		});
 
 		expect(result.error).toBeUndefined();
-		expect(result.model?.provider).toBe("openrouter");
+		expect(result.model?.provider).toBe("gateway");
 		expect(result.model?.id).toBe("qwen/qwen3-coder:exacto");
 	});
 
@@ -606,14 +605,14 @@ describe("resolveCliModel", () => {
 			} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 			const result = resolveCliModel({
-				cliModel: "neuralwatt/zai-org/GLM-5.1-FP8:high",
+				cliModel: "neuralwatt/vendor/GLM-5.1-FP8:high",
 				modelRuntime: registry,
 			});
 
 			expect(result.error).toBeUndefined();
 			expect(result.model?.provider).toBe("neuralwatt");
 			// The :high suffix must NOT leak into the model id sent to the API
-			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8");
+			expect(result.model?.id).toBe("vendor/GLM-5.1-FP8");
 			expect(result.model?.reasoning).toBe(true);
 			expect(result.thinkingLevel).toBe("high");
 		});
@@ -624,13 +623,13 @@ describe("resolveCliModel", () => {
 			} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 			const result = resolveCliModel({
-				cliModel: "neuralwatt/zai-org/GLM-5.1-FP8",
+				cliModel: "neuralwatt/vendor/GLM-5.1-FP8",
 				modelRuntime: registry,
 			});
 
 			expect(result.error).toBeUndefined();
 			expect(result.model?.provider).toBe("neuralwatt");
-			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8");
+			expect(result.model?.id).toBe("vendor/GLM-5.1-FP8");
 			expect(result.thinkingLevel).toBeUndefined();
 		});
 
@@ -641,12 +640,12 @@ describe("resolveCliModel", () => {
 
 			for (const level of ["off", "minimal", "low", "medium", "high", "xhigh", "max"]) {
 				const result = resolveCliModel({
-					cliModel: `neuralwatt/zai-org/GLM-5.1-FP8:${level}`,
+					cliModel: `neuralwatt/vendor/GLM-5.1-FP8:${level}`,
 					modelRuntime: registry,
 				});
 
 				expect(result.error).toBeUndefined();
-				expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8");
+				expect(result.model?.id).toBe("vendor/GLM-5.1-FP8");
 				expect(result.thinkingLevel).toBe(level);
 			}
 		});
@@ -657,14 +656,14 @@ describe("resolveCliModel", () => {
 			} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 			const result = resolveCliModel({
-				cliModel: "neuralwatt/zai-org/GLM-5.1-FP8:banana",
+				cliModel: "neuralwatt/vendor/GLM-5.1-FP8:banana",
 				modelRuntime: registry,
 			});
 
 			expect(result.error).toBeUndefined();
 			expect(result.model?.provider).toBe("neuralwatt");
 			// Invalid suffix stays in the id (it's not a thinking level)
-			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8:banana");
+			expect(result.model?.id).toBe("vendor/GLM-5.1-FP8:banana");
 			expect(result.thinkingLevel).toBeUndefined();
 		});
 
@@ -675,13 +674,13 @@ describe("resolveCliModel", () => {
 
 			const result = resolveCliModel({
 				cliProvider: "neuralwatt",
-				cliModel: "zai-org/GLM-5.1-FP8:high",
+				cliModel: "vendor/GLM-5.1-FP8:high",
 				modelRuntime: registry,
 			});
 
 			expect(result.error).toBeUndefined();
 			expect(result.model?.provider).toBe("neuralwatt");
-			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8");
+			expect(result.model?.id).toBe("vendor/GLM-5.1-FP8");
 			expect(result.thinkingLevel).toBe("high");
 		});
 
@@ -691,7 +690,7 @@ describe("resolveCliModel", () => {
 			} as unknown as Parameters<typeof resolveCliModel>[0]["modelRuntime"];
 
 			const result = resolveCliModel({
-				cliModel: "neuralwatt/zai-org/GLM-5.1-FP8:high",
+				cliModel: "neuralwatt/vendor/GLM-5.1-FP8:high",
 				cliThinking: "medium",
 				modelRuntime: registry,
 			});
@@ -699,52 +698,17 @@ describe("resolveCliModel", () => {
 			expect(result.error).toBeUndefined();
 			expect(result.model?.provider).toBe("neuralwatt");
 			// :high is kept as part of the model id since --thinking was explicit
-			expect(result.model?.id).toBe("zai-org/GLM-5.1-FP8:high");
+			expect(result.model?.id).toBe("vendor/GLM-5.1-FP8:high");
 			expect(result.thinkingLevel).toBeUndefined();
 		});
 	});
 });
 
 describe("default model selection", () => {
-	test("openai defaults track current models", () => {
-		expect(defaultModelPerProvider.openai).toBe("gpt-5.5");
-		expect(defaultModelPerProvider["openai-codex"]).toBe("gpt-6.1-sol");
-	});
-
-	test("zai, minimax, cerebras, and ant-ling defaults track current models", () => {
-		expect(defaultModelPerProvider.zai).toBe("glm-5.3");
-		expect(defaultModelPerProvider["zai-coding-cn"]).toBe("glm-5.3");
-		expect(defaultModelPerProvider.minimax).toBe("MiniMax-M2.7");
-		expect(defaultModelPerProvider["minimax-cn"]).toBe("MiniMax-M2.7");
-		expect(defaultModelPerProvider.cerebras).toBe("gpt-oss-120b");
-		expect(defaultModelPerProvider["ant-ling"]).toBe("Ring-2.6-1T");
-	});
-
-	test("built-in chat providers have defaults in their generated catalogs", () => {
+	test("built-in providers expose chat models in their generated catalogs", () => {
 		for (const provider of getBuiltinProviders()) {
-			const chatModels = getBuiltinModels(provider);
-			const defaultId = defaultModelPerProvider[provider];
-			if (chatModels.length === 0) {
-				expect(defaultId, `${provider} has no chat models and should have no chat default`).toBeUndefined();
-				continue;
-			}
-			expect(
-				chatModels.some((model) => model.id === defaultId),
-				`${provider} default ${defaultId} should exist in its generated catalog`,
-			).toBe(true);
+			expect(getBuiltinModels(provider).length, `${provider} has no chat models`).toBeGreaterThan(0);
 		}
-	});
-
-	test("ai-gateway default tracks current model", () => {
-		expect(defaultModelPerProvider["vercel-ai-gateway"]).toBe("zai/glm-5.1");
-	});
-
-	test("xai default tracks current model", () => {
-		expect(defaultModelPerProvider.xai).toBe("grok-4.7");
-	});
-
-	test("qwen token plan individual default tracks current model", () => {
-		expect(defaultModelPerProvider["qwen-token-plan-individual"]).toBe("qwen3.8-max");
 	});
 
 	test("findInitialModel accepts explicit provider custom model ids", async () => {
@@ -753,24 +717,24 @@ describe("default model selection", () => {
 		} as unknown as Parameters<typeof findInitialModel>[0]["modelRuntime"];
 
 		const result = await findInitialModel({
-			cliProvider: "openrouter",
-			cliModel: "openrouter/openai/ghost-model",
+			cliProvider: "gateway",
+			cliModel: "gateway/vendor/ghost-model",
 			scopedModels: [],
 			isContinuing: false,
 			modelRuntime: registry,
 		});
 
-		expect(result.model?.provider).toBe("openrouter");
-		expect(result.model?.id).toBe("openai/ghost-model");
+		expect(result.model?.provider).toBe("gateway");
+		expect(result.model?.id).toBe("vendor/ghost-model");
 	});
 
-	test("findInitialModel selects ai-gateway default when available", async () => {
-		const aiGatewayModel: Model<"anthropic-messages"> = {
-			id: "anthropic/claude-opus-4-6",
+	test("findInitialModel selects the first available model", async () => {
+		const aggregatorModel: Model<"anthropic-messages"> = {
+			id: "vendor/claude-opus-4-6",
 			name: "Claude Opus 4.6",
 			api: "anthropic-messages",
-			provider: "vercel-ai-gateway",
-			baseUrl: "https://ai-gateway.vercel.sh",
+			provider: "aggregator",
+			baseUrl: "https://aggregator.test",
 			reasoning: true,
 			input: ["text", "image"],
 			cost: { input: 5, output: 15, cacheRead: 0.5, cacheWrite: 5 },
@@ -779,7 +743,7 @@ describe("default model selection", () => {
 		};
 
 		const registry = {
-			getAvailableSnapshot: () => [aiGatewayModel],
+			getAvailableSnapshot: () => [aggregatorModel],
 		} as unknown as Parameters<typeof findInitialModel>[0]["modelRuntime"];
 
 		const result = await findInitialModel({
@@ -788,53 +752,51 @@ describe("default model selection", () => {
 			modelRuntime: registry,
 		});
 
-		expect(result.model?.provider).toBe("vercel-ai-gateway");
-		expect(result.model?.id).toBe("anthropic/claude-opus-4-6");
+		expect(result.model?.provider).toBe("aggregator");
+		expect(result.model?.id).toBe("vendor/claude-opus-4-6");
 	});
 
 	test("findInitialModel ignores an unauthenticated saved default", async () => {
-		const savedDeepSeekModel: Model<"anthropic-messages"> = {
-			id: "deepseek-v4-flash",
-			name: "DeepSeek V4 Flash",
+		const savedVendorModel: Model<"anthropic-messages"> = {
+			id: "vendor-a-flash",
+			name: "Vendor A Flash",
 			api: "anthropic-messages",
-			provider: "deepseek",
-			baseUrl: "https://api.deepseek.com",
+			provider: "vendor-a",
+			baseUrl: "https://vendor-a.test",
 			reasoning: true,
 			input: ["text"],
 			cost: { input: 1, output: 2, cacheRead: 0.1, cacheWrite: 1 },
 			contextWindow: 128000,
 			maxTokens: 8192,
 		};
-		const localDeepSeekModel: Model<"anthropic-messages"> = {
-			...savedDeepSeekModel,
-			provider: "spark-two",
-			baseUrl: "http://spark-two:8000/v1",
+		const localVendorModel: Model<"anthropic-messages"> = {
+			...savedVendorModel,
+			provider: "local-host",
+			baseUrl: "http://local-host:8000/v1",
 		};
 		const registry = {
 			getModel: (provider: string, modelId: string) =>
-				provider === savedDeepSeekModel.provider && modelId === savedDeepSeekModel.id
-					? savedDeepSeekModel
-					: undefined,
-			hasConfiguredAuth: (provider: string) => provider === "spark-two",
-			getAvailableSnapshot: () => [localDeepSeekModel],
+				provider === savedVendorModel.provider && modelId === savedVendorModel.id ? savedVendorModel : undefined,
+			hasConfiguredAuth: (provider: string) => provider === "local-host",
+			getAvailableSnapshot: () => [localVendorModel],
 		} as unknown as Parameters<typeof findInitialModel>[0]["modelRuntime"];
 
 		const result = await findInitialModel({
 			scopedModels: [],
 			isContinuing: false,
-			defaultProvider: "deepseek",
-			defaultModelId: "deepseek-v4-flash",
+			defaultProvider: "vendor-a",
+			defaultModelId: "vendor-a-flash",
 			modelRuntime: registry,
 		});
 
-		expect(result.model?.provider).toBe("spark-two");
-		expect(result.model?.id).toBe("deepseek-v4-flash");
+		expect(result.model?.provider).toBe("local-host");
+		expect(result.model?.id).toBe("vendor-a-flash");
 	});
 
 	describe("persisted default model scoping", () => {
 		const tempDirs: string[] = [];
-		const sonnet = getModel("anthropic", "claude-sonnet-4-5")!;
-		const opus = getModel("anthropic", "claude-opus-4-8")!;
+		const sonnet = getModel("github-copilot", "claude-sonnet-5")!;
+		const opus = getModel("github-copilot", "claude-opus-5")!;
 
 		afterEach(() => {
 			for (const dir of tempDirs.splice(0)) {
@@ -852,7 +814,7 @@ describe("default model selection", () => {
 				settingsManager.setEnabledModels(options.persistedScope);
 			}
 
-			const authStorage = AuthStorage.inMemory({ anthropic: { type: "api_key", key: "test-key" } });
+			const authStorage = AuthStorage.inMemory({ "github-copilot": { type: "api_key", key: "test-key" } });
 			const modelRuntime = getModelRuntime(await createModelRegistry(authStorage, join(tempDir, "models.json")));
 			const agent = new Agent({
 				initialState: {

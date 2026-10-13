@@ -425,7 +425,7 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 		).prototype.createBaseAutocompleteProvider;
 		const models = [
 			{ id: "gpt-5.2-codex", provider: "github-copilot", name: "GPT-5.2 Codex" },
-			{ id: "gpt-5.5", provider: "openai-codex", name: "GPT-5.5" },
+			{ id: "codex/gpt-5.5", provider: "gateway", name: "GPT-5.5" },
 		];
 		const fakeThis: FakeInteractiveMode = {
 			session: {
@@ -448,7 +448,7 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 		});
 
 		expect(suggestions?.items.map((item) => item.value)).toEqual([
-			"openai-codex/gpt-5.5",
+			"gateway/codex/gpt-5.5",
 			"github-copilot/gpt-5.2-codex",
 		]);
 	});
@@ -487,34 +487,34 @@ describe("InteractiveMode.createBaseAutocompleteProvider", () => {
 			sessionManager: { getCwd: () => "/tmp" },
 			fdPath: null,
 			getLoginProviderOptions: () => [
-				{ id: "anthropic", name: "Anthropic", authType: "oauth", subscription: true },
-				{ id: "anthropic", name: "Anthropic", authType: "api_key", subscription: true },
-				{ id: "openai", name: "OpenAI", authType: "api_key" },
-				{ id: "openrouter", name: "OpenRouter", authType: "oauth", subscription: false },
+				{ id: "github-copilot", name: "GitHub Copilot", authType: "oauth", subscription: true },
+				{ id: "github-copilot", name: "GitHub Copilot", authType: "api_key", subscription: true },
+				{ id: "gateway", name: "Gateway", authType: "api_key" },
+				{ id: "account-gateway", name: "Account Gateway", authType: "oauth", subscription: false },
 			],
 		};
 
 		const provider = createBaseAutocompleteProvider.call(fakeThis);
-		const line = "/login subscription anthrop";
+		const line = "/login subscription copilot";
 		const suggestions = await provider.getSuggestions([line], 0, line.length, {
 			signal: new AbortController().signal,
 		});
 
 		expect(suggestions?.items).toEqual([
 			{
-				value: "anthropic",
-				label: "anthropic",
-				description: "Anthropic · subscription/API key",
+				value: "github-copilot",
+				label: "github-copilot",
+				description: "GitHub Copilot · subscription/API key",
 			},
 		]);
 
-		// OAuth sign-in without a subscription, such as OpenRouter, is an account.
-		const accountLine = "/login openrouter";
+		// OAuth sign-in without a subscription is an account.
+		const accountLine = "/login account-gateway";
 		const accountSuggestions = await provider.getSuggestions([accountLine], 0, accountLine.length, {
 			signal: new AbortController().signal,
 		});
 		expect(accountSuggestions?.items).toEqual([
-			{ value: "openrouter", label: "openrouter", description: "OpenRouter · account" },
+			{ value: "account-gateway", label: "account-gateway", description: "Account Gateway · account" },
 		]);
 	});
 });

@@ -62,7 +62,7 @@ describe("SessionManager labels", () => {
 			role: "assistant",
 			content: [{ type: "text", text: "hi" }],
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "github-copilot",
 			model: "test",
 			usage: {
 				input: 1,
@@ -103,7 +103,7 @@ describe("SessionManager labels", () => {
 			role: "assistant",
 			content: [{ type: "text", text: "hi" }],
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "github-copilot",
 			model: "test",
 			usage: {
 				input: 1,
@@ -147,7 +147,7 @@ describe("SessionManager labels", () => {
 
 		const msg1Id = session.appendMessage({ role: "user", content: "hello", timestamp: 1 });
 		session.appendLabelChange(msg1Id, "checkpoint");
-		const modelChangeId = session.appendModelChange("anthropic", "claude-test");
+		const modelChangeId = session.appendModelChange("github-copilot", "claude-test");
 		const msg2Id = session.appendMessage({ role: "user", content: "followup", timestamp: 2 });
 
 		session.createBranchedSession(msg2Id);
@@ -163,7 +163,7 @@ describe("SessionManager labels", () => {
 			role: "assistant",
 			content: [{ type: "text", text: "hi" }],
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "github-copilot",
 			model: "test",
 			usage: {
 				input: 1,

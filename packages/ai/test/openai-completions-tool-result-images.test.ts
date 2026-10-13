@@ -26,11 +26,7 @@ const compat: Omit<Required<OpenAICompletionsCompat>, "thinkingTokenBudgetField"
 	requiresThinkingAsText: false,
 	requiresReasoningContentOnAssistantMessages: false,
 	thinkingFormat: "openai",
-	openRouterRouting: {},
-	vercelGatewayRouting: {},
 	chatTemplateKwargs: {},
-	chatTemplateArgs: {},
-	zaiToolStream: false,
 	supportsThinkingTokenBudget: false,
 	thinkingTokenBudgetField: undefined,
 	supportsStrictMode: true,
@@ -71,7 +67,7 @@ function buildEmptyToolResult(toolCallId: string, timestamp: number): ToolResult
 describe("openai-completions convertMessages", () => {
 	// Regression test for https://github.com/earendil-works/pi/issues/9797
 	it("omits empty text parts from user messages with images", () => {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
+		const { compat: _compat, ...baseModel } = getModel("github-copilot", "kimi-k3");
 		const model: Model<"openai-completions"> = {
 			...baseModel,
 			api: "openai-completions",
@@ -99,7 +95,7 @@ describe("openai-completions convertMessages", () => {
 	});
 
 	it("batches tool-result images after consecutive tool results", () => {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
+		const { compat: _compat, ...baseModel } = getModel("github-copilot", "kimi-k3");
 		const model: Model<"openai-completions"> = {
 			...baseModel,
 			api: "openai-completions",
@@ -145,7 +141,7 @@ describe("openai-completions convertMessages", () => {
 	});
 
 	it("uses '(no tool output)' placeholder for empty tool results without images", () => {
-		const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
+		const { compat: _compat, ...baseModel } = getModel("github-copilot", "kimi-k3");
 		const model: Model<"openai-completions"> = {
 			...baseModel,
 			api: "openai-completions",

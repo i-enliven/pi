@@ -9,9 +9,9 @@ import { createAgentSession, ModelRuntime } from "@i-enliven/pi-coding-agent";
 const modelRuntime = await ModelRuntime.create();
 
 // Option 1: Find a specific built-in model by provider/id
-const opus = modelRuntime.getModel("anthropic", "claude-opus-4-5");
-if (opus) {
-	console.log(`Found model: ${opus.provider}/${opus.id}`);
+const builtIn = modelRuntime.getModel("github-copilot", "gpt-5.5");
+if (builtIn) {
+	console.log(`Found model: ${builtIn.provider}/${builtIn.id}`);
 }
 
 // Option 2: Find model via registry (includes custom models from models.json)

@@ -46,7 +46,7 @@ describe("MCP tool renderers", () => {
 				role: "assistant",
 				content: [{ type: "toolCall", id: "call-1", name: "mcp__my_docs__search", arguments: { query: "pi" } }],
 				api: "anthropic-messages",
-				provider: "anthropic",
+				provider: "github-copilot",
 				model: "test",
 				usage: {
 					input: 0,

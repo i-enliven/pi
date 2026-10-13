@@ -20,7 +20,7 @@ function makeModel(): Model<"openai-responses"> {
 		id: "gpt-test",
 		name: "GPT Test",
 		api: "openai-responses",
-		provider: "openai",
+		provider: "custom-openai",
 		baseUrl: "https://api.openai.com/v1",
 		reasoning: false,
 		input: ["text", "image"],
@@ -46,7 +46,7 @@ function makeOutput(): AssistantMessage {
 		role: "assistant",
 		content: [],
 		api: "openai-responses",
-		provider: "openai",
+		provider: "custom-openai",
 		model: "gpt-test",
 		usage: makeUsage(),
 		stopReason: "pending",
@@ -210,7 +210,7 @@ describe("constrained tool sampling", () => {
 				{
 					role: "assistant",
 					api: "openai-responses",
-					provider: "openai",
+					provider: "custom-openai",
 					model: "gpt-test",
 					content: [replayedToolCall],
 					usage: makeUsage(),
@@ -231,14 +231,14 @@ describe("constrained tool sampling", () => {
 		for (const invalidArguments of invalidArgumentsList) {
 			replayedToolCall.arguments = invalidArguments;
 			expect(() =>
-				convertResponsesMessages(makeModel(), context, new Set(["openai"]), {
+				convertResponsesMessages(makeModel(), context, {
 					grammarToolInputProperties: new Map([["sample_tool", "payload"]]),
 				}),
 			).toThrow('Grammar tool call "sample_tool" requires argument "payload" to be a string');
 		}
 
 		replayedToolCall.arguments = { payload: "abc" };
-		const messages = convertResponsesMessages(makeModel(), context, new Set(["openai"]), {
+		const messages = convertResponsesMessages(makeModel(), context, {
 			grammarToolInputProperties: new Map([["sample_tool", "payload"]]),
 		});
 
@@ -254,40 +254,6 @@ describe("constrained tool sampling", () => {
 			call_id: "call_1",
 			output: "done",
 		});
-	});
-
-	// A gateway forwards another model's history as a foreign provider.
-	it("drops foreign item ids when replaying grammar calls as custom Responses items", () => {
-		const context = normalizeContext({
-			messages: [
-				{
-					role: "assistant",
-					api: "anthropic-messages",
-					provider: "gateway-x",
-					model: "gpt-other",
-					content: [{ type: "toolCall", id: "call_1|ctc_1", name: "sample_tool", arguments: { payload: "abc" } }],
-					usage: makeUsage(),
-					stopReason: "toolUse",
-					timestamp: Date.now(),
-				},
-				{
-					role: "toolResult",
-					toolCallId: "call_1|ctc_1",
-					toolName: "sample_tool",
-					content: [{ type: "text", text: "done" }],
-					isError: false,
-					timestamp: Date.now(),
-				},
-			],
-		});
-
-		const messages = convertResponsesMessages(makeModel(), context, new Set(["openai"]), {
-			grammarToolInputProperties: new Map([["sample_tool", "payload"]]),
-		});
-
-		const call = messages.find((item) => "type" in item && item.type === "custom_tool_call");
-		expect(call).toMatchObject({ type: "custom_tool_call", call_id: "call_1", input: "abc" });
-		expect(call && "id" in call ? call.id : undefined).toBeUndefined();
 	});
 
 	it("keeps grammar input JSON deltas append-only", () => {

@@ -87,10 +87,6 @@ export interface MarkdownSettings {
 	mermaid?: MermaidRenderingMode; // default: "streaming"
 }
 
-export interface WarningSettings {
-	anthropicExtraUsage?: boolean; // default: true
-}
-
 export type DefaultProjectTrust = "ask" | "always" | "never";
 /** true hides all startup output, "header" keeps only the startup header. */
 export type QuietStartup = boolean | "header";
@@ -134,10 +130,9 @@ export interface Settings {
 	defaultProjectTrust?: DefaultProjectTrust; // default: "ask"; global setting only
 	shellCommandPrefix?: string; // Prefix prepended to every bash command (e.g., "shopt -s expand_aliases" for alias support)
 	npmCommand?: string[]; // Command used for npm package lookup/install operations, argv-style (e.g., ["mise", "exec", "node@20", "--", "npm"])
-	enableInstallTelemetry?: boolean; // default: true - anonymous version/update ping after detected updates
 	enableAnalytics?: boolean; // default: false - opt-in analytics data sharing
 	trackingId?: string; // analytics tracking identifier, generated when analytics is enabled
-	deviceId?: string; // stable UUID of this installation, created when a login first needs it; global setting only
+	deviceId?: string; // stable UUID of this installation, written by earlier versions; global setting only, redacted from bug reports
 	packages?: PackageSource[]; // Array of npm/git package sources (string or object with filtering)
 	extensions?: string[]; // Array of local extension file paths or directories
 	skills?: string[]; // Array of local skill file paths or directories
@@ -156,7 +151,6 @@ export interface Settings {
 	autocompleteMaxVisible?: number; // Max visible items in autocomplete dropdown (default: 5)
 	showHardwareCursor?: boolean; // Show terminal cursor while still positioning it for IME
 	markdown?: MarkdownSettings;
-	warnings?: WarningSettings;
 	sessionDir?: string; // Custom session storage directory (same format as --session-dir CLI flag)
 	httpProxy?: string; // Proxy URL applied as HTTP_PROXY and HTTPS_PROXY for Pi-managed HTTP clients
 	httpIdleTimeoutMs?: number; // HTTP header/body idle timeout in milliseconds; 0 disables it
@@ -1122,16 +1116,6 @@ export class SettingsManager {
 		this.save();
 	}
 
-	getEnableInstallTelemetry(): boolean {
-		return this.settings.enableInstallTelemetry ?? true;
-	}
-
-	setEnableInstallTelemetry(enabled: boolean): void {
-		this.globalSettings.enableInstallTelemetry = enabled;
-		this.markModified("enableInstallTelemetry");
-		this.save();
-	}
-
 	getEnableAnalytics(): boolean {
 		return this.settings.enableAnalytics ?? false;
 	}
@@ -1149,20 +1133,6 @@ export class SettingsManager {
 			this.markModified("trackingId");
 		}
 		this.save();
-	}
-
-	/**
-	 * Stable ID of this installation, e.g. sent to OpenAI as its agent host ID.
-	 * Created on first use. Project settings are ignored so a committed project
-	 * settings file cannot give every clone the same ID.
-	 */
-	getOrCreateDeviceId(): string {
-		if (!this.globalSettings.deviceId) {
-			this.globalSettings.deviceId = randomUUID();
-			this.markModified("deviceId");
-			this.save();
-		}
-		return this.globalSettings.deviceId;
 	}
 
 	getPackages(): PackageSource[] {
@@ -1502,16 +1472,6 @@ export class SettingsManager {
 		this.globalSettings.markdown ??= {};
 		this.globalSettings.markdown.mermaid = mode;
 		this.markModified("markdown", "mermaid");
-		this.save();
-	}
-
-	getWarnings(): WarningSettings {
-		return { ...(this.settings.warnings ?? {}) };
-	}
-
-	setWarnings(warnings: WarningSettings): void {
-		this.globalSettings.warnings = { ...warnings };
-		this.markModified("warnings");
 		this.save();
 	}
 }

@@ -160,13 +160,9 @@ export default function (pi: ExtensionAPI) {
 				ctx.ui.notify("Preparing summary...", "info");
 			}
 
-			const model = ctx.modelRegistry.find("openai", "gpt-5.2");
+			const model = ctx.model;
 			if (!model) {
-				if (ctx.hasUI) ctx.ui.notify("Model openai/gpt-5.2 not found", "warning");
-				return;
-			}
-			if (!ctx.modelRegistry.hasConfiguredAuth(model)) {
-				if (ctx.hasUI) ctx.ui.notify("No authentication configured for openai/gpt-5.2", "warning");
+				if (ctx.hasUI) ctx.ui.notify("No model selected", "warning");
 				return;
 			}
 

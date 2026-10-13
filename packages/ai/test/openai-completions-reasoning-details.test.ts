@@ -62,11 +62,11 @@ const readTool: Tool = {
 
 function model(): Model<"openai-completions"> {
 	return {
-		id: "google/gemini-test",
-		name: "Gemini Test",
+		id: "gateway/reasoning-test",
+		name: "Reasoning Test",
 		api: "openai-completions",
-		provider: "openrouter",
-		baseUrl: "https://openrouter.ai/api/v1",
+		provider: "custom-openai-compatible",
+		baseUrl: "https://gateway.example.com/v1",
 		reasoning: true,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -78,7 +78,7 @@ function model(): Model<"openai-completions"> {
 function chunk(delta: Record<string, unknown>, finishReason: string | null = null): unknown {
 	return {
 		id: "chatcmpl-test",
-		model: "google/gemini-test",
+		model: "gateway/reasoning-test",
 		choices: [{ index: 0, delta, finish_reason: finishReason }],
 	};
 }

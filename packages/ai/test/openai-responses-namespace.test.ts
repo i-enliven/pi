@@ -1,7 +1,7 @@
 import type { ResponseStreamEvent } from "openai/resources/responses/responses.js";
 import { describe, expect, it } from "vitest";
 import { convertResponsesMessages, processResponsesStream } from "../src/api/openai-responses-shared.ts";
-import type { Api, AssistantMessage, Model, ToolCall } from "../src/types.ts";
+import type { AssistantMessage, Model, ToolCall } from "../src/types.ts";
 import { AssistantMessageEventStream } from "../src/utils/event-stream.ts";
 import { normalizeContext } from "../src/utils/transcript.ts";
 
@@ -9,7 +9,7 @@ const model: Model<"openai-responses"> = {
 	id: "gpt-5.4",
 	name: "GPT-5.4",
 	api: "openai-responses",
-	provider: "openai",
+	provider: "custom-openai",
 	baseUrl: "https://api.openai.com/v1",
 	reasoning: true,
 	input: ["text"],
@@ -132,11 +132,9 @@ describe("OpenAI Responses tool-call namespaces", () => {
 			namespace: "dynamic_tools",
 		});
 
-		const replayed = convertResponsesMessages(
-			model,
-			normalizeContext({ messages: [output] }),
-			new Set(["openai"]),
-		).find((item) => item.type === "function_call");
+		const replayed = convertResponsesMessages(model, normalizeContext({ messages: [output] })).find(
+			(item) => item.type === "function_call",
+		);
 		expect(replayed).toMatchObject({
 			type: "function_call",
 			id: "fc_test",
@@ -162,7 +160,7 @@ describe("OpenAI Responses tool-call namespaces", () => {
 			namespace: "dynamic_tools",
 		});
 
-		const replayed = convertResponsesMessages(model, normalizeContext({ messages: [output] }), new Set(["openai"]), {
+		const replayed = convertResponsesMessages(model, normalizeContext({ messages: [output] }), {
 			grammarToolInputProperties,
 		}).find((item) => item.type === "custom_tool_call");
 		expect(replayed).toMatchObject({
@@ -193,27 +191,15 @@ describe("OpenAI Responses tool-call namespaces", () => {
 				namespace: "dynamic_tools",
 			},
 		);
-		const targetModels: Model<Api>[] = [
+		const targetModels: Model<"openai-responses">[] = [
 			{ ...model, id: "gpt-5.2", name: "GPT-5.2" },
-			{ ...model, provider: "azure" },
-			{
-				...model,
-				api: "openai-codex-responses",
-				provider: "openai-codex",
-				id: "gpt-5.3-codex-spark",
-				name: "GPT-5.3 Codex Spark",
-			},
+			{ ...model, provider: "custom-openai-secondary" },
 		];
 
 		for (const targetModel of targetModels) {
-			const replayed = convertResponsesMessages(
-				targetModel,
-				normalizeContext({ messages: [output] }),
-				new Set(["openai"]),
-				{
-					grammarToolInputProperties: new Map([["query", "input"]]),
-				},
-			);
+			const replayed = convertResponsesMessages(targetModel, normalizeContext({ messages: [output] }), {
+				grammarToolInputProperties: new Map([["query", "input"]]),
+			});
 			const functionCall = replayed.find((item) => item.type === "function_call");
 			const customToolCall = replayed.find((item) => item.type === "custom_tool_call");
 			expect(functionCall).toBeDefined();
@@ -232,11 +218,9 @@ describe("OpenAI Responses tool-call namespaces", () => {
 			arguments: { value: "hello" },
 		});
 
-		const replayed = convertResponsesMessages(
-			model,
-			normalizeContext({ messages: [output] }),
-			new Set(["openai"]),
-		).find((item) => item.type === "function_call");
+		const replayed = convertResponsesMessages(model, normalizeContext({ messages: [output] })).find(
+			(item) => item.type === "function_call",
+		);
 		expect(replayed).toBeDefined();
 		expect(replayed).not.toHaveProperty("namespace");
 	});

@@ -6,10 +6,7 @@ import {
 	type AuthContext,
 	type AuthInteraction,
 	type AuthResult,
-	type ClassifierApi,
 	type Credential,
-	type ImageApi,
-	isModelType,
 	lazyStream,
 	type Model,
 	type ModelAuth,
@@ -17,16 +14,13 @@ import {
 	type OAuthCredentials,
 	type OAuthLoginCallbacks,
 	type Provider,
-	type ProviderClassifier,
 	type ProviderHeaders,
-	type ProviderImages,
 	type RefreshModelsContext,
 	type SimpleStreamOptions,
 	type StreamOptions,
 	type TranscriptContext,
 } from "@i-enliven/pi-ai";
 import { getApiProvider } from "@i-enliven/pi-ai/compat";
-import { classifierErrorResult, imageErrorResult } from "@i-enliven/pi-ai/utils/model-operations";
 import type { ModelConfig, ModelsJsonModel, ModelsJsonModelOverride, ModelsJsonProvider } from "./model-config.ts";
 import {
 	clearConfigValueCache,
@@ -61,7 +55,6 @@ interface ProviderModelConfigBase {
 }
 
 export interface ProviderChatModelConfig extends ProviderModelConfigBase {
-	type?: "chat";
 	api?: Api;
 	reasoning: boolean;
 	thinkingLevelMap?: Model<Api>["thinkingLevelMap"];
@@ -73,19 +66,7 @@ export interface ProviderChatModelConfig extends ProviderModelConfigBase {
 	compat?: Model<Api>["compat"];
 }
 
-export interface ProviderImageModelConfig extends ProviderModelConfigBase {
-	type: "image";
-	api?: ImageApi;
-	output: ("text" | "image")[];
-}
-
-export interface ProviderClassifierModelConfig extends ProviderModelConfigBase {
-	type: "classifier";
-	api?: ClassifierApi;
-	contextWindow: number;
-}
-
-export type ProviderModelConfig = ProviderChatModelConfig | ProviderImageModelConfig | ProviderClassifierModelConfig;
+export type ProviderModelConfig = ProviderChatModelConfig;
 
 /** Input type for the extension registerProvider API. */
 export interface ProviderConfigInput {
@@ -98,8 +79,6 @@ export interface ProviderConfigInput {
 		context: TranscriptContext,
 		options?: SimpleStreamOptions,
 	) => AssistantMessageEventStream;
-	images?: Partial<Record<ImageApi, ProviderImages>>;
-	classifiers?: Partial<Record<ClassifierApi, ProviderClassifier>>;
 	headers?: Record<string, string>;
 	authHeader?: boolean;
 	oauth?: ExtensionOAuthConfig;
@@ -128,16 +107,9 @@ function mergeCompat(
 	const baseNested = base as Record<string, unknown> | undefined;
 	const overrideNested = override as Record<string, unknown>;
 	const mergedNested = merged as Record<string, unknown>;
-	for (const key of ["openRouterRouting", "vercelGatewayRouting", "chatTemplateKwargs", "chatTemplateArgs"] as const) {
-		const baseValue = baseNested?.[key];
-		const overrideValue = overrideNested[key];
-		if (
-			(typeof baseValue === "object" && baseValue !== null) ||
-			(typeof overrideValue === "object" && overrideValue !== null)
-		) {
-			mergedNested[key] = { ...(baseValue as object | undefined), ...(overrideValue as object | undefined) };
-		}
-	}
+	const baseKwargs = baseNested?.chatTemplateKwargs as Record<string, unknown> | undefined;
+	const overrideKwargs = overrideNested.chatTemplateKwargs as Record<string, unknown> | undefined;
+	if (baseKwargs || overrideKwargs) mergedNested.chatTemplateKwargs = { ...baseKwargs, ...overrideKwargs };
 	return merged;
 }
 
@@ -249,12 +221,11 @@ function modelFromJson(
 }
 
 function findModelDefaults(models: readonly AnyModel[], modelId: string, api?: Api): Model<Api> | undefined {
-	const chatModels = models.filter((model) => isModelType(model, "chat"));
 	return (
-		chatModels.find((model) => model.id === modelId) ??
-		(api ? chatModels.find((model) => model.api === api) : undefined) ??
-		chatModels.find((model) => model.api === "openai-completions") ??
-		chatModels[0]
+		models.find((model) => model.id === modelId) ??
+		(api ? models.find((model) => model.api === api) : undefined) ??
+		models.find((model) => model.api === "openai-completions") ??
+		models[0]
 	);
 }
 
@@ -262,13 +233,11 @@ function findExtensionModelDefaults(
 	models: readonly AnyModel[],
 	definition: ProviderModelConfig,
 ): AnyModel | undefined {
-	const type = definition.type ?? "chat";
-	const candidates = models.filter((model) => isModelType(model, type));
 	return (
-		candidates.find((model) => model.id === definition.id) ??
-		(definition.api ? candidates.find((model) => model.api === definition.api) : undefined) ??
-		(type === "chat" ? candidates.find((model) => model.api === "openai-completions") : undefined) ??
-		candidates[0]
+		models.find((model) => model.id === definition.id) ??
+		(definition.api ? models.find((model) => model.api === definition.api) : undefined) ??
+		models.find((model) => model.api === "openai-completions") ??
+		models[0]
 	);
 }
 
@@ -278,22 +247,15 @@ function extensionModelFromDefinition(
 	config: ProviderConfigInput,
 	definition: ProviderModelConfig,
 ): AnyModel {
-	const type = definition.type ?? "chat";
 	const defaults = findExtensionModelDefaults(models, definition);
-	const api = definition.api ?? (type === "chat" ? config.api : undefined) ?? defaults?.api;
+	const api = definition.api ?? config.api ?? defaults?.api;
 	if (!api) {
 		throw new Error(
-			`Provider ${providerId}, model ${definition.id}: no "api" specified. Set it at model level${type === "chat" ? " or provider level" : ""}.`,
+			`Provider ${providerId}, model ${definition.id}: no "api" specified. Set it at model or provider level.`,
 		);
 	}
 	const baseUrl = definition.baseUrl ?? config.baseUrl ?? defaults?.baseUrl;
 	if (!baseUrl) throw new Error(`Provider ${providerId}: "baseUrl" is required when defining custom models.`);
-	if (definition.type === "image") {
-		return { ...definition, api: api as ImageApi, provider: providerId, baseUrl, headers: undefined };
-	}
-	if (definition.type === "classifier") {
-		return { ...definition, api: api as ClassifierApi, provider: providerId, baseUrl, headers: undefined };
-	}
 	return { ...definition, api: api as Api, provider: providerId, baseUrl, headers: undefined };
 }
 
@@ -318,14 +280,13 @@ function applyModelsJson(
 		);
 	}
 
-	const models: AnyModel[] = baseModels.map((model) => {
-		const baseUrl = config.baseUrl ?? model.baseUrl;
-		return isModelType(model, "chat")
-			? { ...model, baseUrl, compat: mergeCompat(model.compat, config.compat) }
-			: { ...model, baseUrl };
-	});
+	const models: AnyModel[] = baseModels.map((model) => ({
+		...model,
+		baseUrl: config.baseUrl ?? model.baseUrl,
+		compat: mergeCompat(model.compat, config.compat),
+	}));
 	for (const definition of config.models ?? []) {
-		const existingIndex = models.findIndex((model) => isModelType(model, "chat") && model.id === definition.id);
+		const existingIndex = models.findIndex((model) => model.id === definition.id);
 		const defaults = findModelDefaults(models, definition.id, definition.api ?? config.api);
 		const model = modelFromJson(providerId, definition, config, defaults);
 		if (existingIndex >= 0) models[existingIndex] = model;
@@ -506,16 +467,11 @@ function rawModelHeaders(
 	config: ModelsJsonProvider | undefined,
 	extension: ProviderConfigInput | undefined,
 ): Record<string, string> | undefined {
-	// models.json definitions and overrides are chat-only. Extension definitions
-	// are matched by operation and id so colliding models cannot share headers.
-	const chatDefinition = isModelType(model, "chat")
-		? config?.models?.find((entry) => entry.id === model.id)
-		: undefined;
-	const extensionModel = extension?.models?.find(
-		(entry) => (entry.type ?? "chat") === (model.type ?? "chat") && entry.id === model.id,
-	);
+	// models.json definitions/overrides and extension definitions are matched by model id.
+	const chatDefinition = config?.models?.find((entry) => entry.id === model.id);
+	const extensionModel = extension?.models?.find((entry) => entry.id === model.id);
 	const headers = {
-		...(isModelType(model, "chat") ? config?.modelOverrides?.[model.id]?.headers : undefined),
+		...config?.modelOverrides?.[model.id]?.headers,
 		...chatDefinition?.headers,
 		...extensionModel?.headers,
 	};
@@ -555,18 +511,11 @@ export function composeModelProvider(
 			currentExtension(),
 		);
 		if (extensionOAuthCredential && extension?.oauth?.modifyModels) {
-			// The extension hook is chat-only; other model types pass through untouched.
-			models = [
-				...extension.oauth.modifyModels(
-					models.filter((model) => isModelType(model, "chat")),
-					extensionOAuthCredential,
-				),
-				...models.filter((model) => !isModelType(model, "chat")),
-			];
+			models = extension.oauth.modifyModels(models, extensionOAuthCredential);
 		}
 		return models.map((model) => {
 			const override = config?.modelOverrides?.[model.id];
-			return override && isModelType(model, "chat") ? applyModelOverride(model, override) : model;
+			return override ? applyModelOverride(model, override) : model;
 		});
 	};
 	// Validate eagerly so registration/reload reports structural errors immediately.
@@ -604,7 +553,7 @@ export function composeModelProvider(
 		baseUrl: extension?.baseUrl ?? config?.baseUrl ?? base?.baseUrl,
 		headers: base?.headers,
 		auth: { ...(apiKey ? { apiKey } : {}), ...(oauth ? { oauth } : {}) },
-		getModels: () => getAllModels().filter((model) => isModelType(model, "chat")),
+		getModels: getAllModels,
 		getAllModels,
 		refreshModels:
 			base?.refreshModels || extension?.refreshModels || extension?.oauth?.modifyModels
@@ -646,33 +595,6 @@ export function composeModelProvider(
 	const cancelDeferred = base?.cancelDeferred;
 	if (cancelDeferred) {
 		provider.cancelDeferred = (model, handle, options) => cancelDeferred(model, handle, options);
-	}
-	const extensionImages = extension?.images;
-	const generateImages = base?.generateImages;
-	if (generateImages || Object.keys(extensionImages ?? {}).length > 0) {
-		provider.generateImages = (model, context, options) => {
-			const implementation = extensionImages?.[model.api];
-			if (implementation) return implementation.generateImages(model, context, options);
-			if (generateImages) return generateImages(model, context, options);
-			return Promise.resolve(
-				imageErrorResult(model, new Error(`Provider ${providerId} has no image implementation for "${model.api}"`)),
-			);
-		};
-	}
-	const extensionClassifiers = extension?.classifiers;
-	const classify = base?.classify;
-	if (classify || Object.keys(extensionClassifiers ?? {}).length > 0) {
-		provider.classify = (model, context, options) => {
-			const implementation = extensionClassifiers?.[model.api];
-			if (implementation) return implementation.classify(model, context, options);
-			if (classify) return classify(model, context, options);
-			return Promise.resolve(
-				classifierErrorResult(
-					model,
-					new Error(`Provider ${providerId} has no classifier implementation for "${model.api}"`),
-				),
-			);
-		};
 	}
 
 	return provider;

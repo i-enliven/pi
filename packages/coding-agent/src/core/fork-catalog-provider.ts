@@ -19,7 +19,7 @@ export const FORK_CATALOG_REFRESH_INTERVAL_MS = 4 * 60 * 60 * 1000;
 const FORK_CATALOG_SHARE_WINDOW_MS = 60_000;
 const MAX_CATALOG_BYTES = 4 * 1024 * 1024;
 /** Model types this client can consume from the catalog. */
-export const FORK_CATALOG_MODEL_TYPES: readonly ModelType[] = ["chat", "image", "classifier"];
+export const FORK_CATALOG_MODEL_TYPES: readonly ModelType[] = ["chat"];
 
 /** URL of the fork's model catalog, overridable with PI_MODEL_CATALOG_URL. */
 export function getForkCatalogUrl(): string {

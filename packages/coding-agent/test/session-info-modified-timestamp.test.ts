@@ -24,7 +24,7 @@ function createSessionFile(path: string): void {
 		role: "assistant",
 		content: [{ type: "text", text: "hi" }],
 		api: "openai-completions",
-		provider: "openai",
+		provider: "github-copilot",
 		model: "test",
 		usage: {
 			input: 1,
@@ -60,7 +60,7 @@ describe("SessionInfo.modified", () => {
 			role: "assistant",
 			content: [{ type: "text", text: "later" }],
 			api: "openai-completions",
-			provider: "openai",
+			provider: "github-copilot",
 			model: "test",
 			usage: {
 				input: 1,

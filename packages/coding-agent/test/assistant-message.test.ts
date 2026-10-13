@@ -18,7 +18,7 @@ function createAssistantMessage(
 		role: "assistant",
 		content,
 		api: "openai-responses",
-		provider: "openai",
+		provider: "github-copilot",
 		model: "gpt-4o-mini",
 		usage: {
 			input: 0,

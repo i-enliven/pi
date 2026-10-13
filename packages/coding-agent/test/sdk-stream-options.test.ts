@@ -221,37 +221,27 @@ describe("createAgentSession stream options", () => {
 		}
 	});
 
-	it("forwards httpIdleTimeoutMs as timeoutMs for OpenAI Codex", async () => {
-		const options = await captureStreamOptions("openai-codex-responses", { httpIdleTimeoutMs: 1234 });
-
-		expect(options?.timeoutMs).toBe(1234);
-	});
-
 	it("defaults timeoutMs from httpIdleTimeoutMs for all providers", async () => {
 		const options = await captureStreamOptions("openai-completions", { httpIdleTimeoutMs: 1234 });
 
 		expect(options?.timeoutMs).toBe(1234);
 	});
 
-	it("lets request timeoutMs override httpIdleTimeoutMs for OpenAI Codex", async () => {
-		const options = await captureStreamOptions(
-			"openai-codex-responses",
-			{ httpIdleTimeoutMs: 1234 },
-			{ timeoutMs: 0 },
-		);
+	it("lets request timeoutMs override httpIdleTimeoutMs", async () => {
+		const options = await captureStreamOptions("openai-responses", { httpIdleTimeoutMs: 1234 }, { timeoutMs: 0 });
 
 		expect(options?.timeoutMs).toBe(0);
 	});
 
 	it("forwards websocketConnectTimeoutMs from settings", async () => {
-		const options = await captureStreamOptions("openai-codex-responses", { websocketConnectTimeoutMs: 1234 });
+		const options = await captureStreamOptions("openai-responses", { websocketConnectTimeoutMs: 1234 });
 
 		expect(options?.websocketConnectTimeoutMs).toBe(1234);
 	});
 
 	it("lets request websocketConnectTimeoutMs override settings", async () => {
 		const options = await captureStreamOptions(
-			"openai-codex-responses",
+			"openai-responses",
 			{ websocketConnectTimeoutMs: 1234 },
 			{ websocketConnectTimeoutMs: 0 },
 		);
@@ -270,7 +260,7 @@ describe("createAgentSession stream options", () => {
 
 	// Regression test for #9784.
 	it("forwards provider stream events to extensions", async () => {
-		const providerEvent = { openrouter_metadata: { strategy: "direct" } };
+		const providerEvent = { gateway_metadata: { strategy: "direct" } };
 		const extensionEvents: unknown[] = [];
 
 		const options = await captureStreamOptions(

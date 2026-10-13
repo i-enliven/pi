@@ -109,7 +109,7 @@ describe("lax message content handling", () => {
 				role: "assistant",
 				content: null,
 				api: "openai-completions",
-				provider: "openai",
+				provider: "github-copilot",
 				model: "test-model",
 				usage: {
 					input: 0,

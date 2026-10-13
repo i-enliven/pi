@@ -1,16 +1,16 @@
 // Unit tests for the shared provider error-body normalizer.
 //
 // See issues/provider-error-body-passthrough. These cover one synthesized error
-// object per SDK shape (Mistral, openai APIError, @google/genai ApiError, AWS
-// Bedrock ServiceException), plus the non-Error fallback, truncation, the empty
-// parsed-body edge case, and the formatProviderError compose helper.
+// object per SDK field shape (`statusCode`/`body`, `status`/`error`,
+// `$response`), plus the non-Error fallback, truncation, the empty parsed-body
+// edge case, and the formatProviderError compose helper.
 
 import { describe, expect, it } from "vitest";
 import { formatProviderError, MAX_PROVIDER_ERROR_BODY_CHARS, normalizeProviderError } from "../src/utils/error-body.ts";
 
 describe("normalizeProviderError", () => {
-	it("extracts status and body from a Mistral-shaped error", () => {
-		const error = Object.assign(new Error("Mistral request failed"), {
+	it("extracts status and body from a statusCode/body-shaped error", () => {
+		const error = Object.assign(new Error("gateway request failed"), {
 			statusCode: 403,
 			body: '{"error":"blocked by gateway WAF"}',
 		});
@@ -37,7 +37,7 @@ describe("normalizeProviderError", () => {
 		expect(norm.messageCarriesBody).toBe(false);
 	});
 
-	it("preserves the message when @google/genai already folds the body into it", () => {
+	it("preserves the message when the SDK already folds the body into it", () => {
 		const body = { error: { code: 403, message: "Permission denied" } };
 		const error = Object.assign(new Error(JSON.stringify(body)), {
 			status: 403,
@@ -50,7 +50,7 @@ describe("normalizeProviderError", () => {
 		expect(norm.message).toBe(JSON.stringify(body));
 	});
 
-	it("extracts status and body from a Bedrock-shaped ServiceException", () => {
+	it("extracts status and body from a $response-shaped error", () => {
 		const error = Object.assign(new Error("UnknownError"), {
 			name: "UnknownError",
 			$metadata: { httpStatusCode: 403 },
@@ -64,9 +64,9 @@ describe("normalizeProviderError", () => {
 		expect(norm.messageCarriesBody).toBe(false);
 	});
 
-	it("ignores a Bedrock response stream instead of serializing its internals", () => {
+	it("ignores a response stream instead of serializing its internals", () => {
 		const error = Object.assign(
-			new Error("Invocation of model ID anthropic.claude-opus-5 with on-demand throughput isn't supported."),
+			new Error("Invocation of model ID claude-opus-5 with on-demand throughput isn't supported."),
 			{
 				name: "ValidationException",
 				$metadata: { httpStatusCode: 400 },

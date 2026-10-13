@@ -107,7 +107,7 @@ function prepareEditArguments(input: unknown): EditToolInput {
 
 	const args = input as Record<string, unknown>;
 
-	// Some models (Opus 4.6, GLM-5.1) send edits as a JSON string instead of an array.
+	// Some models send edits as a JSON string instead of an array.
 	// Others send a single edit object instead of a one-element edits array.
 	if (typeof args.edits === "string") {
 		try {

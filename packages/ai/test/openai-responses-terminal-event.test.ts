@@ -56,7 +56,7 @@ function createModel(): Model<"openai-responses"> {
 		id: "gpt-5-mini",
 		name: "GPT-5 Mini",
 		api: "openai-responses",
-		provider: "openai",
+		provider: "custom-openai",
 		baseUrl: "https://api.openai.com/v1",
 		reasoning: true,
 		input: ["text"],
@@ -225,7 +225,7 @@ async function* createUnfinishedToolCallEvents(): AsyncIterable<ResponseStreamEv
 	} as ResponseStreamEvent;
 }
 
-// llama.cpp omits output_index from every event and sends both done events after all deltas.
+// Some OpenAI-compatible servers omit output_index from every event and send both done events after all deltas.
 async function* createToolCallsWithoutOutputIndexEvents(): AsyncIterable<ResponseStreamEvent> {
 	const call = (n: string) => ({ type: "function_call", id: `fc_${n}`, call_id: `call_${n}`, name: "bash" });
 	const events = [

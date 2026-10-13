@@ -30,7 +30,7 @@ function getHeader(headers: CapturedHeaders, name: string): string | null {
 
 async function captureOpenAIResponseHeaders(
 	options: Parameters<typeof streamOpenAIResponses>[2],
-	model: Model<"openai-responses"> = getModel("openai", "gpt-5.4"),
+	model: Model<"openai-responses"> = getModel("github-copilot", "gpt-5.4"),
 ): Promise<{
 	sessionId: string | null;
 	clientRequestId: string | null;
@@ -118,7 +118,7 @@ describe("openai-responses provider defaults", () => {
 		);
 
 		const stream = streamOpenAIResponses(
-			getModel("openai", "gpt-5.4"),
+			getModel("github-copilot", "gpt-5.4"),
 			normalizeContext({
 				messages: [
 					{
@@ -154,72 +154,17 @@ describe("openai-responses provider defaults", () => {
 		});
 	});
 
-	it("sets strict mode explicitly for Cloudflare OpenAI Responses tools", async () => {
-		const model = getModel("cloudflare-ai-gateway", "gpt-5.6-sol");
-		let capturedPayload: CapturedResponsesPayload | undefined;
-
-		vi.spyOn(globalThis, "fetch").mockResolvedValue(
-			new Response("data: [DONE]\n\n", {
-				status: 200,
-				headers: { "content-type": "text/event-stream" },
-			}),
-		);
-
-		const stream = streamOpenAIResponses(
-			model,
-			normalizeContext({
-				messages: [{ role: "user", content: "Use a tool.", timestamp: Date.now() }],
-				tools: [
-					{
-						name: "ordinary",
-						description: "An ordinary tool",
-						parameters: Type.Object({
-							path: Type.String(),
-							offset: Type.Optional(Type.Number()),
-						}),
-					},
-					{
-						name: "constrained",
-						description: "A constrained tool",
-						parameters: Type.Object({ value: Type.String() }),
-						constrainedSampling: { type: "json_schema", strict: "prefer" },
-					},
-				],
-			}),
-			{
-				apiKey: "sk-test-key",
-				onPayload: (payload) => {
-					capturedPayload = payload as CapturedResponsesPayload;
-				},
-			},
-		);
-
-		for await (const event of stream) {
-			if (event.type === "done" || event.type === "error") break;
-		}
-
-		expect(model.compat?.supportsStrictMode).toBe(true);
-		expect(capturedPayload?.tools).toEqual([
-			expect.objectContaining({ name: "ordinary", strict: false }),
-			expect.objectContaining({ name: "constrained", strict: true }),
-		]);
-	});
-
 	it.each([
-		"gpt-5.1",
-		"gpt-5.2",
-		"gpt-5.3-codex",
+		"gpt-5-mini",
 		"gpt-5.4",
 		"gpt-5.4-mini",
 		"gpt-5.4-nano",
 		"gpt-5.5",
 		"gpt-5.6-sol",
-		"gpt-5.6-terra",
-		"gpt-5.6-luna",
 		"gpt-6-sol",
 		"gpt-6-luna",
-	] as const)("sends none reasoning effort for OpenAI %s when no reasoning is requested", async (modelId) => {
-		const model = getModel("openai", modelId);
+	] as const)("omits reasoning effort for GitHub Copilot %s when no reasoning is requested", async (modelId) => {
+		const model = getModel("github-copilot", modelId);
 		let capturedPayload: unknown;
 
 		vi.spyOn(globalThis, "fetch").mockResolvedValue(
@@ -247,47 +192,10 @@ describe("openai-responses provider defaults", () => {
 			if (event.type === "done" || event.type === "error") break;
 		}
 
-		expect(capturedPayload).toMatchObject({
-			reasoning: { effort: "none" },
+		expect(capturedPayload).not.toMatchObject({
+			reasoning: expect.anything(),
 		});
 	});
-
-	it.each(["gpt-5", "gpt-5-mini", "gpt-5-nano", "gpt-5-pro", "gpt-5.2-pro", "gpt-5.4-pro", "gpt-5.5-pro"] as const)(
-		"omits reasoning effort for OpenAI %s when off is unsupported",
-		async (modelId) => {
-			const model = getModel("openai", modelId);
-			let capturedPayload: unknown;
-
-			vi.spyOn(globalThis, "fetch").mockResolvedValue(
-				new Response("data: [DONE]\n\n", {
-					status: 200,
-					headers: { "content-type": "text/event-stream" },
-				}),
-			);
-
-			const stream = streamOpenAIResponses(
-				model,
-				normalizeContext({
-					systemPrompt: "sys",
-					messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
-				}),
-				{
-					apiKey: "sk-test-key",
-					onPayload: (payload) => {
-						capturedPayload = payload;
-					},
-				},
-			);
-
-			for await (const event of stream) {
-				if (event.type === "done" || event.type === "error") break;
-			}
-
-			expect(capturedPayload).not.toMatchObject({
-				reasoning: expect.anything(),
-			});
-		},
-	);
 
 	it("sets cache-affinity headers for official OpenAI Responses requests with a sessionId", async () => {
 		const captured = await captureOpenAIResponseHeaders({ sessionId: "session-123" });
@@ -307,7 +215,7 @@ describe("openai-responses provider defaults", () => {
 		);
 
 		const stream = streamOpenAIResponses(
-			getModel("openai", "gpt-5.4"),
+			getModel("github-copilot", "gpt-5.4"),
 			normalizeContext({
 				systemPrompt: "sys",
 				messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
@@ -330,8 +238,8 @@ describe("openai-responses provider defaults", () => {
 
 	it("sets cache-affinity headers for proxy OpenAI Responses requests with a sessionId", async () => {
 		const proxyModel: Model<"openai-responses"> = {
-			...getModel("openai", "gpt-5.4"),
-			provider: "opencode",
+			...getModel("github-copilot", "gpt-5.4"),
+			provider: "custom-openai",
 			baseUrl: "https://proxy.example.com/v1",
 		};
 		const captured = await captureOpenAIResponseHeaders({ sessionId: "session-123" }, proxyModel);
@@ -340,58 +248,9 @@ describe("openai-responses provider defaults", () => {
 		expect(captured.clientRequestId).toBe("session-123");
 	});
 
-	it("uses OpenRouter session-affinity header when configured", async () => {
-		const proxyModel: Model<"openai-responses"> = {
-			...getModel("openai", "gpt-5.4"),
-			provider: "proxy",
-			baseUrl: "https://proxy.example.com/v1",
-			compat: { sessionAffinityFormat: "openrouter" },
-		};
-		let capturedPayload: CapturedResponsesPayload | undefined;
-		const captured = await captureOpenAIResponseHeaders(
-			{
-				sessionId: "session-proxy",
-				onPayload: (payload) => {
-					capturedPayload = payload as CapturedResponsesPayload;
-				},
-			},
-			proxyModel,
-		);
-
-		expect(captured.sessionId).toBeNull();
-		expect(captured.clientRequestId).toBeNull();
-		expect(captured.xSessionId).toBe("session-proxy");
-		expect(capturedPayload?.session_id).toBeUndefined();
-		expect(capturedPayload?.prompt_cache_key).toBe("session-proxy");
-	});
-
-	it("auto-detects OpenRouter session-affinity header for OpenRouter Responses endpoints", async () => {
-		const openRouterModel: Model<"openai-responses"> = {
-			...getModel("openai", "gpt-5.4"),
-			provider: "openrouter",
-			baseUrl: "https://openrouter.ai/api/v1",
-		};
-		let capturedPayload: CapturedResponsesPayload | undefined;
-		const captured = await captureOpenAIResponseHeaders(
-			{
-				sessionId: "session-openrouter",
-				onPayload: (payload) => {
-					capturedPayload = payload as CapturedResponsesPayload;
-				},
-			},
-			openRouterModel,
-		);
-
-		expect(captured.sessionId).toBeNull();
-		expect(captured.clientRequestId).toBeNull();
-		expect(captured.xSessionId).toBe("session-openrouter");
-		expect(capturedPayload?.session_id).toBeUndefined();
-		expect(capturedPayload?.prompt_cache_key).toBe("session-openrouter");
-	});
-
 	it("uses OpenAI no-session format when configured", async () => {
 		const proxyModel: Model<"openai-responses"> = {
-			...getModel("openai", "gpt-5.4"),
+			...getModel("github-copilot", "gpt-5.4"),
 			provider: "proxy",
 			baseUrl: "https://proxy.example.com/v1",
 			compat: { sessionAffinityFormat: "openai-nosession" },
@@ -414,30 +273,10 @@ describe("openai-responses provider defaults", () => {
 		expect(capturedPayload?.prompt_cache_key).toBe("session-proxy");
 	});
 
-	it("uses OpenAI no-session format for OpenCode Responses models", async () => {
-		const model = getModel("opencode", "gpt-5.4");
-		let capturedPayload: CapturedResponsesPayload | undefined;
-		const captured = await captureOpenAIResponseHeaders(
-			{
-				sessionId: "session-opencode",
-				onPayload: (payload) => {
-					capturedPayload = payload as CapturedResponsesPayload;
-				},
-			},
-			model,
-		);
-
-		expect(model.compat?.sessionAffinityFormat).toBe("openai-nosession");
-		expect(captured.sessionId).toBeNull();
-		expect(captured.clientRequestId).toBe("session-opencode");
-		expect(captured.xSessionId).toBeNull();
-		expect(capturedPayload?.prompt_cache_key).toBe("session-opencode");
-	});
-
 	it("can omit OpenAI session_id header while preserving other affinity data", async () => {
 		const proxyModel: Model<"openai-responses"> = {
-			...getModel("openai", "gpt-5.4"),
-			provider: "opencode",
+			...getModel("github-copilot", "gpt-5.4"),
+			provider: "custom-openai",
 			baseUrl: "https://proxy.example.com/v1",
 			compat: { sessionAffinityFormat: "openai-nosession" },
 		};
@@ -487,7 +326,7 @@ describe("openai-responses provider defaults", () => {
 	] as const)(
 		"applies %s cost multiplier for requested %s and returned %s service tier",
 		async (modelId, serviceTier, responseServiceTier, multiplier) => {
-			const model = getModel("openai", modelId);
+			const model = getModel("github-copilot", modelId);
 			const tokenCount = 100_000;
 			const tokenScale = tokenCount / 1_000_000;
 			const sse = `${[
@@ -550,7 +389,7 @@ describe("openai-responses max_output_tokens compat", () => {
 		);
 
 		const stream = streamOpenAIResponses(
-			getModel("openai", "gpt-5.4"),
+			getModel("github-copilot", "gpt-5.4"),
 			normalizeContext({
 				systemPrompt: "sys",
 				messages: [{ role: "user", content: "hi", timestamp: Date.now() }],
@@ -572,7 +411,7 @@ describe("openai-responses max_output_tokens compat", () => {
 	});
 
 	it("omits max_output_tokens when supportsMaxOutputTokens is false", async () => {
-		const baseModel = getModel("openai", "gpt-5.4");
+		const baseModel = getModel("github-copilot", "gpt-5.4");
 		const model: Model<"openai-responses"> = {
 			...baseModel,
 			compat: { ...baseModel.compat, supportsMaxOutputTokens: false },

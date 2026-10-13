@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 import { createHarness } from "../harness.ts";
 
 const wrappedDnsLookupError =
-	"The pending stream has been canceled (caused by: getaddrinfo ENOTFOUND bedrock-runtime.us-east-1.amazonaws.com)";
+	"The pending stream has been canceled (caused by: getaddrinfo ENOTFOUND api.gateway.example.com)";
 
 describe("issue #6904 DNS transport failure retry", () => {
 	it("retries a transient DNS lookup failure", async () => {

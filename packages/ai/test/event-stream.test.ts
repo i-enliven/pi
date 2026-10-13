@@ -99,7 +99,7 @@ function message(timestamp: number, durationMs?: number): AssistantMessage {
 		role: "assistant",
 		content: [],
 		api: "openai-responses",
-		provider: "openai",
+		provider: "custom-openai",
 		model: "m",
 		usage: {
 			input: 0,

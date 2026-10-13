@@ -28,17 +28,17 @@ describe("OAuthSelectorComponent", () => {
 		).prototype.getLoginProviderOptions;
 		const providers = [
 			{
-				id: "anthropic",
-				name: "Anthropic",
+				id: "github-copilot",
+				name: "GitHub Copilot",
 				auth: {
-					oauth: { name: "Anthropic (Claude Pro/Max)", login: async () => ({}) },
-					apiKey: { name: "Anthropic API key", login: async () => ({}) },
+					oauth: { name: "GitHub Copilot", login: async () => ({}) },
+					apiKey: { name: "GitHub Copilot token", login: async () => ({}) },
 				},
 			},
 			{
-				id: "google-vertex",
-				name: "Google Vertex AI",
-				auth: { apiKey: { name: "Google Cloud credentials" } },
+				id: "custom-proxy",
+				name: "Custom Proxy",
+				auth: { apiKey: { name: "Custom credentials" } },
 			},
 		];
 		const fakeThis = {
@@ -54,27 +54,27 @@ describe("OAuthSelectorComponent", () => {
 		const apiKeyOptions = getLoginProviderOptions.call(fakeThis, "api_key");
 		expect(apiKeyOptions).toMatchObject([
 			{
-				id: "anthropic",
-				name: "Anthropic",
+				id: "custom-proxy",
+				name: "Custom Proxy",
 				authType: "api_key",
-				method: { name: "Anthropic API key" },
+				method: { name: "Custom credentials" },
 			},
 			{
-				id: "google-vertex",
-				name: "Google Vertex AI",
+				id: "github-copilot",
+				name: "GitHub Copilot",
 				authType: "api_key",
-				method: { name: "Google Cloud credentials" },
+				method: { name: "GitHub Copilot token" },
 			},
 		]);
 		expect(getLoginProviderOptions.call(fakeThis, "oauth")).toMatchObject([
-			{ id: "anthropic", name: "Anthropic", authType: "oauth" },
+			{ id: "github-copilot", name: "GitHub Copilot", authType: "oauth" },
 		]);
 	});
 
 	it("renders an option without compiled auth status as not configured", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
-			[{ id: "google", name: "Google", authType: "api_key", status: undefined }],
+			[{ id: "custom", name: "Custom", authType: "api_key", status: undefined }],
 			() => {},
 			() => {},
 		);
@@ -87,7 +87,14 @@ describe("OAuthSelectorComponent", () => {
 	it("shows OAuth auth distinctly in the API key selector", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
-			[{ id: "anthropic", name: "Anthropic", authType: "api_key", status: { type: "oauth", source: "OAuth" } }],
+			[
+				{
+					id: "github-copilot",
+					name: "GitHub Copilot",
+					authType: "api_key",
+					status: { type: "oauth", source: "OAuth" },
+				},
+			],
 			() => {},
 			() => {},
 		);
@@ -99,13 +106,20 @@ describe("OAuthSelectorComponent", () => {
 	it("shows environment API key auth as configured", () => {
 		const selector = new OAuthSelectorComponent(
 			"login",
-			[{ id: "openai", name: "OpenAI", authType: "api_key", status: { type: "api_key", source: "OPENAI_API_KEY" } }],
+			[
+				{
+					id: "github-copilot",
+					name: "GitHub Copilot",
+					authType: "api_key",
+					status: { type: "api_key", source: "COPILOT_GITHUB_TOKEN" },
+				},
+			],
 			() => {},
 			() => {},
 		);
 
 		const output = stripAnsi(selector.render(120).join("\n"));
-		expect(output).toContain("✓ env: OPENAI_API_KEY");
+		expect(output).toContain("✓ env: COPILOT_GITHUB_TOKEN");
 		expect(output).not.toContain("not configured");
 	});
 

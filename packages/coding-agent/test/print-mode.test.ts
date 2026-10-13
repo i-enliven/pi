@@ -39,7 +39,7 @@ function createAssistantMessage(options?: {
 		role: "assistant",
 		content: options?.text ? [{ type: "text", text: options.text }] : [],
 		api: "openai-responses",
-		provider: "openai",
+		provider: "github-copilot",
 		model: "gpt-4o-mini",
 		usage: {
 			input: 0,

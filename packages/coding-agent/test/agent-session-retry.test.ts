@@ -17,7 +17,7 @@ function createAssistantMessage(text: string, overrides?: Partial<AssistantMessa
 		role: "assistant",
 		content: [{ type: "text", text }],
 		api: "anthropic-messages",
-		provider: "anthropic",
+		provider: "github-copilot",
 		model: "mock",
 		usage: {
 			input: 0,
@@ -67,7 +67,7 @@ describe("AgentSession retry", () => {
 		const delayAssistantMessageEndMs = options?.delayAssistantMessageEndMs ?? 0;
 		let callCount = 0;
 
-		const model = getModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getModel("github-copilot", "claude-sonnet-5")!;
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: { model, systemPrompt: "Test", tools: [] },
@@ -96,7 +96,7 @@ describe("AgentSession retry", () => {
 		const settingsManager = SettingsManager.create(tempDir, tempDir);
 		const authStorage = AuthStorage.create(join(tempDir, "auth.json"));
 		const modelRegistry = await createModelRegistry(authStorage, tempDir);
-		await authStorage.modify("anthropic", async () => ({ type: "api_key", key: "test-key" }));
+		await authStorage.modify("github-copilot", async () => ({ type: "api_key", key: "test-key" }));
 		settingsManager.applyOverrides({ retry: { enabled: true, maxRetries, baseDelayMs: 1, maxAgentDelayMs } });
 
 		session = new AgentSession({
@@ -201,7 +201,7 @@ describe("AgentSession retry", () => {
 		};
 		created.session.dispose();
 
-		const model = getModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getModel("github-copilot", "claude-sonnet-5")!;
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: { model, systemPrompt: "Test", tools: [] },
@@ -211,7 +211,7 @@ describe("AgentSession retry", () => {
 		const settingsManager = SettingsManager.create(tempDir, tempDir);
 		const authStorage = AuthStorage.create(join(tempDir, "auth.json"));
 		const modelRegistry = await createModelRegistry(authStorage, tempDir);
-		await authStorage.modify("anthropic", async () => ({ type: "api_key", key: "test-key" }));
+		await authStorage.modify("github-copilot", async () => ({ type: "api_key", key: "test-key" }));
 		settingsManager.applyOverrides({ retry: { enabled: true, maxRetries: 3, baseDelayMs: 1 } });
 		session = new AgentSession({
 			agent,
@@ -253,7 +253,7 @@ describe("AgentSession retry", () => {
 			},
 		};
 
-		const model = getModel("anthropic", "claude-sonnet-4-5")!;
+		const model = getModel("github-copilot", "claude-sonnet-5")!;
 		const agent = new Agent({
 			getApiKey: () => "test-key",
 			initialState: { model, systemPrompt: "Test", tools: [] },
@@ -296,7 +296,7 @@ describe("AgentSession retry", () => {
 		const settingsManager = SettingsManager.create(tempDir, tempDir);
 		const authStorage = AuthStorage.create(join(tempDir, "auth.json"));
 		const modelRegistry = await createModelRegistry(authStorage, tempDir);
-		await authStorage.modify("anthropic", async () => ({ type: "api_key", key: "test-key" }));
+		await authStorage.modify("github-copilot", async () => ({ type: "api_key", key: "test-key" }));
 		settingsManager.applyOverrides({ retry: { enabled: true, maxRetries: 3, baseDelayMs: 1 } });
 
 		session = new AgentSession({

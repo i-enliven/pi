@@ -81,10 +81,10 @@ function createModel(
 	};
 }
 
-/** OpenAI Chat Completions model with a real OpenAI catalog entry. */
+/** openai-completions model pointed at an api.openai.com endpoint. */
 function createOpenAIModel(): Model<"openai-completions"> {
-	const { compat: _compat, ...baseModel } = getModel("openai", "gpt-4o-mini");
-	return { ...baseModel, api: "openai-completions", provider: "openai", baseUrl: "https://api.openai.com/v1" };
+	const { compat: _compat, ...baseModel } = getModel("github-copilot", "kimi-k3");
+	return { ...baseModel, api: "openai-completions", provider: "custom-openai", baseUrl: "https://api.openai.com/v1" };
 }
 
 function assemble(
@@ -143,9 +143,8 @@ describe("prepareRequest (openai-completions)", () => {
 		expect(defaultPayload.max_completion_tokens).toBe(512);
 		expect(defaultPayload).not.toHaveProperty("max_tokens");
 
-		const catalogModel = getModel("ant-ling", "Ring-2.6-1T");
-		expect(catalogModel.compat?.maxTokensField).toBe("max_tokens");
-		const maxTokensPayload = assemble(catalogModel, simpleContext(), options);
+		const maxTokensModel = createModel({ maxTokensField: "max_tokens" });
+		const maxTokensPayload = assemble(maxTokensModel, simpleContext(), options);
 		expect(maxTokensPayload.max_tokens).toBe(512);
 		expect(maxTokensPayload).not.toHaveProperty("max_completion_tokens");
 	});

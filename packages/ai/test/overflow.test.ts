@@ -2,13 +2,13 @@ import { describe, expect, it } from "vitest";
 import type { AssistantMessage } from "../src/types.ts";
 import { isContextOverflow, isRecoverableLength } from "../src/utils/overflow.ts";
 
-function createErrorMessage(errorMessage: string, provider = "ollama"): AssistantMessage {
+function createErrorMessage(errorMessage: string, provider = "custom-openai"): AssistantMessage {
 	return {
 		role: "assistant",
 		content: [],
 		api: "openai-completions",
 		provider,
-		model: "qwen3.5:35b",
+		model: "test-model",
 		usage: {
 			input: 0,
 			output: 0,
@@ -30,31 +30,31 @@ function createErrorMessage(errorMessage: string, provider = "ollama"): Assistan
 }
 
 describe("isContextOverflow", () => {
-	it("detects explicit Ollama prompt-too-long errors", () => {
+	it("detects local server prompt-too-long errors", () => {
 		const message = createErrorMessage("400 `prompt too long; exceeded max context length by 100918 tokens`");
 		expect(isContextOverflow(message, 32768)).toBe(true);
 	});
 
-	it("detects z.ai prompt-too-long errors", () => {
+	it("detects structured code-1261 prompt-too-long errors", () => {
 		// Regression for #9805.
-		const message = createErrorMessage('400 {"code":"1261","message":"Prompt too long"}', "zai");
+		const message = createErrorMessage('400 {"code":"1261","message":"Prompt too long"}');
 		expect(isContextOverflow(message, 1048576)).toBe(true);
 	});
 
-	it("detects z.ai CN endpoint prompt-exceeds-max-length errors", () => {
+	it("detects structured prompt-exceeds-max-length errors", () => {
 		// Regression for #10208.
-		const message = createErrorMessage('400 {"code":"1261","message":"Prompt exceeds max length"}', "zai");
+		const message = createErrorMessage('400 {"code":"1261","message":"Prompt exceeds max length"}');
 		expect(isContextOverflow(message, 1048576)).toBe(true);
 	});
 
-	it("detects Together AI context length errors", () => {
+	it("detects input-longer-than-context-length errors", () => {
 		const message = createErrorMessage(
 			"400 The input (516368 tokens) is longer than the model's context length (262144 tokens).",
 		);
 		expect(isContextOverflow(message, 262144)).toBe(true);
 	});
 
-	it("detects LiteLLM-wrapped OpenAI maximum context length errors", () => {
+	it("detects proxy-wrapped maximum context length errors", () => {
 		const message = createErrorMessage(
 			"Error: 503 litellm.ServiceUnavailableError: litellm.MidStreamFallbackError: litellm.APIConnectionError: APIConnectionError: OpenAIException - Requested token count exceeds the model's maximum context length of 131072 tokens.",
 		);
@@ -68,14 +68,14 @@ describe("isContextOverflow", () => {
 		expect(isContextOverflow(message, 262144)).toBe(true);
 	});
 
-	it("detects OpenRouter Poolside maximum allowed input length errors", () => {
+	it("detects gateway maximum allowed input length errors", () => {
 		const message = createErrorMessage(
 			"Provider returned error: Input length 131393 exceeds the maximum allowed input length of 131040 tokens.",
 		);
 		expect(isContextOverflow(message, 131072)).toBe(true);
 	});
 
-	it("detects DS4 configured context size errors", () => {
+	it("detects configured context size errors", () => {
 		const message = createErrorMessage(
 			"400 Prompt has 256468 tokens, but the configured context size is 256000 tokens",
 		);
@@ -87,27 +87,19 @@ describe("isContextOverflow", () => {
 		expect(isContextOverflow(commaMessage, 256000)).toBe(true);
 	});
 
-	it("does not treat generic non-overflow Ollama errors as overflow", () => {
+	it("does not treat generic non-overflow server errors as overflow", () => {
 		const message = createErrorMessage("500 `model runner crashed unexpectedly`");
 		expect(isContextOverflow(message, 32768)).toBe(false);
 	});
 
-	it("only treats bodyless 400 and 413 errors as overflow for Cerebras", () => {
-		// Regression for #9482.
-		for (const errorMessage of ["400 status code (no body)", "413 status code (no body)"]) {
-			expect(isContextOverflow(createErrorMessage(errorMessage, "cerebras"), 131072)).toBe(true);
-			expect(isContextOverflow(createErrorMessage(errorMessage, "opencode-go"), 1000000)).toBe(false);
-		}
-	});
-
-	it("does not treat Bedrock throttling 'Too many tokens' as overflow", () => {
-		// Bedrock returns this for HTTP 429 rate limiting, NOT context overflow.
-		// formatBedrockError uses a human-readable prefix for ThrottlingException.
+	it("does not treat gateway throttling 'Too many tokens' as overflow", () => {
+		// Some gateways return this for HTTP 429 rate limiting, NOT context overflow.
+		// Their error formatter uses a human-readable prefix for throttling exceptions.
 		const message = createErrorMessage("Throttling error: Too many tokens, please wait before trying again.");
 		expect(isContextOverflow(message, 200000)).toBe(false);
 	});
 
-	it("does not treat Bedrock service unavailable as overflow", () => {
+	it("does not treat gateway service unavailable as overflow", () => {
 		const message = createErrorMessage("Service unavailable: The service is temporarily unavailable.");
 		expect(isContextOverflow(message, 200000)).toBe(false);
 	});
@@ -151,13 +143,11 @@ describe("isContextOverflow", () => {
 		};
 	}
 
-	it("detects Xiaomi-style overflow (length stop with zero output and filled context)", () => {
+	it("detects truncate-to-fit overflow (length stop with zero output and filled context)", () => {
 		const message = createLengthStopMessage({
 			input: 58,
 			cacheRead: 1048512,
 			output: 0,
-			provider: "xiaomi",
-			model: "mimo-v2.5-pro",
 		});
 		expect(isContextOverflow(message, 1048576)).toBe(true);
 	});
@@ -169,7 +159,7 @@ describe("isContextOverflow", () => {
 			cacheWrite: 25554,
 			output: 16,
 			api: "openai-responses",
-			provider: "openai",
+			provider: "custom-openai",
 			model: "gpt-5.6-sol",
 		});
 		expect(isRecoverableLength(message, 128000)).toBe(true);

@@ -16,7 +16,7 @@ describe("SessionManager.saveCustomEntry", () => {
 			role: "assistant",
 			content: [{ type: "text", text: "hi" }],
 			api: "anthropic-messages",
-			provider: "anthropic",
+			provider: "github-copilot",
 			model: "test",
 			usage: {
 				input: 1,

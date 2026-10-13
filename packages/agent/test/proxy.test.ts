@@ -7,7 +7,7 @@ const model: Model<"openai-responses"> = {
 	id: "gpt-5.4",
 	name: "GPT-5.4",
 	api: "openai-responses",
-	provider: "openai",
+	provider: "github-copilot",
 	baseUrl: "https://api.openai.com/v1",
 	reasoning: true,
 	input: ["text"],

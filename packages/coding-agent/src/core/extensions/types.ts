@@ -22,9 +22,7 @@ import type {
 	Api,
 	AssistantMessageEvent,
 	AssistantMessageEventStream,
-	ClassifierApi,
 	ConstrainedSamplingConfig,
-	ImageApi,
 	ImageContent,
 	JsonValue,
 	Message,
@@ -32,10 +30,8 @@ import type {
 	OAuthCredentials,
 	OAuthLoginCallbacks,
 	Provider,
-	ProviderClassifier,
 	ProviderHeaders,
 	ProviderId,
-	ProviderImages,
 	RefreshModelsContext,
 	SimpleStreamOptions,
 	TextContent,
@@ -1804,7 +1800,7 @@ export interface ExtensionAPI {
 	 *
 	 * @example
 	 * // Override baseUrl for an existing provider
-	 * pi.registerProvider("anthropic", {
+	 * pi.registerProvider("github-copilot", {
 	 *   baseUrl: "https://proxy.example.com"
 	 * });
 	 *
@@ -1919,10 +1915,6 @@ export interface ProviderConfig {
 		context: TranscriptContext,
 		options?: SimpleStreamOptions,
 	) => AssistantMessageEventStream;
-	/** Image-generation implementations keyed by image API. */
-	images?: Partial<Record<ImageApi, ProviderImages>>;
-	/** Classifier implementations keyed by classifier API. */
-	classifiers?: Partial<Record<ClassifierApi, ProviderClassifier>>;
 	/** Custom headers to include in requests. */
 	headers?: Record<string, string>;
 	/** If true, adds Authorization: Bearer header with the resolved API key. */
@@ -1972,9 +1964,8 @@ interface ProviderModelConfigBase {
 	headers?: Record<string, string>;
 }
 
-/** Chat model configuration. Omitted `type` is normalized to `"chat"`. */
+/** Model configuration for a provider. */
 export interface ProviderChatModelConfig extends ProviderModelConfigBase {
-	type?: "chat";
 	api?: Api;
 	/** Whether the model supports extended thinking. */
 	reasoning: boolean;
@@ -1987,26 +1978,12 @@ export interface ProviderChatModelConfig extends ProviderModelConfigBase {
 	/** Maximum output tokens. */
 	maxTokens: number;
 	samplingParams?: Record<string, unknown>;
-	/** OpenAI compatibility settings. */
+	/** API compatibility settings for the model's api. */
 	compat?: Model<Api>["compat"];
 }
 
-/** Image-generation model configuration. */
-export interface ProviderImageModelConfig extends ProviderModelConfigBase {
-	type: "image";
-	api?: ImageApi;
-	output: ("text" | "image")[];
-}
-
-/** Structured classifier model configuration. */
-export interface ProviderClassifierModelConfig extends ProviderModelConfigBase {
-	type: "classifier";
-	api?: ClassifierApi;
-	contextWindow: number;
-}
-
 /** Configuration for a model within a provider. */
-export type ProviderModelConfig = ProviderChatModelConfig | ProviderImageModelConfig | ProviderClassifierModelConfig;
+export type ProviderModelConfig = ProviderChatModelConfig;
 
 /** Extension factory function type. Supports both sync and async initialization. */
 export type ExtensionFactory = (pi: ExtensionAPI) => void | Promise<void>;

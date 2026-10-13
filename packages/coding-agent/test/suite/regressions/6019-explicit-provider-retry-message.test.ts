@@ -2,16 +2,13 @@ import { fauxAssistantMessage } from "@i-enliven/pi-ai";
 import { describe, expect, it } from "vitest";
 import { createHarness } from "../harness.ts";
 
-const openAIExplicitRetryMessage =
+const helpCenterRetryMessage =
 	"An error occurred while processing your request. You can retry your request, or contact us through our help center at help.openai.com if the error persists. Please include the request ID req_******** in your message.";
-const bedrockExplicitRetryMessage =
+const jsonRetryMessage =
 	'{"message":"The system encountered an unexpected error during processing. Try your request again."}';
 
 describe("regression: issue 6019 explicit provider retry messages", () => {
-	it.each([
-		["openai", openAIExplicitRetryMessage],
-		["bedrock", bedrockExplicitRetryMessage],
-	])("retries %s explicit retry guidance", async (_provider, errorMessage) => {
+	it.each([helpCenterRetryMessage, jsonRetryMessage])("retries explicit retry guidance", async (errorMessage) => {
 		const harness = await createHarness({ settings: { retry: { enabled: true, maxRetries: 3, baseDelayMs: 1 } } });
 		try {
 			harness.setResponses([

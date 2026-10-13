@@ -53,9 +53,9 @@ describe("parseArgs", () => {
 		});
 
 		test("does not consume options after -p as prompts", () => {
-			const result = parseArgs(["-p", "--provider", "openai", "Say hi."]);
+			const result = parseArgs(["-p", "--provider", "github-copilot", "Say hi."]);
 			expect(result.print).toBe(true);
-			expect(result.provider).toBe("openai");
+			expect(result.provider).toBe("github-copilot");
 			expect(result.messages).toEqual(["Say hi."]);
 		});
 	});
@@ -86,8 +86,8 @@ describe("parseArgs", () => {
 
 	describe("flags with values", () => {
 		test("parses --provider", () => {
-			const result = parseArgs(["--provider", "openai"]);
-			expect(result.provider).toBe("openai");
+			const result = parseArgs(["--provider", "github-copilot"]);
+			expect(result.provider).toBe("github-copilot");
 		});
 
 		test("parses --model", () => {
@@ -551,7 +551,7 @@ describe("parseArgs", () => {
 		test("parses multiple flags together", () => {
 			const result = parseArgs([
 				"--provider",
-				"anthropic",
+				"github-copilot",
 				"--model",
 				"claude-sonnet",
 				"--print",
@@ -560,7 +560,7 @@ describe("parseArgs", () => {
 				"@prompt.md",
 				"Do the task",
 			]);
-			expect(result.provider).toBe("anthropic");
+			expect(result.provider).toBe("github-copilot");
 			expect(result.model).toBe("claude-sonnet");
 			expect(result.print).toBe(true);
 			expect(result.thinking).toBe("high");

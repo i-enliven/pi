@@ -1,22 +1,12 @@
 import type {
 	Api,
-	AssistantImages,
 	AssistantMessage,
 	AssistantMessageEventStream,
 	AuthOperationOptions,
 	AuthResult,
-	ClassifierApi,
-	ClassifierContext,
-	ClassifierModel,
-	ClassifierResult,
 	Context,
-	ImageApi,
-	ImageModel,
-	ImagesContext,
 	Model,
 	ModelsApiStreamOptions,
-	ModelsClassifierOptions,
-	ModelsImagesOptions,
 	ModelsRefreshOptions,
 	ModelsRefreshResult,
 	ModelsSimpleStreamOptions,
@@ -73,7 +63,7 @@ export class ModelRegistry {
 		return this.runtime.getModel(provider, modelId);
 	}
 
-	/** Find a model of a non-chat type, e.g. `findOfType("classifier", "typesafe", "jev-latest")`. */
+	/** Find a model by type, provider and id, e.g. `findOfType("chat", "github-copilot", "gpt-5.4")`. */
 	findOfType<TType extends ModelType>(
 		type: TType,
 		provider: string,
@@ -147,7 +137,7 @@ export class ModelRegistry {
 		return this.runtime.complete(model, context, options);
 	}
 
-	/** Every known model of a type (chat, image, classifier), optionally for one provider. */
+	/** Every known model of a type, optionally for one provider. */
 	getModelsOfType<TType extends ModelType>(type: TType, provider?: string): readonly ModelTypeMap[TType][] {
 		return this.runtime.getModelsOfType(type, provider);
 	}
@@ -167,24 +157,6 @@ export class ModelRegistry {
 		modelId: string,
 	): ModelTypeMap[TType] | undefined {
 		return this.runtime.getModelOfType(type, provider, modelId);
-	}
-
-	/** Classify structured state with request-time authentication. Never rejects. */
-	classify(
-		model: ClassifierModel<ClassifierApi>,
-		context: ClassifierContext,
-		options?: ModelsClassifierOptions,
-	): Promise<ClassifierResult> {
-		return this.runtime.classify(model, context, options);
-	}
-
-	/** Generate images with request-time authentication. Never rejects. */
-	generateImages(
-		model: ImageModel<ImageApi>,
-		context: ImagesContext,
-		options?: ModelsImagesOptions,
-	): Promise<AssistantImages> {
-		return this.runtime.generateImages(model, context, options);
 	}
 
 	getProviderDisplayName(provider: string): string {

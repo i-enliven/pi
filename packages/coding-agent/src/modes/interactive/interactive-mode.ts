@@ -62,7 +62,6 @@ import {
 	getAgentDir,
 	getAuthPath,
 	getDebugLogPath,
-	getDocsPath,
 	VERSION,
 } from "../../config.ts";
 import { type AgentSession, type AgentSessionEvent, parseSkillBlock } from "../../core/agent-session.ts";
@@ -96,11 +95,7 @@ import { FooterDataProvider, type ReadonlyFooterDataProvider } from "../../core/
 import { configureHttpDispatcher, formatHttpIdleTimeoutMs } from "../../core/http-dispatcher.ts";
 import { type AppKeybinding, KeybindingsManager } from "../../core/keybindings.ts";
 import { createCompactionSummaryMessage, createCustomMessage } from "../../core/messages.ts";
-import {
-	defaultModelPerProvider,
-	findExactModelReferenceMatch,
-	resolveModelScopeFromModels,
-} from "../../core/model-resolver.ts";
+import { findExactModelReferenceMatch, resolveModelScopeFromModels } from "../../core/model-resolver.ts";
 import { CredentialSynchronizationError } from "../../core/model-runtime.ts";
 import { DefaultPackageManager } from "../../core/package-manager.ts";
 import type { ResourceDiagnostic } from "../../core/resource-loader.ts";
@@ -310,13 +305,6 @@ export function formatCrashExtensionHint(extensionMatches: readonly string[] | u
 	return `A stack frame came from loaded ${noun} ${labels}, which may be involved. Try disabling ${pronoun} with \`${APP_NAME} config\`, or run \`${APP_NAME} -ne\` to confirm.`;
 }
 
-const ANTHROPIC_SUBSCRIPTION_AUTH_WARNING =
-	"Anthropic subscription auth is active. Third-party harness usage draws from extra usage and is billed per token, not your Claude plan limits. Manage extra usage at https://claude.ai/settings/usage. Disable this warning in /settings.";
-
-function isAnthropicSubscriptionAuthKey(apiKey: string | undefined): boolean {
-	return typeof apiKey === "string" && apiKey.startsWith("sk-ant-oat");
-}
-
 function isUnknownModel(model: Model<any> | undefined): boolean {
 	return !!model && model.provider === "unknown" && model.id === "unknown" && model.api === "unknown";
 }
@@ -341,16 +329,6 @@ export function formatResumeCommand(sessionManager: SessionManager): string | un
 	}
 	args.push("--session", sessionManager.getSessionId());
 	return args.join(" ");
-}
-
-function hasDefaultModelProvider(providerId: string): providerId is keyof typeof defaultModelPerProvider {
-	return providerId in defaultModelPerProvider;
-}
-
-function llamaCppPostLoginGuidance(actionLabel: string, loadedModelCount: number): string {
-	return loadedModelCount === 0
-		? `${actionLabel}. No llama.cpp models are loaded. Use /llama to load a model, then /model to select it.`
-		: `${actionLabel}. Use /model to select a loaded llama.cpp model, or /llama to manage models.`;
 }
 
 type LoginProviderCompletionOption = {
@@ -480,7 +458,6 @@ export class InteractiveMode {
 
 	private lastSigintTime = 0;
 	private lastEscapeTime = 0;
-	private anthropicSubscriptionWarningShown = false;
 
 	// Status line tracking (for mutating immediately-sequential status updates)
 	private lastStatusSpacer: Spacer | undefined = undefined;
@@ -1179,8 +1156,6 @@ export class InteractiveMode {
 				`${APP_NAME} crashed on ${when} (${crash.message}). Run /bug to report it; the crash details are attached automatically.`,
 			);
 		}
-
-		void this.maybeWarnAboutAnthropicSubscriptionAuth();
 
 		// Process initial messages
 		if (initialMessage) {
@@ -4446,7 +4421,6 @@ export class InteractiveMode {
 				const thinkingStr =
 					result.model.reasoning && result.thinkingLevel !== "off" ? ` (thinking: ${result.thinkingLevel})` : "";
 				this.showStatus(`Switched to ${result.model.name || result.model.id}${thinkingStr}`);
-				void this.maybeWarnAboutAnthropicSubscriptionAuth(result.model);
 			}
 		} catch (error) {
 			this.showError(error instanceof Error ? error.message : String(error));
@@ -4835,7 +4809,6 @@ export class InteractiveMode {
 					availableThemes: getAvailableThemes(),
 					hideThinkingBlock: this.hideThinkingBlock,
 					mermaidRenderingMode: this.settingsManager.getMermaidRenderingMode(),
-					enableInstallTelemetry: this.settingsManager.getEnableInstallTelemetry(),
 					doubleEscapeAction: this.settingsManager.getDoubleEscapeAction(),
 					treeFilterMode: this.settingsManager.getTreeFilterMode(),
 					showHardwareCursor: this.settingsManager.getShowHardwareCursor(),
@@ -4852,7 +4825,6 @@ export class InteractiveMode {
 					fullscreenScrollbar: this.settingsManager.getFullscreenScrollbar(),
 					fullscreenCopyOnSelect: this.settingsManager.getFullscreenCopyOnSelect(),
 					fullscreenWheelScrollLines: this.settingsManager.getFullscreenWheelScrollLines(),
-					warnings: this.settingsManager.getWarnings(),
 				},
 				{
 					onAutoCompactChange: (enabled) => {
@@ -4944,9 +4916,6 @@ export class InteractiveMode {
 						this.settingsManager.setShowCacheMissNotices(shown);
 						this.rebuildChatFromMessages();
 					},
-					onEnableInstallTelemetryChange: (enabled) => {
-						this.settingsManager.setEnableInstallTelemetry(enabled);
-					},
 					onQuietStartupChange: (quiet) => {
 						this.settingsManager.setQuietStartup(quiet);
 					},
@@ -5024,9 +4993,6 @@ export class InteractiveMode {
 						this.settingsManager.setFullscreenWheelScrollLines(lines);
 						if (this.renderer instanceof TuiAltScreen) this.renderer.setWheelScrollLines(lines);
 					},
-					onWarningsChange: (warnings) => {
-						this.settingsManager.setWarnings(warnings);
-					},
 					onCancel: () => {
 						done();
 						this.ui.requestRender();
@@ -5099,7 +5065,6 @@ export class InteractiveMode {
 				this.footer.invalidate();
 				this.updateEditorBorderColor();
 				this.showStatus(`Model: ${model.id}`);
-				void this.maybeWarnAboutAnthropicSubscriptionAuth(model);
 			} catch (error) {
 				this.showError(error instanceof Error ? error.message : String(error));
 			}
@@ -5151,36 +5116,6 @@ export class InteractiveMode {
 				: this.session.modelRuntime.getAvailableSnapshot();
 		const uniqueProviders = new Set(models.map((model) => model.provider));
 		this.footerDataProvider.setAvailableProviderCount(uniqueProviders.size);
-	}
-
-	private async maybeWarnAboutAnthropicSubscriptionAuth(
-		model: Model<any> | undefined = this.session.model,
-	): Promise<void> {
-		if (this.settingsManager.getWarnings().anthropicExtraUsage === false) {
-			return;
-		}
-		if (this.anthropicSubscriptionWarningShown) {
-			return;
-		}
-		if (!model || model.provider !== "anthropic") {
-			return;
-		}
-
-		try {
-			if ((await this.session.modelRuntime.checkAuth("anthropic"))?.type === "oauth") {
-				this.anthropicSubscriptionWarningShown = true;
-				this.showWarning(ANTHROPIC_SUBSCRIPTION_AUTH_WARNING);
-				return;
-			}
-			const apiKey = (await this.session.modelRuntime.getAuth(model.provider))?.auth.apiKey;
-			if (!isAnthropicSubscriptionAuthKey(apiKey)) {
-				return;
-			}
-			this.anthropicSubscriptionWarningShown = true;
-			this.showWarning(ANTHROPIC_SUBSCRIPTION_AUTH_WARNING);
-		} catch {
-			// Ignore auth lookup failures for warning-only checks.
-		}
 	}
 
 	private maybeSaveImplicitProjectTrustAfterReload(): boolean {
@@ -5244,7 +5179,6 @@ export class InteractiveMode {
 					this.updateEditorBorderColor();
 					done();
 					this.showStatus(persist ? `Default model: ${model.provider}/${model.id}` : `Model: ${model.id}`);
-					void this.maybeWarnAboutAnthropicSubscriptionAuth(model);
 				} catch (error) {
 					done();
 					this.showError(error instanceof Error ? error.message : String(error));
@@ -5949,36 +5883,23 @@ export class InteractiveMode {
 		// Dynamic catalogs may be empty until the first authenticated network refresh.
 		const deferSelection =
 			isUnknownModel(previousModel) &&
-			hasDefaultModelProvider(providerId) &&
-			!session.modelRuntime
-				.getAvailableSnapshot()
-				.some((model) => model.provider === providerId && model.id === defaultModelPerProvider[providerId]);
+			!session.modelRuntime.getAvailableSnapshot().some((model) => model.provider === providerId);
 		const finishAuthentication = async () => {
 			let selectedModel: Model<any> | undefined;
 			let selectionError: string | undefined;
 			if (isUnknownModel(previousModel)) {
 				const availableModels = this.session.modelRuntime.getAvailableSnapshot();
 				const providerModels = availableModels.filter((model) => model.provider === providerId);
-				// Matches LLAMA_PROVIDER_ID from extensions/llama/provider.ts; kept inline to avoid coupling interactive mode to the built-in extension.
-				if (providerId === "llama.cpp") {
-					selectionError = llamaCppPostLoginGuidance(actionLabel, providerModels.length);
-				} else if (!hasDefaultModelProvider(providerId)) {
-					selectionError = `${actionLabel}, but no default model is configured for provider "${providerId}". Use /model to select a model.`;
-				} else if (providerModels.length === 0) {
+				if (providerModels.length === 0) {
 					selectionError = `${actionLabel}, but no models are available for that provider. Use /model to select a model.`;
 				} else {
-					const defaultModelId = defaultModelPerProvider[providerId];
-					selectedModel = providerModels.find((model) => model.id === defaultModelId);
-					if (!selectedModel) {
-						selectionError = `${actionLabel}, but its default model "${defaultModelId}" is not available. Use /model to select a model.`;
-					} else {
-						try {
-							await this.session.setModel(selectedModel, { persist: true });
-						} catch (error: unknown) {
-							selectedModel = undefined;
-							const errorMessage = error instanceof Error ? error.message : String(error);
-							selectionError = `${actionLabel}, but selecting its default model failed: ${errorMessage}. Use /model to select a model.`;
-						}
+					selectedModel = providerModels[0];
+					try {
+						await this.session.setModel(selectedModel, { persist: true });
+					} catch (error: unknown) {
+						selectedModel = undefined;
+						const errorMessage = error instanceof Error ? error.message : String(error);
+						selectionError = `${actionLabel}, but selecting a model failed: ${errorMessage}. Use /model to select a model.`;
 					}
 				}
 			}
@@ -5988,13 +5909,10 @@ export class InteractiveMode {
 			this.updateEditorBorderColor();
 			if (selectedModel) {
 				this.showStatus(`${actionLabel}. Selected ${selectedModel.id}. Credentials saved to ${getAuthPath()}`);
-				void this.maybeWarnAboutAnthropicSubscriptionAuth(selectedModel);
 			} else {
 				this.showStatus(`${actionLabel}. Credentials saved to ${getAuthPath()}`);
 				if (selectionError) {
 					this.showError(selectionError);
-				} else {
-					void this.maybeWarnAboutAnthropicSubscriptionAuth();
 				}
 			}
 		};
@@ -6071,14 +5989,6 @@ export class InteractiveMode {
 			},
 			providerName,
 		);
-
-		if (providerId === "amazon-bedrock") {
-			dialog.showDetails([
-				theme.fg("text", "You can also use an AWS profile, IAM keys, or role-based credentials."),
-				theme.fg("muted", "See:"),
-				theme.fg("accent", `  ${path.join(getDocsPath(), "providers.md")}`),
-			]);
-		}
 
 		this.editorContainer.clear();
 		this.editorContainer.addChild(dialog);
@@ -6189,16 +6099,11 @@ export class InteractiveMode {
 	): Promise<void> {
 		this.programStatus.setBlocked("login", { kind: "auth", message: `Log in to ${providerName}` });
 		try {
-			await this.session.modelRuntime.login(
-				providerId,
-				method,
-				{
-					signal: dialog.signal,
-					prompt: (prompt) => this.showAuthPrompt(dialog, prompt),
-					notify: (event) => this.notifyAuthDialog(dialog, event),
-				},
-				{ getDeviceId: () => this.settingsManager.getOrCreateDeviceId() },
-			);
+			await this.session.modelRuntime.login(providerId, method, {
+				signal: dialog.signal,
+				prompt: (prompt) => this.showAuthPrompt(dialog, prompt),
+				notify: (event) => this.notifyAuthDialog(dialog, event),
+			});
 		} finally {
 			this.programStatus.setBlocked("login", undefined);
 		}
@@ -6511,8 +6416,8 @@ export class InteractiveMode {
 		const entries = this.sessionManager.getEntries();
 		const cacheWaste = computeCacheWaste(entries, this.session.modelRuntime);
 
-		// Cost/token totals per provider/model actually used (e.g. OpenRouter `auto`
-		// resolves to a concrete responseModel). Usage without model attribution is
+		// Cost/token totals per provider/model actually used (a provider that reports a concrete
+		// responseModel different from the requested model). Usage without model attribution is
 		// grouped separately so the breakdown reconciles with the session total.
 		const usageBreakdown = getUsageCostBreakdown(entries);
 

@@ -8,50 +8,6 @@ import { stripJsonComments } from "../utils/json.ts";
 import { normalizePath } from "../utils/paths.ts";
 import { stripBom } from "../utils/text.ts";
 
-const PercentileCutoffsSchema = Type.Object({
-	p50: Type.Optional(Type.Number()),
-	p75: Type.Optional(Type.Number()),
-	p90: Type.Optional(Type.Number()),
-	p99: Type.Optional(Type.Number()),
-});
-
-const OpenRouterRoutingSchema = Type.Object({
-	allow_fallbacks: Type.Optional(Type.Boolean()),
-	require_parameters: Type.Optional(Type.Boolean()),
-	data_collection: Type.Optional(Type.Union([Type.Literal("deny"), Type.Literal("allow")])),
-	zdr: Type.Optional(Type.Boolean()),
-	enforce_distillable_text: Type.Optional(Type.Boolean()),
-	order: Type.Optional(Type.Array(Type.String())),
-	only: Type.Optional(Type.Array(Type.String())),
-	ignore: Type.Optional(Type.Array(Type.String())),
-	quantizations: Type.Optional(Type.Array(Type.String())),
-	sort: Type.Optional(
-		Type.Union([
-			Type.String(),
-			Type.Object({
-				by: Type.Optional(Type.String()),
-				partition: Type.Optional(Type.Union([Type.String(), Type.Null()])),
-			}),
-		]),
-	),
-	max_price: Type.Optional(
-		Type.Object({
-			prompt: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			completion: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			image: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			audio: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-			request: Type.Optional(Type.Union([Type.Number(), Type.String()])),
-		}),
-	),
-	preferred_min_throughput: Type.Optional(Type.Union([Type.Number(), PercentileCutoffsSchema])),
-	preferred_max_latency: Type.Optional(Type.Union([Type.Number(), PercentileCutoffsSchema])),
-});
-
-const VercelGatewayRoutingSchema = Type.Object({
-	only: Type.Optional(Type.Array(Type.String())),
-	order: Type.Optional(Type.Array(Type.String())),
-});
-
 const ThinkingLevelMapValueSchema = Type.Union([Type.String(), Type.Null()]);
 const ThinkingLevelMapSchema = Type.Object({
 	off: Type.Optional(ThinkingLevelMapValueSchema),
@@ -81,6 +37,8 @@ const ChatTemplateKwargVariableSchema = Type.Object({
 });
 const ChatTemplateKwargSchema = Type.Union([ChatTemplateKwargScalarSchema, ChatTemplateKwargVariableSchema]);
 
+const SessionAffinityFormatSchema = Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession")]);
+
 const OpenAICompletionsCompatSchema = Type.Object({
 	supportsStore: Type.Optional(Type.Boolean()),
 	supportsDeveloperRole: Type.Optional(Type.Boolean()),
@@ -93,40 +51,21 @@ const OpenAICompletionsCompatSchema = Type.Object({
 	requiresThinkingAsText: Type.Optional(Type.Boolean()),
 	requiresReasoningContentOnAssistantMessages: Type.Optional(Type.Boolean()),
 	thinkingFormat: Type.Optional(
-		Type.Union([
-			Type.Literal("openai"),
-			Type.Literal("openrouter"),
-			Type.Literal("together"),
-			Type.Literal("baseten"),
-			Type.Literal("deepseek"),
-			Type.Literal("zai"),
-			Type.Literal("qwen"),
-			Type.Literal("chat-template"),
-			Type.Literal("qwen-chat-template"),
-			Type.Literal("string-thinking"),
-			Type.Literal("ant-ling"),
-		]),
+		Type.Union([Type.Literal("openai"), Type.Literal("chat-template"), Type.Literal("string-thinking")]),
 	),
 	chatTemplateKwargs: Type.Optional(Type.Record(Type.String(), ChatTemplateKwargSchema)),
-	chatTemplateArgs: Type.Optional(Type.Record(Type.String(), ChatTemplateKwargSchema)),
 	cacheControlFormat: Type.Optional(Type.Literal("anthropic")),
-	openRouterRouting: Type.Optional(OpenRouterRoutingSchema),
-	vercelGatewayRouting: Type.Optional(VercelGatewayRoutingSchema),
 	supportsOpenAIGrammarTools: Type.Optional(Type.Boolean()),
 	supportsStrictMode: Type.Optional(Type.Boolean()),
 	sendSessionAffinityHeaders: Type.Optional(Type.Boolean()),
-	sessionAffinityFormat: Type.Optional(
-		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("openrouter")]),
-	),
+	sessionAffinityFormat: Type.Optional(SessionAffinityFormatSchema),
 	supportsLongCacheRetention: Type.Optional(Type.Boolean()),
 	vllmPriority: Type.Optional(Type.Number()),
 });
 
 const OpenAIResponsesCompatSchema = Type.Object({
 	supportsDeveloperRole: Type.Optional(Type.Boolean()),
-	sessionAffinityFormat: Type.Optional(
-		Type.Union([Type.Literal("openai"), Type.Literal("openai-nosession"), Type.Literal("openrouter")]),
-	),
+	sessionAffinityFormat: Type.Optional(SessionAffinityFormatSchema),
 	supportsLongCacheRetention: Type.Optional(Type.Boolean()),
 	supportsStrictMode: Type.Optional(Type.Boolean()),
 	supportsOpenAIGrammarTools: Type.Optional(Type.Boolean()),
@@ -196,10 +135,16 @@ const ProviderCompatSchema = Type.Union([
 	AnthropicMessagesCompatSchema,
 ]);
 
+const ModelApiSchema = Type.Union([
+	Type.Literal("anthropic-messages"),
+	Type.Literal("openai-completions"),
+	Type.Literal("openai-responses"),
+]);
+
 const ModelDefinitionSchema = Type.Object({
 	id: Type.String({ minLength: 1 }),
 	name: Type.Optional(Type.String({ minLength: 1 })),
-	api: Type.Optional(Type.String({ minLength: 1 })),
+	api: Type.Optional(ModelApiSchema),
 	baseUrl: Type.Optional(Type.String({ minLength: 1 })),
 	reasoning: Type.Optional(Type.Boolean()),
 	thinkingLevelMap: Type.Optional(ThinkingLevelMapSchema),
@@ -243,7 +188,7 @@ const ProviderConfigSchema = Type.Object({
 	name: Type.Optional(Type.String({ minLength: 1 })),
 	baseUrl: Type.Optional(Type.String({ minLength: 1 })),
 	apiKey: Type.Optional(Type.String({ minLength: 1 })),
-	api: Type.Optional(Type.String({ minLength: 1 })),
+	api: Type.Optional(ModelApiSchema),
 	headers: Type.Optional(Type.Record(Type.String(), Type.String())),
 	compat: Type.Optional(ProviderCompatSchema),
 	authHeader: Type.Optional(Type.Boolean()),

@@ -14,7 +14,7 @@ const model: Model<"anthropic-messages"> = {
 	id: "test-model",
 	name: "Test Model",
 	api: "anthropic-messages",
-	provider: "anthropic",
+	provider: "github-copilot",
 	baseUrl: "https://api.anthropic.com",
 	reasoning: false,
 	input: ["text"],

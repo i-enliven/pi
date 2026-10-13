@@ -67,7 +67,7 @@ cp permission-gate.ts ~/.pi/agent/extensions/
 | `rainbow-editor.ts` | Animated rainbow text effect via custom editor |
 | `notify.ts` | Desktop notifications via OSC 777 when agent finishes (Ghostty, iTerm2, WezTerm) |
 | `titlebar-spinner.ts` | Braille spinner animation in terminal title while the agent is working |
-| `summarize.ts` | Summarize conversation with GPT-5.2 and show in transient UI |
+| `summarize.ts` | Summarize conversation with the current model and show in transient UI |
 | `custom-footer.ts` | Custom footer with git branch and token stats via `ctx.ui.setFooter()` |
 | `custom-header.ts` | Custom header via `ctx.ui.setHeader()` |
 | `overlay-test.ts` | Test overlay compositing with inline text inputs and edge cases |
@@ -128,8 +128,6 @@ cp permission-gate.ts ~/.pi/agent/extensions/
 | Extension | Description |
 |-----------|-------------|
 | `custom-provider-anthropic/` | Custom Anthropic provider with OAuth support and custom streaming implementation |
-| `custom-provider-gitlab-duo/` | GitLab Duo provider using pi-ai's built-in Anthropic/OpenAI streaming via proxy |
-| `jev-router.ts` | Virtual model via `registerVirtualModel` that plans on Codex Sol or Terra (picked by the Jev classifier) and switches to Luna after the first edit |
 
 ### External Dependencies
 

@@ -34,13 +34,13 @@ vi.mock("openai", () => {
 	return { default: FakeOpenAI };
 });
 
-function openRouterModel(): Model<"openai-completions"> {
+function gatewayModel(): Model<"openai-completions"> {
 	return {
-		id: "openrouter/auto",
-		name: "OpenRouter Auto",
+		id: "gateway/auto",
+		name: "Gateway Auto",
 		api: "openai-completions",
-		provider: "openrouter",
-		baseUrl: "https://openrouter.ai/api/v1",
+		provider: "custom-openai-compatible",
+		baseUrl: "https://gateway.example.com/v1",
 		reasoning: false,
 		input: ["text"],
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
@@ -55,15 +55,15 @@ describe("openai-completions provider stream events", () => {
 	});
 
 	// Regression test for #9784.
-	it("exposes provider chunks including OpenRouter metadata", async () => {
+	it("exposes provider chunks including provider-specific metadata", async () => {
 		const firstChunk = {
 			id: "chatcmpl-1",
-			model: "anthropic/claude-sonnet-4.6",
+			model: "claude-sonnet-4.6",
 			choices: [{ index: 0, delta: { content: "hello" } }],
 		};
 		const finalChunk = {
 			id: "chatcmpl-1",
-			model: "anthropic/claude-sonnet-4.6",
+			model: "claude-sonnet-4.6",
 			choices: [{ index: 0, delta: {}, finish_reason: "stop" }],
 			usage: {
 				prompt_tokens: 10,
@@ -72,13 +72,13 @@ describe("openai-completions provider stream events", () => {
 				cost: 0.0012,
 				is_byok: false,
 			},
-			openrouter_metadata: { strategy: "direct", region: "iad" },
+			provider_metadata: { strategy: "direct", region: "iad" },
 		};
 		mockState.chunks = [firstChunk, finalChunk];
 		const events: unknown[] = [];
 
 		const message = await completeSimple(
-			openRouterModel(),
+			gatewayModel(),
 			{ messages: [{ role: "user", content: "hi", timestamp: Date.now() }] },
 			{
 				apiKey: "test",

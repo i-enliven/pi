@@ -13,7 +13,6 @@ import { createToolNameMatcher } from "./mcp-servers.ts";
 import { convertToLlm } from "./messages.ts";
 import { findInitialModel } from "./model-resolver.ts";
 import { ModelRuntime } from "./model-runtime.ts";
-import { mergeProviderAttributionHeaders } from "./provider-attribution.ts";
 import type { ResourceLoader } from "./resource-loader.ts";
 import { DefaultResourceLoader } from "./resource-loader.ts";
 import { getDefaultSessionDir, SessionManager } from "./session-manager.ts";
@@ -164,7 +163,7 @@ function getDefaultAgentDir(): string {
  * // With explicit model
  * import { getModel } from '@i-enliven/pi-ai';
  * const { session } = await createAgentSession({
- *   model: getModel('anthropic', 'claude-opus-4-5'),
+ *   model: getModel('github-copilot', 'claude-sonnet-5'),
  *   thinkingLevel: 'high',
  * });
  *
@@ -337,10 +336,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		() => settingsManager.getCacheWarmingMode(),
 		async (event) => extensionRunnerRef.current?.emitCacheWarmingDecision(event) ?? event.action,
 	);
-	const buildRequestOptions = (
-		requestModel: Model<any>,
-		options: ModelsSimpleStreamOptions = {},
-	): ModelsSimpleStreamOptions => {
+	const buildRequestOptions = (options: ModelsSimpleStreamOptions = {}): ModelsSimpleStreamOptions => {
 		const providerRetrySettings = settingsManager.getProviderRetrySettings();
 		const httpIdleTimeoutMs = settingsManager.getHttpIdleTimeoutMs();
 		const effectiveTimeoutMs = httpIdleTimeoutMs === 0 ? 2147483647 : httpIdleTimeoutMs;
@@ -351,17 +347,10 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 			websocketConnectTimeoutMs: options.websocketConnectTimeoutMs ?? settingsManager.getWebSocketConnectTimeoutMs(),
 			maxRetries: options.maxRetries ?? providerRetrySettings.maxRetries,
 			maxRetryDelayMs: options.maxRetryDelayMs ?? providerRetrySettings.maxRetryDelayMs,
-			transformHeaders: async (requestHeaders) => {
-				const headers = mergeProviderAttributionHeaders(
-					requestModel,
-					settingsManager,
-					options.sessionId,
-					requestHeaders,
-				);
-				return headerRunner?.hasHandlers("before_provider_headers")
-					? headerRunner.emitBeforeProviderHeaders(headers ?? {})
-					: (headers ?? {});
-			},
+			transformHeaders: async (requestHeaders) =>
+				headerRunner?.hasHandlers("before_provider_headers")
+					? headerRunner.emitBeforeProviderHeaders(requestHeaders ?? {})
+					: (requestHeaders ?? {}),
 		};
 	};
 	// Warm only requests for the selected model. Requests a virtual selection routed, or that an
@@ -418,7 +407,7 @@ export async function createAgentSession(options: CreateAgentSessionOptions = {}
 		},
 		convertToLlm: convertToLlmWithBlockImages,
 		streamFn: async (model, context, options) => {
-			const requestOptions = buildRequestOptions(model, options);
+			const requestOptions = buildRequestOptions(options);
 			// Compaction and summaries use their own routing ids; only session requests
 			// replace the cache entry, so warming restarts from them. Keep warming while
 			// the current transcript still extends the request's prefix. Agent state may

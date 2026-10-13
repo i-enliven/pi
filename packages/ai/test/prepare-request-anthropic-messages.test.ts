@@ -126,10 +126,10 @@ function payloadOf(model: Model<"anthropic-messages">, context: Context, options
 
 describe("prepareRequest (anthropic-messages)", () => {
 	it("assembles the payload without an API key", () => {
-		const model = getModel("anthropic", "claude-haiku-4-5");
+		const model = getModel("github-copilot", "claude-haiku-4.5");
 		const params = prepareRequest(model, normalizeContext(simpleContext()));
 
-		expect(params.model).toBe("claude-haiku-4-5");
+		expect(params.model).toBe("claude-haiku-4.5");
 		expect(params.stream).toBe(true);
 		expect(params.max_tokens).toBe(model.maxTokens);
 		expect(params.system).toEqual([{ type: "text", text: "sys", cache_control: { type: "ephemeral" } }]);
@@ -166,7 +166,7 @@ describe("prepareRequest (anthropic-messages)", () => {
 
 		it("strict tools follow supportsStrictTools", () => {
 			const context = toolContext([tool("lookup", { type: "json_schema", strict: "prefer" })]);
-			const supported = payloadOf(getModel("anthropic", "claude-haiku-4-5"), context);
+			const supported = payloadOf(testModel({ compat: { supportsStrictTools: true } }), context);
 			expect(supported.tools?.[0].strict).toBe(true);
 			expect(supported.tools?.[0].input_schema).toMatchObject({ type: "object", required: ["value"] });
 
@@ -176,7 +176,7 @@ describe("prepareRequest (anthropic-messages)", () => {
 		});
 
 		it("managed-effort models force adaptive thinking and carry per-message effort", () => {
-			const params = payloadOf(getModel("anthropic", "claude-opus-5"), simpleContext(), {
+			const params = payloadOf(testModel({ compat: { supportsMidConvoEffort: true } }), simpleContext(), {
 				cacheRetention: "none",
 				thinkingEnabled: true,
 				effort: "xhigh",
@@ -203,7 +203,7 @@ describe("prepareRequest (anthropic-messages)", () => {
 		it("drops temperature for models that reject it", () => {
 			expect(payloadOf(testModel(), simpleContext(), { temperature: 0.5 }).temperature).toBe(0.5);
 			expect(
-				payloadOf(getModel("anthropic", "claude-opus-4-7"), simpleContext(), { temperature: 0.5 }),
+				payloadOf(getModel("github-copilot", "claude-opus-4.7"), simpleContext(), { temperature: 0.5 }),
 			).not.toHaveProperty("temperature");
 		});
 	});
@@ -342,9 +342,13 @@ describe("prepareRequest (anthropic-messages)", () => {
 		});
 
 		it("expresses tool changes as native add/remove blocks behind a deferred placeholder", () => {
-			const params = payloadOf(getModel("anthropic", "claude-opus-4-8"), toolChangeContext(), {
-				cacheRetention: "none",
-			});
+			const params = payloadOf(
+				testModel({ compat: { supportsMidConvoSystemMessages: true, supportsMidConvoToolChanges: true } }),
+				toolChangeContext(),
+				{
+					cacheRetention: "none",
+				},
+			);
 
 			expect(params.tools?.map((entry) => entry.name)).toEqual(["base_tool", "__pi_deferred_placeholder__"]);
 			expect(params.tools?.[1].defer_loading).toBe(true);
@@ -370,7 +374,7 @@ describe("prepareRequest (anthropic-messages)", () => {
 					{ type: "toolCall", id: "call_2", name: "lookup", arguments: { value: "b" } },
 				],
 				api: "openai-completions",
-				provider: "openai",
+				provider: "custom-openai",
 				model: "gpt-5.4",
 				usage: zeroUsage,
 				stopReason: "toolUse",

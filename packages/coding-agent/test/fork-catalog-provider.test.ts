@@ -195,7 +195,7 @@ describe("fork model catalog", () => {
 	});
 
 	it("declares the model types it consumes", () => {
-		expect(FORK_CATALOG_MODEL_TYPES).toEqual(["chat", "image", "classifier"]);
+		expect(FORK_CATALOG_MODEL_TYPES).toEqual(["chat"]);
 	});
 
 	it("keeps the pi user agent on catalog requests", async () => {

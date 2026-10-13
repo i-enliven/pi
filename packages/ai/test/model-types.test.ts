@@ -12,7 +12,7 @@ import {
 import { InMemoryModelsStore, type ModelsStoreEntry } from "../src/models-store.ts";
 import { getBuiltinModel } from "../src/providers/all.ts";
 import { fauxAssistantMessage, fauxProvider } from "../src/providers/faux.ts";
-import type { Api, ImageApi, ImageModel, Model } from "../src/types.ts";
+import type { Api, Model } from "../src/types.ts";
 import { AssistantMessageEventStream } from "../src/utils/event-stream.ts";
 
 function chatModel(provider: string, id: string): Model<Api> {
@@ -27,20 +27,6 @@ function chatModel(provider: string, id: string): Model<Api> {
 		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 		contextWindow: 1000,
 		maxTokens: 100,
-	};
-}
-
-function imageModel(provider: string, id: string): ImageModel<ImageApi> {
-	return {
-		type: "image",
-		id,
-		name: id,
-		api: "test-images",
-		provider,
-		baseUrl: "https://example.test/v1",
-		input: ["text"],
-		output: ["image"],
-		cost: { input: 0, output: 0, cacheRead: 0, cacheWrite: 0 },
 	};
 }
 
@@ -70,34 +56,30 @@ describe("chat models without a type", () => {
 		expect(getModelType(model!)).toBe("chat");
 		expect(hasApi(model!, model!.api)).toBe(true);
 		expect(modelsAreEqual(model, { ...model!, type: "chat" })).toBe(true);
-		expect(modelsAreEqual(model, { ...imageModel(model!.provider, model!.id) })).toBe(false);
 		expect(models.getModelsOfType("chat", "handwritten")).toEqual(faux.models);
 		expect(models.getAllModels("handwritten")).toEqual(faux.models);
-		expect(models.getModelsOfType("image", "handwritten")).toEqual([]);
 
 		faux.setResponses([fauxAssistantMessage("hi")]);
 		const result = await models.complete(model!, { messages: [{ role: "user", content: "hi", timestamp: 0 }] });
 		expect(result.stopReason).toBe("stop");
 	});
 
-	it("narrow mixed lists with isModelType", () => {
-		const mixed = [chatModel("p", "c"), { ...chatModel("p", "typed"), type: "chat" as const }, imageModel("p", "i")];
-		expect(mixed.filter((model) => isModelType(model, "chat")).map((model) => model.id)).toEqual(["c", "typed"]);
-		expect(mixed.filter((model) => isModelType(model, "image")).map((model) => model.id)).toEqual(["i"]);
-		expect(mixed.filter((model) => isModelType(model, "classifier"))).toEqual([]);
+	it("narrow model lists with isModelType", () => {
+		const models = [chatModel("p", "c"), { ...chatModel("p", "typed"), type: "chat" as const }];
+		expect(models.filter((model) => isModelType(model, "chat")).map((model) => model.id)).toEqual(["c", "typed"]);
 	});
 });
 
 describe("built-in catalog getters", () => {
 	it("return model shapes that can be reassigned within one api", () => {
 		// Compile-time regression check: the return type must not carry literal model ids.
-		let model = getBuiltinModel("openai", "gpt-4o-mini");
-		model = getBuiltinModel("openai", "gpt-4o");
-		let compat = getCompatModel("openai", "gpt-4o-mini");
-		compat = getCompatModel("openai", "gpt-4o");
+		let model = getBuiltinModel("github-copilot", "kimi-k3");
+		model = getBuiltinModel("github-copilot", "gemini-3.8-flash");
+		let compat = getCompatModel("github-copilot", "kimi-k3");
+		compat = getCompatModel("github-copilot", "gemini-3.8-flash");
 
-		expect(model.id).toBe("gpt-4o");
-		expect(compat.id).toBe("gpt-4o");
+		expect(model.id).toBe("gemini-3.8-flash");
+		expect(compat.id).toBe("gemini-3.8-flash");
 	});
 });
 
@@ -107,9 +89,9 @@ describe("stored and fetched models of unknown types", () => {
 		const stored = {
 			models: [
 				chatModel("dyn", "stored-chat"),
-				imageModel("dyn", "stored-image"),
+				{ ...chatModel("dyn", "stored-typed"), type: "chat" },
 				{ ...chatModel("dyn", "future-embedding"), type: "embedding" },
-				{ ...imageModel("dyn", "future-video"), type: "video" },
+				{ ...chatModel("dyn", "future-video"), type: "video" },
 			],
 		} as unknown as ModelsStoreEntry;
 		await modelsStore.write("dyn", stored);
@@ -128,9 +110,9 @@ describe("stored and fetched models of unknown types", () => {
 
 		const restored = await models.refresh({ providers: ["dyn"], allowNetwork: false });
 		expect(restored.errors.size).toBe(0);
-		expect(models.getAllModels("dyn").map((model) => model.id)).toEqual(["stored-chat", "stored-image"]);
+		expect(models.getAllModels("dyn").map((model) => model.id)).toEqual(["stored-chat", "stored-typed"]);
 
-		fetched = [chatModel("dyn", "fetched-chat"), { ...imageModel("dyn", "fetched-video"), type: "video" }];
+		fetched = [chatModel("dyn", "fetched-chat"), { ...chatModel("dyn", "fetched-video"), type: "video" }];
 		const refreshed = await models.refresh({ providers: ["dyn"] });
 		expect(refreshed.errors.size).toBe(0);
 		expect(models.getAllModels("dyn").map((model) => model.id)).toEqual(["fetched-chat"]);
