@@ -63,13 +63,13 @@ From the working folder you want Pi to access, run:
 
 ```bash
 docker run --rm -it \
-  -e ANTHROPIC_API_KEY \
+  -e COPILOT_GITHUB_TOKEN \
   -v "$PWD:/workspace" \
   -v pi-agent-home:/root/.pi/agent \
   pi-sandbox
 ```
 
-Replace `ANTHROPIC_API_KEY` with the credential required by your provider. The named `pi-agent-home` volume keeps container-local settings, credentials, and sessions between runs.
+Pass whichever credential Pi needs in the container. The named `pi-agent-home` volume keeps container-local settings, credentials, and sessions between runs.
 
 Do not mount the host's `~/.pi/agent` unless the container should have access to your host Pi configuration and credentials.
 
@@ -87,24 +87,7 @@ The command should report `/workspace`. Changes under `/workspace` write through
 
 [Docker Sandboxes](https://docs.docker.com/ai/sandboxes/) runs the complete Pi process inside a managed sandbox. Its proxy can keep the real provider credential on the host and substitute it when requests leave the sandbox.
 
-Configure credentials before creating the sandbox. Do not run `/login` inside the sandbox because that writes a real credential into it.
-
-### Use a Claude Pro or Max token
-
-Generate the token with `claude setup-token` on a machine with Claude Code. If an `anthropic` secret is already configured, remove it first so the proxy does not add an API-key header alongside the bearer token:
-
-```bash
-sbx secret rm anthropic
-
-sbx secret set-custom \
-  --host api.anthropic.com \
-  --env ANTHROPIC_OAUTH_TOKEN \
-  --placeholder 'sk-ant-oat01-{rand}'
-```
-
-`sbx secret set-custom` reads the real token from standard input. The sandbox receives an OAuth-shaped placeholder, which the proxy replaces only for requests to the configured host.
-
-For an Anthropic API key, use `sbx secret set anthropic` instead.
+Configure the credentials the proxy should substitute before creating the sandbox. Do not run `/login` inside the sandbox because that writes a real credential into it.
 
 ### Start Pi
 

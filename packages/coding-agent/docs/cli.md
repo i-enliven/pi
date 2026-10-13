@@ -270,7 +270,7 @@ The update remote is the `fork` remote, or `PI_UPDATE_REMOTE` if set, falling ba
 ## Credential commands
 
 ```sh
-pi auth check --provider openai --json
+pi auth check --provider github-copilot --json
 ```
 
 Authentication commands require `--provider <provider>` or `--model <model>`. See [Providers](providers.md) for supported methods.

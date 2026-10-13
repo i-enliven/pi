@@ -24,11 +24,11 @@ npm install --ignore-scripts /path/to/pi/packages/agent
 ```typescript
 import { Agent } from "@i-enliven/pi-agent-core";
 import { createModels } from "@i-enliven/pi-ai";
-import { anthropicProvider } from "@i-enliven/pi-ai/providers/anthropic";
+import { githubCopilotProvider } from "@i-enliven/pi-ai/providers/github-copilot";
 
 const models = createModels();
-models.setProvider(anthropicProvider());
-const model = models.getModel("anthropic", "claude-sonnet-4-6");
+models.setProvider(githubCopilotProvider());
+const model = models.getModel("github-copilot", "claude-sonnet-5");
 if (!model) throw new Error("Model not found");
 
 const agent = new Agent({
@@ -345,7 +345,7 @@ await agent.continue();
 ### State Management
 
 ```typescript
-agent.state.model = getModel("openai", "gpt-4o");
+agent.state.model = models.getModel("github-copilot", "gpt-5.5")!;
 agent.state.thinkingLevel = "medium";
 agent.state.tools = [myTool];
 agent.toolExecution = "sequential";
@@ -548,7 +548,7 @@ const context: AgentContext = {
 };
 
 const config: AgentLoopConfig = {
-  model: getModel("openai", "gpt-4o"),
+  model: models.getModel("github-copilot", "gpt-5.5")!,
   convertToLlm: (msgs) => msgs.filter(m => ["user", "assistant", "toolResult"].includes(m.role)),
   toolExecution: "parallel",  // overridden by per-tool executionMode if set
   beforeToolCall: async ({ toolCall, args, context }) => undefined,

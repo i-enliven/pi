@@ -1,15 +1,14 @@
 # Choose a Model
 
-For a built-in provider, start with `/login`, then choose a model with `/model`. Use custom model configuration only when Pi does not already include the provider or endpoint you need.
+Pi ships one built-in provider, GitHub Copilot: sign in, then choose a model with `/model`. Use custom model configuration only when Pi does not already include the endpoint you need.
 
 ## Choose a connection
 
 | What you have | Recommended setup |
 |---|---|
-| A supported subscription | Sign in through `/login` |
-| A provider API key | Store it through `/login` or set its environment variable |
-| A local GGUF model | Connect Pi to the llama.cpp router |
-| An OpenAI-, Anthropic-, or Google-compatible endpoint | Add it to `models.json` |
+| A GitHub Copilot subscription | Sign in through `/login` |
+| A GitHub Copilot API token | Set `COPILOT_GITHUB_TOKEN` or store it through `/login` |
+| An OpenAI- or Anthropic-compatible endpoint, local or hosted | Add it to `models.json` |
 | A provider with a custom protocol or authentication flow | Build or install a provider extension |
 
 This fork ships a bundled model catalog, generated at build time from the checked-in model data. On refresh (model search, `pi update --models`), Pi overlays newer data from the catalog file committed to the fork repository (`nix/model-catalog/models.all.json` on GitHub). The overlay is cached in `~/.pi/agent/models-store.json` and stays available offline. Set `PI_MODEL_CATALOG_URL` to serve the catalog from another location, or `PI_OFFLINE` to disable the overlay and use only the bundled catalog.
@@ -20,7 +19,7 @@ Run `/login` and select a provider. Pi stores credentials in [`auth.json`](confi
 
 You can instead provide an API key through the provider's environment variable. This is useful in CI and other environments where Pi should not write credentials. [Providers](providers.md) lists the variables and provider-specific setup.
 
-When several credential sources are configured, Pi uses a runtime `--api-key` first, then a stored `auth.json` credential, an `apiKey` from `models.json`, and finally the provider's environment variables or ambient cloud credentials. Provider extensions can define their own authentication behavior.
+When several credential sources are configured, Pi uses a runtime `--api-key` first, then a stored `auth.json` credential, an `apiKey` from `models.json`, and finally the provider's environment variables. Provider extensions can define their own authentication behavior.
 
 Keep `auth.json` and any credential commands private. Project settings and extensions can execute inside the Pi process after you trust a project. Review [Security](security.md) before loading configuration from an untrusted directory.
 
@@ -34,34 +33,28 @@ Run `/thinking` to select the thinking level for the current model. Press `Ctrl+
 
 A session records model and thinking-level changes. Resuming the session restores them without changing defaults for new sessions.
 
-## Connect local models
-
-Pi integrates directly with the llama.cpp router. The router discovers GGUF files and loads models on demand. Pi's `/llama` command manages the router, while `/model` selects one of its loaded models.
-
-Follow [Local Models with llama.cpp](llama-cpp.md) for server startup, model layout, downloads, and connection troubleshooting.
-
-For Ollama, LM Studio, vLLM, SGLang, and other compatible servers, [configure a compatible endpoint](#configure-a-compatible-endpoint) in `models.json`.
-
 ## Configure a compatible endpoint
 
-Use [`models.json`](configuration.md#agent-directory) when an endpoint speaks an API Pi already supports. This includes most Ollama, LM Studio, vLLM, SGLang, and proxy deployments.
+Use [`models.json`](configuration.md#agent-directory) when an endpoint speaks one of the three protocols Pi implements. This covers hosted APIs, gateways, and local servers such as Ollama, LM Studio, vLLM, and SGLang.
 
 ```json
 {
   "providers": {
-    "ollama": {
+    "local-server": {
       "baseUrl": "http://localhost:11434/v1",
       "api": "openai-completions",
-      "apiKey": "ollama",
+      "apiKey": "local",
       "models": [
-        { "id": "qwen2.5-coder:7b" }
+        { "id": "my-coder:7b" }
       ]
     }
   }
 }
 ```
 
-The dummy key makes the model available to Pi; Ollama ignores it. For an authenticated endpoint, `apiKey` and header values can use `$NAME` or `${NAME}` environment interpolation, a literal value, or a leading `!command`. Commands in `models.json` run at request time and are not cached by Pi.
+The dummy key makes the model available to Pi; a keyless server ignores it. For an authenticated endpoint, `apiKey` and header values can use `$NAME` or `${NAME}` environment interpolation, a literal value, or a leading `!command`. Commands in `models.json` run at request time and are not cached by Pi.
+
+`api` is one of `anthropic-messages`, `openai-completions`, or `openai-responses`, at the provider or per model. Any other value is a schema error and Pi rejects the whole file.
 
 Opening `/model` reloads the file. A `models` entry adds or replaces a model with the same ID on that provider. Use `modelOverrides` to change metadata for an existing built-in or extension-provided model without replacing the provider's model list. Unknown override IDs are ignored.
 
@@ -104,7 +97,7 @@ OpenAI-compatible APIs support free-form `samplingParams` model defaults and `sa
 
 ```json
 {
-  "id": "qwen-thinking-model",
+  "id": "local-thinking-model",
   "reasoning": true,
   "samplingParams": {
     "temperature": 1.0,
@@ -122,71 +115,9 @@ OpenAI-compatible APIs support free-form `samplingParams` model defaults and `sa
 }
 ```
 
-Pi first clamps unsupported thinking levels, then merges model `samplingParams`, the effective level's override, and request-level `samplingParams` in that order. Later values win per key. Missing levels inherit the model defaults. `modelOverrides` merges per-level entries per key with the base model. These fields apply only to `openai-completions`, `openai-responses`, and `azure-openai-responses`; other APIs ignore them.
+Pi first clamps unsupported thinking levels, then merges model `samplingParams`, the effective level's override, and request-level `samplingParams` in that order. Later values win per key. Missing levels inherit the model defaults. `modelOverrides` merges per-level entries per key with the base model. These fields apply only to `openai-completions` and `openai-responses`; `anthropic-messages` ignores them.
 
 Compatibility settings should describe verified differences in the endpoint's request or response behavior. Do not enable them based only on an endpoint advertising OpenAI or Anthropic compatibility.
-
-## Use classifier models
-
-Classifier models do not chat. They answer typed questions about JSON state: pick one of several choices, answer yes or no, or give a score, each with probabilities. Pi includes TypeSafe's Jev model from these providers, Cloudflare's Clef and Clef Flash models from Workers AI, and OpenAI's GPT-6 Luna through the [Decisions API](https://developers.openai.com/api/docs/guides/decisions):
-
-| Provider | Model IDs | Authentication |
-|---|---|---|
-| `typesafe` | `jev-latest` | `TYPESAFE_API_KEY` |
-| `openrouter` | `typesafe/jev-1.13`, `~typesafe/jev-latest` | `OPENROUTER_API_KEY` or `/login` |
-| `cloudflare-workers-ai` | `typesafe/jev`, `@cf/cloudflare/clef`, `@cf/cloudflare/clef-flash` | `CLOUDFLARE_API_KEY` and `CLOUDFLARE_ACCOUNT_ID` |
-| `vercel-ai-gateway` | `typesafe-ai/jev` | `AI_GATEWAY_API_KEY` |
-| `opencode` | `jev-1.13`, `jev-1.13-free` | `OPENCODE_API_KEY` |
-| `openai` | `gpt-6-luna` | `OPENAI_API_KEY` |
-
-Chat models on a [llama.cpp router](llama-cpp.md#classification) are also listed as classifier models.
-
-OpenAI's Decisions API needs an API key. Sign in with ChatGPT credentials do not work with it, so `gpt-6-luna` is not listed as available while `openai` is logged in through `/login`, even when `OPENAI_API_KEY` is set; log out of `openai` to use the key. GPT-6 Luna also judges images passed in `images`; other classifier models return an error for them. The API rejects inputs above 922K tokens, but requests that run longer than about five seconds, currently above roughly 600K input tokens, fail with a gateway timeout.
-
-Classifier models do not appear in `/model` and are not declared to the model. Extensions list them with `ctx.modelRegistry.getAvailableOfType("classifier")` and call `ctx.modelRegistry.classify(model, { state, questions })`, which answers typed `choice`, `bool`, and `score` questions about JSON state:
-
-```typescript
-const [jev] = await ctx.modelRegistry.getAvailableOfType("classifier", "typesafe");
-if (jev) {
-  const result = await ctx.modelRegistry.classify(jev, {
-    state: { message: "The change works, thanks." },
-    questions: {
-      approved: {
-        type: "bool",
-        instructions: "Does the user approve of the result?",
-        criteria: { true: "Approval", false: "No approval" },
-      },
-    },
-  });
-  // result.answers.approved
-}
-```
-
-When the service reports token counts, as all System One services do, `result.usage` carries them with their cost. The cost uses the model's catalog price; models without one, such as TypeSafe's direct `jev-latest`, report tokens at no cost.
-
-[Virtual models](virtual-models.md#route-requests) can use classifiers to route requests; see the `jev-router.ts` example.
-
-## Use image models
-
-Image models generate images from a prompt and optional input images. Pi lists OpenRouter's image models, such as `google/gemini-2.5-flash-image` and `black-forest-labs/flux.2-pro`, under the `openrouter` provider; they use the same `OPENROUTER_API_KEY` or `/login` credential as its chat models.
-
-Like classifier models, image models do not appear in `/model` and are not declared to the model. Extensions list them with `ctx.modelRegistry.getAvailableOfType("image")` and generate through `ctx.modelRegistry.generateImages(model, { input })`. The result's `output` holds base64 image blocks:
-
-```typescript
-const painter = ctx.modelRegistry
-  .getModelsOfType("image", "openrouter")
-  .find((model) => model.id.includes("gemini-2.5-flash-image"));
-if (painter) {
-  const result = await ctx.modelRegistry.generateImages(painter, {
-    input: [{ type: "text", text: "A red fox in the snow, watercolor" }],
-  });
-  if (result.stopReason === "stop") {
-    for (const block of result.output) if (block.type === "image") void block.data;
-  }
-}
-```
-
-`input` can also contain `{ type: "image", data, mimeType }` blocks to edit or use as references. Generated images are not saved to disk.
 
 ## Add a custom provider
 
@@ -196,11 +127,11 @@ Use an extension when the provider needs custom streaming, model discovery, or a
 
 ### A model does not appear
 
-Confirm that its provider has usable authentication. Custom models can load from `models.json` but remain unavailable in `/model` until Pi can resolve credentials. For llama.cpp, only models currently loaded by the router appear.
+Confirm that its provider has usable authentication. Custom models can load from `models.json` but remain unavailable in `/model` until Pi can resolve credentials.
 
 ### Authentication works in one shell only
 
-Check whether the key came from an environment variable rather than `auth.json`. Environment variables must be present in the process that starts Pi.
+Check whether the key came from an environment variable rather than `auth.json`. Environment variables must be present in the process that starts Pi. A stored credential takes priority over the environment, so clear it with `/logout` to switch back.
 
 ### Sign-in opens a browser on a remote machine
 

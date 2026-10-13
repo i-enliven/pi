@@ -55,7 +55,7 @@ Telemetry describes what a program did while it was running. This package models
 |---|---|
 | **Span** | A timed record of one operation, such as loading an account or making an AI request. It begins before the work and ends when the work finishes. |
 | **Parent and child spans** | Operations can contain smaller operations. A request span might contain a cache lookup and a database query. Together they form a tree showing where time was spent. |
-| **Attribute** | A named fact attached to a span, such as `provider: "openai"`, `cache.hit: true`, or `item_count: 12`. Attributes describe the operation and its result. |
+| **Attribute** | A named fact attached to a span, such as `provider: "github-copilot"`, `cache.hit: true`, or `item_count: 12`. Attributes describe the operation and its result. |
 | **Event** | A named occurrence at a point during a span, such as `retry.scheduled` or `cache.lookup`. Events have no duration and may carry their own attributes. |
 | **Status** | The operation's outcome: `ok` or `error`. An error status may include an error name and message. |
 | **Context** | A handle identifying where new work belongs in the span tree. Starting a span from a context makes it a child of that context. |

@@ -55,7 +55,7 @@ In Pi, run:
 
 Choose a provider, then follow the prompts to use a subscription or store an API key. Run `/model` afterward if you want to select a different available model.
 
-See [Choose a model and provider](models.md) for supported providers, environment-variable authentication, local models, and custom endpoints.
+See [Choose a model and provider](models.md) for the built-in provider, environment-variable authentication, and custom endpoints.
 
 ## 4. Give Pi a task
 

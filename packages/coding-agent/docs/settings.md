@@ -155,12 +155,10 @@ Resource paths in user settings resolve from the agent directory. Paths in proje
 
 Resource arrays support glob exclusions with `!pattern`, exact inclusion with `+path`, and exact exclusion with `-path`. Pi loads resources listed in both user-level and project settings.
 
-The built-in extensions are named `builtin:mcp` and `builtin:llama.cpp` in `extensions`. They load by default; `-builtin:mcp` disables one. A `+builtin:<name>` or `-builtin:<name>` entry in project settings overrides the user setting. `pi config` lists them under Built-in. `--no-extensions` disables them too, and `-e builtin:<name>` loads one explicitly.
+The built-in extension is named `builtin:mcp` in `extensions`. It loads by default; `-builtin:mcp` disables it. A `+builtin:<name>` or `-builtin:<name>` entry in project settings overrides the user setting. `pi config` lists it under Built-in. `--no-extensions` disables it too, and `-e builtin:<name>` loads one explicitly.
 
-## Updates, telemetry, and warnings
+## Analytics
 
 | Setting | Type | Default | Description |
 |---|---|---|---|
-| `enableInstallTelemetry` | boolean | `true` | Enable anonymous install/update reporting and selected provider attribution headers. Does not control update checks. |
 | `enableAnalytics` | boolean | `false` | Opt in to analytics data sharing. Currently used only by the experimental first-run setup. |
-| `warnings.anthropicExtraUsage` | boolean | `true` | Warn when Anthropic subscription authentication may use paid extra usage. |

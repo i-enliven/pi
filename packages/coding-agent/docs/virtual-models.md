@@ -2,7 +2,7 @@
 
 A virtual model is a selectable model that picks a physical model for each request. Use one to route by task, cost, or conversation state. For example, a router can send quick questions to a small model and hard problems to a large one, while the user selects a single model.
 
-Register virtual models from an [extension](extensions.md). They appear in `/model`, `--model`, scoped models, and settings like any other model. A virtual model can be listed under any provider, including one with physical models, such as `openai-codex/auto`.
+Register virtual models from an [extension](extensions.md). They appear in `/model`, `--model`, scoped models, and settings like any other model. A virtual model can be listed under any provider, including one with physical models, such as `github-copilot/auto`.
 
 ## Selection and dispatch
 
@@ -10,7 +10,7 @@ A virtual model selects a model and a thinking level. A router maps that pair to
 
 ```
 selected (virtual model, virtual level)  ->  dispatched (physical model, physical level)
-jev/auto:low                             ->  anthropic/claude-sonnet-4-5:high
+router/auto:low                          ->  github-copilot/claude-sonnet-5:high
 ```
 
 The virtual thinking level is an input to the router. Its meaning is up to the router; it need not correspond to a reasoning budget.
@@ -24,7 +24,7 @@ Pi keeps the two pairs apart:
 
 Providers only receive physical models. Assistant messages name the physical model, so replaying a conversation across different physical models works the same as after a manual model switch. Resuming a session restores the virtual selection from its latest `model_change` entry. If the virtual model is no longer registered, Pi falls back to the physical model that answered last.
 
-In interactive mode, the footer shows the routed model next to the selection, for example `auto • high → gpt-5.6-luna • medium`. `/session` lists the cost for each physical model.
+In interactive mode, the footer shows the routed model next to the selection, for example `auto • high → gpt-5.5 • medium`. `/session` lists the cost for each physical model.
 
 Context usage uses the limits of the physical model that produced the latest response, even if that response came before switching to the virtual model. Without such a response, it uses the limits declared on the virtual model, if any. Compaction checks the same limits, and again the limits of the model each request is routed to. If that model's context window is too small for the conversation, Pi compacts before sending the request; the route stays as the router chose it.
 
@@ -45,8 +45,8 @@ export default function (pi: ExtensionAPI) {
       if (request.reason !== "user" && sticky) {
         return { model: sticky.model, thinkingLevel: sticky.thinkingLevel ?? "medium" };
       }
-      const id = request.thinkingLevel === "high" ? "claude-sonnet-4-5" : "claude-haiku-4-5";
-      return { model: ctx.modelRegistry.find("anthropic", id)!, thinkingLevel: "medium" };
+      const id = request.thinkingLevel === "high" ? "claude-sonnet-5" : "claude-haiku-4.5";
+      return { model: ctx.modelRegistry.find("github-copilot", id)!, thinkingLevel: "medium" };
     },
   });
 }
@@ -87,7 +87,7 @@ If `route()` throws, or returns a virtual model or a model without credentials, 
 
 ## Keep routing state
 
-`route()` can return `state` next to the model. Pi stores it on the session branch and passes it back as `request.state` on later requests. Use it for decisions the transcript does not record, such as classifier results or a routing phase:
+`route()` can return `state` next to the model. Pi stores it on the session branch and passes it back as `request.state` on later requests. Use it for decisions the transcript does not record, such as a routing phase:
 
 ```typescript
 pi.registerVirtualModel<{ phase: "plan" | "build" }>({
@@ -96,8 +96,8 @@ pi.registerVirtualModel<{ phase: "plan" | "build" }>({
   name: "Phased",
   route(request, ctx) {
     const state = request.state ?? { phase: "plan" };
-    const id = state.phase === "plan" ? "claude-opus-4-5" : "claude-haiku-4-5";
-    return { model: ctx.modelRegistry.find("anthropic", id)!, thinkingLevel: "medium", state };
+    const id = state.phase === "plan" ? "claude-opus-5" : "claude-haiku-4.5";
+    return { model: ctx.modelRegistry.find("github-copilot", id)!, thinkingLevel: "medium", state };
   },
 });
 ```
@@ -109,6 +109,4 @@ pi.registerVirtualModel<{ phase: "plan" | "build" }>({
 
 The transcript already records the selection and every dispatched model, and `ctx.sessionManager.getBranch()` exposes both.
 
-Routers can call other models through `ctx.modelRegistry`, for example `ctx.modelRegistry.classify()` with a classifier model from `ctx.modelRegistry.findOfType("classifier", provider, id)`. The call adds latency before the first token of the turn.
-
-See [`jev-router.ts`](../examples/extensions/jev-router.ts) for a complete router. It plans on a strong OpenAI Codex model chosen by the Jev classifier, lets that model make the first edit, and then switches once to a cheaper model, accepting a single prompt-cache miss. It keeps the phase as router state.
+Routers can call other models through `ctx.modelRegistry`, for example `ctx.modelRegistry.streamSimple()` with a model from `ctx.modelRegistry.findOfType("chat", provider, id)`. The call adds latency before the first token of the turn.
