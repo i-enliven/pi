@@ -74,7 +74,7 @@ export class FirstTimeSetupComponent extends Container {
 				new Text(
 					theme.fg(
 						"muted",
-						"Opting in stores a tracking identifier in settings.json and enables anonymous\nusage analytics. This helps us to better debug, reproduce, and resolve issues\nand bugs within Pi. You can observe what is shared using /privacy and make\nchanges anytime in settings.json.",
+						"Opting in records your consent and a tracking identifier in settings.json. Pi does\nnot send usage analytics today, so this setting only records your choice. Change it\nanytime in settings.json.",
 					),
 					1,
 					0,
